@@ -7,6 +7,11 @@ const state = {
   sidebarOpen: true,
   theme: localStorage.getItem("ui-compare-theme") || "dark",
   annotations: [],
+  analysis: {
+    score: null,
+    headline: "Run Auto Analyze to generate summary insights.",
+    highlights: ["Auto analysis calls out missing elements and major visual differences."],
+  },
   design: { img: null, name: "" },
   development: { img: null, name: "" },
 };
@@ -37,6 +42,9 @@ const dom = {
   annotationSidebar: document.getElementById("annotationSidebar"),
   annotationList: document.getElementById("annotationList"),
   annotationCount: document.getElementById("annotationCount"),
+  summaryScore: document.getElementById("summaryScore"),
+  summaryHeadline: document.getElementById("summaryHeadline"),
+  summaryHighlights: document.getElementById("summaryHighlights"),
   statusText: document.getElementById("statusText"),
   designInput: document.getElementById("designInput"),
   devInput: document.getElementById("devInput"),
@@ -55,6 +63,64 @@ function clamp(value, min, max) {
 
 function hasBothImages() {
   return Boolean(state.design.img && state.development.img);
+}
+
+const NAMED_COLORS = [
+  { name: "Black", rgb: [20, 20, 20] },
+  { name: "White", rgb: [245, 245, 245] },
+  { name: "Gray", rgb: [128, 128, 128] },
+  { name: "Red", rgb: [220, 40, 45] },
+  { name: "Orange", rgb: [240, 130, 35] },
+  { name: "Yellow", rgb: [240, 210, 60] },
+  { name: "Green", rgb: [45, 165, 70] },
+  { name: "Teal", rgb: [20, 160, 160] },
+  { name: "Cyan", rgb: [30, 200, 220] },
+  { name: "Blue", rgb: [40, 105, 225] },
+  { name: "Purple", rgb: [130, 70, 210] },
+  { name: "Pink", rgb: [235, 90, 150] },
+  { name: "Brown", rgb: [125, 90, 55] },
+];
+
+function rgbDistance(a, b) {
+  return Math.hypot(a.r - b.r, a.g - b.g, a.b - b.b);
+}
+
+function rgbToColorName(rgb) {
+  let best = NAMED_COLORS[0];
+  let bestDistance = Number.POSITIVE_INFINITY;
+  for (const color of NAMED_COLORS) {
+    const distance = Math.hypot(rgb.r - color.rgb[0], rgb.g - color.rgb[1], rgb.b - color.rgb[2]);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      best = color;
+    }
+  }
+  return best.name;
+}
+
+function describeRegion(x, y) {
+  if (y < 0.18) {
+    return "header area";
+  }
+  if (y > 0.82) {
+    return "footer area";
+  }
+  if (x < 0.33) {
+    return "left section";
+  }
+  if (x > 0.67) {
+    return "right section";
+  }
+  return "center section";
+}
+
+function escapeHtml(text) {
+  return text
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 }
 
 function setTheme(theme) {
@@ -95,6 +161,12 @@ async function applyImage(file, type) {
     } else {
       state.development = { img, name: file.name };
     }
+    state.annotations = [];
+    state.analysis = {
+      score: null,
+      headline: "Run Auto Analyze to generate summary insights.",
+      highlights: ["Auto analysis calls out missing elements and major visual differences."],
+    };
     render();
   } catch (error) {
     window.alert("Unable to load image file.");
@@ -171,7 +243,12 @@ function drawDiff() {
 
 function analyzeDifferenceHotspots() {
   if (!hasBothImages()) {
-    return [];
+    return {
+      hotspots: [],
+      score: null,
+      headline: "Upload both images to run analysis.",
+      highlights: ["Auto analysis compares structure and major color mismatches."],
+    };
   }
 
   const naturalWidth = Math.max(state.design.img.naturalWidth, state.development.img.naturalWidth);
@@ -193,12 +270,15 @@ function analyzeDifferenceHotspots() {
   const imageA = sourceA.getContext("2d").getImageData(0, 0, analysisWidth, analysisHeight);
   const imageB = sourceB.getContext("2d").getImageData(0, 0, analysisWidth, analysisHeight);
 
-  const cols = clamp(Math.round(analysisWidth / 140), 4, 10);
-  const rows = clamp(Math.round(analysisHeight / 140), 4, 10);
+  const cols = clamp(Math.round(analysisWidth / 130), 4, 10);
+  const rows = clamp(Math.round(analysisHeight / 130), 4, 10);
   const cellWidth = analysisWidth / cols;
   const cellHeight = analysisHeight / rows;
   const changedPixelThreshold = 20;
   const hotspots = [];
+  let globalDiffSum = 0;
+  let globalChangedPixels = 0;
+  let globalPixels = 0;
 
   for (let row = 0; row < rows; row += 1) {
     const startY = Math.floor(row * cellHeight);
@@ -209,14 +289,44 @@ function analyzeDifferenceHotspots() {
       let sumScore = 0;
       let changedPixels = 0;
       let pixels = 0;
+      let sumAR = 0;
+      let sumAG = 0;
+      let sumAB = 0;
+      let sumBR = 0;
+      let sumBG = 0;
+      let sumBB = 0;
+      let sumGrayA = 0;
+      let sumGrayASq = 0;
+      let sumGrayB = 0;
+      let sumGrayBSq = 0;
 
       for (let y = startY; y < endY; y += 1) {
         for (let x = startX; x < endX; x += 1) {
           const idx = (y * analysisWidth + x) * 4;
-          const rDiff = Math.abs(imageA.data[idx] - imageB.data[idx]);
-          const gDiff = Math.abs(imageA.data[idx + 1] - imageB.data[idx + 1]);
-          const bDiff = Math.abs(imageA.data[idx + 2] - imageB.data[idx + 2]);
+          const aR = imageA.data[idx];
+          const aG = imageA.data[idx + 1];
+          const aB = imageA.data[idx + 2];
+          const bR = imageB.data[idx];
+          const bG = imageB.data[idx + 1];
+          const bB = imageB.data[idx + 2];
+          const rDiff = Math.abs(aR - bR);
+          const gDiff = Math.abs(aG - bG);
+          const bDiff = Math.abs(aB - bB);
           const score = (rDiff + gDiff + bDiff) / 3;
+
+          sumAR += aR;
+          sumAG += aG;
+          sumAB += aB;
+          sumBR += bR;
+          sumBG += bG;
+          sumBB += bB;
+          const grayA = 0.299 * aR + 0.587 * aG + 0.114 * aB;
+          const grayB = 0.299 * bR + 0.587 * bG + 0.114 * bB;
+          sumGrayA += grayA;
+          sumGrayASq += grayA * grayA;
+          sumGrayB += grayB;
+          sumGrayBSq += grayB * grayB;
+
           sumScore += score;
           if (score > changedPixelThreshold) {
             changedPixels += 1;
@@ -227,13 +337,48 @@ function analyzeDifferenceHotspots() {
 
       const averageDiff = pixels > 0 ? sumScore / pixels : 0;
       const changedCoverage = pixels > 0 ? changedPixels / pixels : 0;
-      const weightedScore = averageDiff * (0.55 + changedCoverage);
+      const meanA = {
+        r: sumAR / Math.max(1, pixels),
+        g: sumAG / Math.max(1, pixels),
+        b: sumAB / Math.max(1, pixels),
+      };
+      const meanB = {
+        r: sumBR / Math.max(1, pixels),
+        g: sumBG / Math.max(1, pixels),
+        b: sumBB / Math.max(1, pixels),
+      };
+      const meanGrayA = sumGrayA / Math.max(1, pixels);
+      const meanGrayB = sumGrayB / Math.max(1, pixels);
+      const stdA = Math.sqrt(Math.max(0, sumGrayASq / Math.max(1, pixels) - meanGrayA * meanGrayA));
+      const stdB = Math.sqrt(Math.max(0, sumGrayBSq / Math.max(1, pixels) - meanGrayB * meanGrayB));
+      const colorDiff = rgbDistance(meanA, meanB);
+      const colorSignificant = colorDiff > 48 && changedCoverage > 0.06 && averageDiff > 16;
+      const missingInDevelopment = changedCoverage > 0.14 && stdA > stdB * 1.6 && stdB < 24;
+      const missingInDesign = changedCoverage > 0.14 && stdB > stdA * 1.6 && stdA < 24;
+      const weightedScore =
+        averageDiff * (0.5 + changedCoverage * 1.5) +
+        (colorSignificant ? 10 : 0) +
+        (missingInDevelopment || missingInDesign ? 18 : 0);
 
-      if (averageDiff > 14 && changedCoverage > 0.04) {
+      globalDiffSum += sumScore;
+      globalChangedPixels += changedPixels;
+      globalPixels += pixels;
+
+      if (averageDiff > 12 && changedCoverage > 0.035) {
         hotspots.push({
           x: (startX + endX) / 2 / analysisWidth,
           y: (startY + endY) / 2 / analysisHeight,
           score: weightedScore,
+          averageDiff,
+          changedCoverage,
+          meanA,
+          meanB,
+          colorNameA: rgbToColorName(meanA),
+          colorNameB: rgbToColorName(meanB),
+          colorSignificant,
+          missingInDevelopment,
+          missingInDesign,
+          location: describeRegion((startX + endX) / 2 / analysisWidth, (startY + endY) / 2 / analysisHeight),
         });
       }
     }
@@ -242,7 +387,7 @@ function analyzeDifferenceHotspots() {
   hotspots.sort((a, b) => b.score - a.score);
   const selected = [];
   const minDistance = 0.17;
-  const maxHotspots = 4;
+  const maxHotspots = 5;
 
   for (const candidate of hotspots) {
     const tooClose = selected.some(
@@ -256,7 +401,42 @@ function analyzeDifferenceHotspots() {
     }
   }
 
-  return selected;
+  const globalAverageDiff = globalPixels > 0 ? globalDiffSum / globalPixels : 0;
+  const globalChangedCoverage = globalPixels > 0 ? globalChangedPixels / globalPixels : 0;
+  const score = clamp(
+    Math.round(100 - globalChangedCoverage * 75 - (globalAverageDiff / 255) * 45 - selected.length * 2.5),
+    0,
+    100,
+  );
+  const missingInDevelopmentCount = selected.filter((item) => item.missingInDevelopment).length;
+  const missingInDesignCount = selected.filter((item) => item.missingInDesign).length;
+  const colorMismatchCount = selected.filter((item) => item.colorSignificant).length;
+  const headline =
+    score >= 90
+      ? "Excellent UI match. Only small visual differences detected."
+      : score >= 78
+        ? "Good UI match with a few noticeable differences."
+        : score >= 60
+          ? "Partial UI match. Several visual inconsistencies need attention."
+          : "Low UI match. Multiple high-impact differences were found.";
+  const highlights = [];
+  if (selected.length === 0) {
+    highlights.push("No major mismatch hotspots were detected.");
+  } else {
+    highlights.push(`Detected ${selected.length} high-impact mismatch region(s).`);
+  }
+  if (missingInDevelopmentCount > 0) {
+    highlights.push(`Potential missing elements in Development: ${missingInDevelopmentCount}.`);
+  }
+  if (missingInDesignCount > 0) {
+    highlights.push(`Potential extra elements in Development not present in Design: ${missingInDesignCount}.`);
+  }
+  if (colorMismatchCount > 0) {
+    highlights.push(`Major color mismatches called out with color names: ${colorMismatchCount}.`);
+  }
+  highlights.push("Minor color variance from screenshot/display resolution was ignored.");
+
+  return { hotspots: selected, score, headline, highlights };
 }
 
 function buildAutoAnnotations(hotspots) {
@@ -265,7 +445,8 @@ function buildAutoAnnotations(hotspots) {
       {
         id: crypto.randomUUID(),
         mode: "auto",
-        text: "No major visual mismatches detected.",
+        source: "auto",
+        text: "No major visual mismatches detected after ignoring minor color variance.",
         x: 0.5,
         y: 0.5,
       },
@@ -274,8 +455,18 @@ function buildAutoAnnotations(hotspots) {
 
   const annotations = [];
   hotspots.forEach((hotspot) => {
-    const severity =
-      hotspot.score > 60 ? "Large visual mismatch" : hotspot.score > 40 ? "Moderate mismatch" : "Minor mismatch";
+    const detailPrefix = hotspot.missingInDevelopment
+      ? `Possible missing element in Development at the ${hotspot.location}.`
+      : hotspot.missingInDesign
+        ? `Possible extra element in Development at the ${hotspot.location}.`
+        : `Element mismatch in the ${hotspot.location}.`;
+    const colorDetails = hotspot.colorSignificant
+      ? ` Color differs clearly: Design is ${hotspot.colorNameA} vs Development ${hotspot.colorNameB}.`
+      : "";
+    const message =
+      detailPrefix +
+      colorDetails +
+      " This ignores minor color shifts likely caused by screenshot/display differences.";
 
     if (state.mode === "side") {
       const y = 0.08 + hotspot.y * 0.84;
@@ -284,14 +475,16 @@ function buildAutoAnnotations(hotspots) {
       annotations.push({
         id: crypto.randomUUID(),
         mode: "auto",
-        text: `${severity} around this region on the design screen.`,
+        source: "auto",
+        text: `Design panel: ${message}`,
         x: leftX,
         y,
       });
       annotations.push({
         id: crypto.randomUUID(),
         mode: "auto",
-        text: `${severity} around this region on the development screen.`,
+        source: "auto",
+        text: `Development panel: ${message}`,
         x: rightX,
         y,
       });
@@ -301,7 +494,8 @@ function buildAutoAnnotations(hotspots) {
     annotations.push({
       id: crypto.randomUUID(),
       mode: "auto",
-      text: `${severity} detected between design and development.`,
+      source: "auto",
+      text: message,
       x: 0.08 + hotspot.x * 0.84,
       y: 0.08 + hotspot.y * 0.84,
     });
@@ -321,8 +515,13 @@ async function runAutoAnalyze() {
     renderControls();
     await new Promise((resolve) => window.requestAnimationFrame(resolve));
 
-    const hotspots = analyzeDifferenceHotspots();
-    state.annotations = buildAutoAnnotations(hotspots);
+    const analysisResult = analyzeDifferenceHotspots();
+    state.annotations = buildAutoAnnotations(analysisResult.hotspots);
+    state.analysis = {
+      score: analysisResult.score,
+      headline: analysisResult.headline,
+      highlights: analysisResult.highlights,
+    };
     state.sidebarOpen = true;
     render();
   } finally {
@@ -398,15 +597,18 @@ function renderAnnotations() {
 
   dom.annotationList.innerHTML = state.annotations
     .map(
-      (item, index) => `
+      (item, index) => {
+        const typeLabel = item.source === "auto" ? "auto-analyze" : item.mode;
+        return `
       <article class="annotation-item">
         <header>
-          <span>#${index + 1} • ${item.mode}</span>
+          <span>#${index + 1} • ${escapeHtml(typeLabel)}</span>
           <button class="annotation-delete" data-id="${item.id}" type="button">✕</button>
         </header>
-        <p>${item.text}</p>
+        <p>${escapeHtml(item.text)}</p>
       </article>
-    `,
+    `;
+      },
     )
     .join("");
 
@@ -415,6 +617,14 @@ function renderAnnotations() {
       (item, index) =>
         `<span class="annotation-dot" style="left:${item.x * 100}%;top:${item.y * 100}%;">${index + 1}</span>`,
     )
+    .join("");
+}
+
+function renderSummary() {
+  dom.summaryScore.textContent = state.analysis.score === null ? "--" : `${state.analysis.score}/100`;
+  dom.summaryHeadline.textContent = state.analysis.headline;
+  dom.summaryHighlights.innerHTML = state.analysis.highlights
+    .map((item) => `<li>${escapeHtml(item)}</li>`)
     .join("");
 }
 
@@ -437,6 +647,7 @@ function render() {
   renderControls();
   renderViews();
   renderAnnotations();
+  renderSummary();
 }
 
 function handleCompareClick(event) {
@@ -458,6 +669,7 @@ function handleCompareClick(event) {
   state.annotations.push({
     id: crypto.randomUUID(),
     mode: state.mode,
+    source: "manual",
     text: note.trim(),
     x,
     y,

@@ -408,6 +408,46 @@ canvas {
   padding: 0.65rem;
 }
 
+.summary-card {
+  margin: 0.65rem;
+  padding: 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  background: var(--muted);
+}
+
+.summary-label {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.summary-score {
+  margin: 0.3rem 0 0.25rem;
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.summary-headline {
+  margin: 0.2rem 0 0;
+  font-size: 0.78rem;
+  color: var(--text);
+  line-height: 1.35;
+}
+
+.summary-highlights {
+  margin: 0.45rem 0 0;
+  padding-left: 1rem;
+  color: var(--text-soft);
+  font-size: 0.73rem;
+  line-height: 1.4;
+  display: grid;
+  gap: 0.2rem;
+}
+
 .empty-annotations {
   min-height: 100%;
   display: grid;
