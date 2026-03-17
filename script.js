@@ -374,7 +374,7 @@ dom.annotationList.addEventListener("click", (event) => {
   renderAnnotations();
 });
 
-dom.compareStage.addEventListener("dblclick", handleCompareClick);
+dom.compareStage.addEventListener("click", handleCompareClick);
 
 dom.openBtn.addEventListener("click", () => {
   if (!state.design.img) {
