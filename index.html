@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>UI Compare - Design vs Development</title>
+    <meta
+      name="description"
+      content="Compare designed UI mockups against developed UI with pixel-perfect precision."
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="top-header">
+        <div class="brand">
+          <span class="brand-icon">▦</span>
+          <h1>UI Compare</h1>
+        </div>
+        <button id="themeToggle" class="icon-btn" aria-label="Toggle theme">☼</button>
+      </header>
+
+      <section class="toolbar">
+        <div class="group">
+          <button class="mode-btn active" data-mode="side" type="button">Side by Side</button>
+          <button class="mode-btn" data-mode="slider" type="button">Slider</button>
+          <button class="mode-btn" data-mode="toggle" type="button">Toggle</button>
+          <button class="mode-btn" data-mode="diff" type="button">Pixel Diff</button>
+        </div>
+
+        <div class="separator" role="presentation"></div>
+
+        <div class="group zoom-group">
+          <button id="zoomOutBtn" class="icon-btn" type="button" aria-label="Zoom out">−</button>
+          <span id="zoomValue" class="zoom-value">100%</span>
+          <button id="zoomInBtn" class="icon-btn" type="button" aria-label="Zoom in">+</button>
+          <button id="zoomResetBtn" class="icon-btn" type="button" aria-label="Reset zoom">↺</button>
+        </div>
+
+        <div class="separator" role="presentation"></div>
+
+        <button class="pill-btn primary muted" type="button" disabled>Auto Analyze</button>
+
+        <div class="spacer"></div>
+
+        <div class="group">
+          <button id="annotationsToggle" class="icon-btn active" type="button" aria-label="Toggle annotations panel">
+            💬
+          </button>
+          <button id="openBtn" class="icon-btn" type="button" aria-label="Open images">📁</button>
+          <button class="icon-btn" type="button" disabled aria-label="Save">💾</button>
+          <button class="icon-btn" type="button" disabled aria-label="Share">🔗</button>
+        </div>
+      </section>
+
+      <div class="layout">
+        <main class="main">
+          <div id="emptyState" class="empty-state">
+            <label class="upload-card upload-design" id="designDrop">
+              <input id="designInput" type="file" accept="image/*" />
+              <div class="upload-content">
+                <div class="upload-icon">⇪</div>
+                <p class="upload-title">Design</p>
+                <p class="upload-subtitle">Drop image or click to upload</p>
+              </div>
+            </label>
+
+            <label class="upload-card upload-development" id="devDrop">
+              <input id="devInput" type="file" accept="image/*" />
+              <div class="upload-content">
+                <div class="upload-icon">⇪</div>
+                <p class="upload-title">Development</p>
+                <p class="upload-subtitle">Drop image or click to upload</p>
+              </div>
+            </label>
+          </div>
+
+          <section id="compareStage" class="compare-stage hidden">
+            <div id="sideView" class="view side-view">
+              <div class="panel">
+                <span class="panel-label">Design</span>
+                <canvas id="designCanvas"></canvas>
+              </div>
+              <div class="panel">
+                <span class="panel-label">Development</span>
+                <canvas id="devCanvas"></canvas>
+              </div>
+            </div>
+
+            <div id="sliderView" class="view hidden">
+              <div id="sliderContainer" class="overlay-container">
+                <canvas id="sliderBaseCanvas"></canvas>
+                <canvas id="sliderTopCanvas" class="overlay-canvas"></canvas>
+                <div id="sliderDivider" class="slider-divider"></div>
+                <input id="sliderInput" type="range" min="0" max="100" value="50" aria-label="Comparison slider" />
+              </div>
+            </div>
+
+            <div id="toggleView" class="view hidden">
+              <div class="overlay-container">
+                <canvas id="toggleCanvas"></canvas>
+              </div>
+            </div>
+
+            <div id="diffView" class="view hidden">
+              <div class="overlay-container">
+                <canvas id="diffCanvas"></canvas>
+              </div>
+            </div>
+
+            <button id="toggleSwapBtn" class="pill-btn hidden" type="button">Show Development</button>
+            <div id="annotationLayer"></div>
+          </section>
+        </main>
+
+        <aside id="annotationSidebar" class="sidebar">
+          <div class="sidebar-header">
+            <h2>Annotations</h2>
+            <button id="collapseSidebarBtn" class="icon-btn" type="button" aria-label="Collapse panel">⟩</button>
+          </div>
+          <div id="annotationList" class="annotation-list">
+            <div class="empty-annotations">
+              <p>No annotations yet</p>
+              <p class="hint">Click on the comparison to add notes</p>
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      <footer class="statusbar">
+        <span id="statusText"></span>
+        <span id="annotationCount">0 annotations</span>
+      </footer>
+    </div>
+
+    <script src="./script.js"></script>
+  </body>
+</html>
