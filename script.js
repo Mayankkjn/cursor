@@ -3,6 +3,7 @@ const state = {
   zoom: 1,
   slider: 50,
   showDesign: true,
+  autoAnalyzing: false,
   sidebarOpen: true,
   theme: localStorage.getItem("ui-compare-theme") || "dark",
   annotations: [],
@@ -18,6 +19,7 @@ const dom = {
   zoomInBtn: document.getElementById("zoomInBtn"),
   zoomOutBtn: document.getElementById("zoomOutBtn"),
   zoomResetBtn: document.getElementById("zoomResetBtn"),
+  autoAnalyzeBtn: document.getElementById("autoAnalyzeBtn"),
   annotationsToggle: document.getElementById("annotationsToggle"),
   collapseSidebarBtn: document.getElementById("collapseSidebarBtn"),
   openBtn: document.getElementById("openBtn"),
@@ -49,6 +51,10 @@ const dom = {
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
+}
+
+function hasBothImages() {
+  return Boolean(state.design.img && state.development.img);
 }
 
 function setTheme(theme) {
@@ -163,12 +169,174 @@ function drawDiff() {
   dom.diffCanvas.getContext("2d").putImageData(out, 0, 0);
 }
 
-function renderViews() {
-  const hasBothImages = state.design.img && state.development.img;
-  dom.emptyState.classList.toggle("hidden", hasBothImages);
-  dom.compareStage.classList.toggle("hidden", !hasBothImages);
+function analyzeDifferenceHotspots() {
+  if (!hasBothImages()) {
+    return [];
+  }
 
-  if (!hasBothImages) {
+  const naturalWidth = Math.max(state.design.img.naturalWidth, state.development.img.naturalWidth);
+  const naturalHeight = Math.max(state.design.img.naturalHeight, state.development.img.naturalHeight);
+  const maxDimension = 900;
+  const scale = Math.min(1, maxDimension / Math.max(naturalWidth, naturalHeight));
+  const analysisWidth = Math.max(1, Math.round(naturalWidth * scale));
+  const analysisHeight = Math.max(1, Math.round(naturalHeight * scale));
+
+  const sourceA = document.createElement("canvas");
+  const sourceB = document.createElement("canvas");
+  sourceA.width = analysisWidth;
+  sourceA.height = analysisHeight;
+  sourceB.width = analysisWidth;
+  sourceB.height = analysisHeight;
+  sourceA.getContext("2d").drawImage(state.design.img, 0, 0, analysisWidth, analysisHeight);
+  sourceB.getContext("2d").drawImage(state.development.img, 0, 0, analysisWidth, analysisHeight);
+
+  const imageA = sourceA.getContext("2d").getImageData(0, 0, analysisWidth, analysisHeight);
+  const imageB = sourceB.getContext("2d").getImageData(0, 0, analysisWidth, analysisHeight);
+
+  const cols = clamp(Math.round(analysisWidth / 140), 4, 10);
+  const rows = clamp(Math.round(analysisHeight / 140), 4, 10);
+  const cellWidth = analysisWidth / cols;
+  const cellHeight = analysisHeight / rows;
+  const changedPixelThreshold = 20;
+  const hotspots = [];
+
+  for (let row = 0; row < rows; row += 1) {
+    const startY = Math.floor(row * cellHeight);
+    const endY = row === rows - 1 ? analysisHeight : Math.floor((row + 1) * cellHeight);
+    for (let col = 0; col < cols; col += 1) {
+      const startX = Math.floor(col * cellWidth);
+      const endX = col === cols - 1 ? analysisWidth : Math.floor((col + 1) * cellWidth);
+      let sumScore = 0;
+      let changedPixels = 0;
+      let pixels = 0;
+
+      for (let y = startY; y < endY; y += 1) {
+        for (let x = startX; x < endX; x += 1) {
+          const idx = (y * analysisWidth + x) * 4;
+          const rDiff = Math.abs(imageA.data[idx] - imageB.data[idx]);
+          const gDiff = Math.abs(imageA.data[idx + 1] - imageB.data[idx + 1]);
+          const bDiff = Math.abs(imageA.data[idx + 2] - imageB.data[idx + 2]);
+          const score = (rDiff + gDiff + bDiff) / 3;
+          sumScore += score;
+          if (score > changedPixelThreshold) {
+            changedPixels += 1;
+          }
+          pixels += 1;
+        }
+      }
+
+      const averageDiff = pixels > 0 ? sumScore / pixels : 0;
+      const changedCoverage = pixels > 0 ? changedPixels / pixels : 0;
+      const weightedScore = averageDiff * (0.55 + changedCoverage);
+
+      if (averageDiff > 14 && changedCoverage > 0.04) {
+        hotspots.push({
+          x: (startX + endX) / 2 / analysisWidth,
+          y: (startY + endY) / 2 / analysisHeight,
+          score: weightedScore,
+        });
+      }
+    }
+  }
+
+  hotspots.sort((a, b) => b.score - a.score);
+  const selected = [];
+  const minDistance = 0.17;
+  const maxHotspots = 4;
+
+  for (const candidate of hotspots) {
+    const tooClose = selected.some(
+      (item) => Math.hypot(item.x - candidate.x, item.y - candidate.y) < minDistance,
+    );
+    if (!tooClose) {
+      selected.push(candidate);
+    }
+    if (selected.length >= maxHotspots) {
+      break;
+    }
+  }
+
+  return selected;
+}
+
+function buildAutoAnnotations(hotspots) {
+  if (hotspots.length === 0) {
+    return [
+      {
+        id: crypto.randomUUID(),
+        mode: "auto",
+        text: "No major visual mismatches detected.",
+        x: 0.5,
+        y: 0.5,
+      },
+    ];
+  }
+
+  const annotations = [];
+  hotspots.forEach((hotspot) => {
+    const severity =
+      hotspot.score > 60 ? "Large visual mismatch" : hotspot.score > 40 ? "Moderate mismatch" : "Minor mismatch";
+
+    if (state.mode === "side") {
+      const y = 0.08 + hotspot.y * 0.84;
+      const leftX = 0.06 + hotspot.x * 0.38;
+      const rightX = 0.56 + hotspot.x * 0.38;
+      annotations.push({
+        id: crypto.randomUUID(),
+        mode: "auto",
+        text: `${severity} around this region on the design screen.`,
+        x: leftX,
+        y,
+      });
+      annotations.push({
+        id: crypto.randomUUID(),
+        mode: "auto",
+        text: `${severity} around this region on the development screen.`,
+        x: rightX,
+        y,
+      });
+      return;
+    }
+
+    annotations.push({
+      id: crypto.randomUUID(),
+      mode: "auto",
+      text: `${severity} detected between design and development.`,
+      x: 0.08 + hotspot.x * 0.84,
+      y: 0.08 + hotspot.y * 0.84,
+    });
+  });
+
+  return annotations.slice(0, 12);
+}
+
+async function runAutoAnalyze() {
+  if (!hasBothImages()) {
+    window.alert("Upload both Design and Development images before running Auto Analyze.");
+    return;
+  }
+
+  try {
+    state.autoAnalyzing = true;
+    renderControls();
+    await new Promise((resolve) => window.requestAnimationFrame(resolve));
+
+    const hotspots = analyzeDifferenceHotspots();
+    state.annotations = buildAutoAnnotations(hotspots);
+    state.sidebarOpen = true;
+    render();
+  } finally {
+    state.autoAnalyzing = false;
+    renderControls();
+  }
+}
+
+function renderViews() {
+  const imagesReady = hasBothImages();
+  dom.emptyState.classList.toggle("hidden", imagesReady);
+  dom.compareStage.classList.toggle("hidden", !imagesReady);
+
+  if (!imagesReady) {
     const loaded = [state.design.img ? "Design loaded" : "", state.development.img ? "Development loaded" : ""]
       .filter(Boolean)
       .join(" • ");
@@ -258,6 +426,11 @@ function renderControls() {
   dom.annotationSidebar.classList.toggle("hidden-sidebar", !state.sidebarOpen);
   dom.annotationsToggle.classList.toggle("active", state.sidebarOpen);
   dom.collapseSidebarBtn.textContent = state.sidebarOpen ? "⟩" : "⟨";
+
+  const canAnalyze = hasBothImages() && !state.autoAnalyzing;
+  dom.autoAnalyzeBtn.disabled = !canAnalyze;
+  dom.autoAnalyzeBtn.classList.toggle("muted", !canAnalyze);
+  dom.autoAnalyzeBtn.textContent = state.autoAnalyzing ? "Analyzing..." : "Auto Analyze";
 }
 
 function render() {
@@ -349,6 +522,10 @@ dom.zoomOutBtn.addEventListener("click", () => {
 dom.zoomResetBtn.addEventListener("click", () => {
   state.zoom = 1;
   render();
+});
+
+dom.autoAnalyzeBtn.addEventListener("click", () => {
+  void runAutoAnalyze();
 });
 
 dom.themeToggle.addEventListener("click", () => {
