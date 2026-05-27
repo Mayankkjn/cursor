@@ -3,134 +3,304 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UI Compare - Design vs Development</title>
-    <meta
-      name="description"
-      content="Compare designed UI mockups against developed UI with pixel-perfect precision."
-    />
+    <title>Whatfix AI</title>
     <link rel="stylesheet" href="./styles.css" />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+    />
   </head>
   <body>
     <div class="app">
-      <header class="top-header">
-        <div class="brand">
-          <span class="brand-icon">▦</span>
-          <h1>UI Compare</h1>
-        </div>
-        <button id="themeToggle" class="icon-btn" aria-label="Toggle theme">☼</button>
-      </header>
-
-      <section class="toolbar">
-        <div class="group">
-          <button class="mode-btn active" data-mode="side" type="button">Side by Side</button>
-          <button class="mode-btn" data-mode="slider" type="button">Slider</button>
-          <button class="mode-btn" data-mode="toggle" type="button">Toggle</button>
-          <button class="mode-btn" data-mode="diff" type="button">Pixel Diff</button>
-        </div>
-
-        <div class="separator" role="presentation"></div>
-
-        <div class="group zoom-group">
-          <button id="zoomOutBtn" class="icon-btn" type="button" aria-label="Zoom out">−</button>
-          <span id="zoomValue" class="zoom-value">100%</span>
-          <button id="zoomInBtn" class="icon-btn" type="button" aria-label="Zoom in">+</button>
-          <button id="zoomResetBtn" class="icon-btn" type="button" aria-label="Reset zoom">↺</button>
-        </div>
-
-        <div class="separator" role="presentation"></div>
-
-        <button class="pill-btn primary muted" type="button" disabled>Auto Analyze</button>
-
-        <div class="spacer"></div>
-
-        <div class="group">
-          <button id="annotationsToggle" class="icon-btn active" type="button" aria-label="Toggle annotations panel">
-            💬
+      <nav class="sidebar">
+        <div class="sidebar-top">
+          <button class="sidebar-icon logo-icon" aria-label="Home">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <path d="M4 4L12 12M12 12L20 4M12 12L4 20M12 12L20 20" stroke="#E8563F" stroke-width="3" stroke-linecap="round"/>
+            </svg>
           </button>
-          <button id="openBtn" class="icon-btn" type="button" aria-label="Open images">📁</button>
-          <button class="icon-btn" type="button" disabled aria-label="Save">💾</button>
-          <button class="icon-btn" type="button" disabled aria-label="Share">🔗</button>
+          <button class="sidebar-icon" aria-label="Terminal">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>
+            </svg>
+          </button>
+          <button class="sidebar-icon active" aria-label="AI Assistant">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+          </button>
+          <button class="sidebar-icon" aria-label="Flows">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+            </svg>
+          </button>
+          <button class="sidebar-icon" aria-label="Calendar">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+          </button>
+          <button class="sidebar-icon" aria-label="Settings">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
+          </button>
+          <button class="sidebar-icon" aria-label="Analytics">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+            </svg>
+          </button>
+          <button class="sidebar-icon" aria-label="Users">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+          </button>
+          <button class="sidebar-icon" aria-label="Configuration">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6m-7-3.5l5.2-3m3.6-2.1L19 1.5m0 17l-5.2-3m-3.6-2.1L5 16.5"/>
+            </svg>
+          </button>
         </div>
-      </section>
+      </nav>
 
-      <div class="layout">
-        <main class="main">
-          <div id="emptyState" class="empty-state">
-            <label class="upload-card upload-design" id="designDrop">
-              <input id="designInput" type="file" accept="image/*" />
-              <div class="upload-content">
-                <div class="upload-icon">⇪</div>
-                <p class="upload-title">Design</p>
-                <p class="upload-subtitle">Drop image or click to upload</p>
-              </div>
-            </label>
+      <div class="main-content">
+        <header class="top-header">
+          <div class="brand">
+            <svg class="brand-sparkle" width="22" height="22" viewBox="0 0 24 24" fill="none">
+              <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" fill="url(#sparkleGrad1)"/>
+              <defs>
+                <linearGradient id="sparkleGrad1" x1="2" y1="2" x2="22" y2="22">
+                  <stop offset="0%" stop-color="#E8563F"/>
+                  <stop offset="100%" stop-color="#F5A623"/>
+                </linearGradient>
+              </defs>
+            </svg>
+            <h1>Whatfix AI</h1>
+          </div>
+          <div class="header-actions">
+            <button class="header-icon-btn" aria-label="Feedback">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 9V5a3 3 0 0 0-6 0v4"/><path d="M18 9h-2V5a5 5 0 0 0-10 0v4H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2z"/>
+              </svg>
+            </button>
+            <button class="header-icon-btn" aria-label="New conversation">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+            </button>
+          </div>
+        </header>
 
-            <label class="upload-card upload-development" id="devDrop">
-              <input id="devInput" type="file" accept="image/*" />
-              <div class="upload-content">
-                <div class="upload-icon">⇪</div>
-                <p class="upload-title">Development</p>
-                <p class="upload-subtitle">Drop image or click to upload</p>
-              </div>
-            </label>
+        <main class="content-area">
+          <div class="hero-section">
+            <div class="hero-sparkle">
+              <svg width="44" height="44" viewBox="0 0 24 24" fill="none">
+                <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" fill="url(#sparkleGrad2)"/>
+                <defs>
+                  <linearGradient id="sparkleGrad2" x1="2" y1="2" x2="22" y2="22">
+                    <stop offset="0%" stop-color="#E8563F"/>
+                    <stop offset="100%" stop-color="#F5A623"/>
+                  </linearGradient>
+                </defs>
+              </svg>
+              <svg class="mini-sparkle" width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" fill="#F5A623"/>
+              </svg>
+            </div>
+            <h2 class="hero-title">What would you like to analyze?</h2>
           </div>
 
-          <section id="compareStage" class="compare-stage hidden">
-            <div id="sideView" class="view side-view">
-              <div class="panel">
-                <span class="panel-label">Design</span>
-                <canvas id="designCanvas"></canvas>
-              </div>
-              <div class="panel">
-                <span class="panel-label">Development</span>
-                <canvas id="devCanvas"></canvas>
-              </div>
+          <div class="search-container">
+            <div class="search-box">
+              <input
+                id="queryInput"
+                type="text"
+                placeholder="Type your query here..."
+                autocomplete="off"
+              />
+              <button id="submitBtn" class="submit-btn" aria-label="Submit query">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 19V5M5 12l7-7 7 7" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
             </div>
+          </div>
 
-            <div id="sliderView" class="view hidden">
-              <div id="sliderContainer" class="overlay-container">
-                <canvas id="sliderBaseCanvas"></canvas>
-                <canvas id="sliderTopCanvas" class="overlay-canvas"></canvas>
-                <div id="sliderDivider" class="slider-divider"></div>
-                <input id="sliderInput" type="range" min="0" max="100" value="50" aria-label="Comparison slider" />
+          <div class="examples-section">
+            <p class="examples-label">Not sure where to start ? You can try the following examples</p>
+            <div class="carousel-wrapper">
+              <button id="prevBtn" class="carousel-arrow arrow-left" aria-label="Previous examples">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="15 18 9 12 15 6"/>
+                </svg>
+              </button>
+              <div class="cards-viewport">
+                <div id="cardsTrack" class="cards-track">
+                  <!-- Page 1 -->
+                  <div class="cards-page" data-page="0">
+                    <div class="example-card" data-query="Top flows played by users in the last 30 days">
+                      <div class="card-icon icon-blue">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <polygon points="5 3 19 12 5 21 5 3"/>
+                        </svg>
+                      </div>
+                      <div class="card-text">
+                        <span class="card-title">Flows</span>
+                        <span class="card-desc">Top flows played by users in the last 30 days</span>
+                      </div>
+                    </div>
+                    <div class="example-card" data-query="Most used smart tips by users in the last 30 days">
+                      <div class="card-icon icon-orange">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M9 18h6m-5 4h4M12 2a7 7 0 0 1 4 12.7V17H8v-2.3A7 7 0 0 1 12 2z"/>
+                        </svg>
+                      </div>
+                      <div class="card-text">
+                        <span class="card-title">Smart tips</span>
+                        <span class="card-desc">Most used smart tips by users in the last 30 days</span>
+                      </div>
+                    </div>
+                    <div class="example-card" data-query="Most visited pages in the application">
+                      <div class="card-icon icon-blue">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+                        </svg>
+                      </div>
+                      <div class="card-text">
+                        <span class="card-title">Pages</span>
+                        <span class="card-desc">Most visited pages in the application</span>
+                      </div>
+                    </div>
+                    <div class="example-card" data-query="Top countries from which the users are visiting the application">
+                      <div class="card-icon icon-purple">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10A15.3 15.3 0 0 1 12 2z"/>
+                        </svg>
+                      </div>
+                      <div class="card-text">
+                        <span class="card-title">Countries</span>
+                        <span class="card-desc">Top countries from which the users are visiting the application</span>
+                      </div>
+                    </div>
+                    <div class="example-card" data-query="Frequently failed flows in the application">
+                      <div class="card-icon icon-orange">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <polygon points="5 3 19 12 5 21 5 3"/>
+                        </svg>
+                      </div>
+                      <div class="card-text">
+                        <span class="card-title">Flows</span>
+                        <span class="card-desc">Frequently failed flows in the application</span>
+                      </div>
+                    </div>
+                    <div class="example-card" data-query="Popular links opened through self-service">
+                      <div class="card-icon icon-green">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                        </svg>
+                      </div>
+                      <div class="card-text">
+                        <span class="card-title">Links</span>
+                        <span class="card-desc">Popular links opened through self-service</span>
+                      </div>
+                    </div>
+                  </div>
+                  <!-- Page 2 -->
+                  <div class="cards-page" data-page="1">
+                    <div class="example-card" data-query="Users who completed onboarding in the last 7 days">
+                      <div class="card-icon icon-blue">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                        </svg>
+                      </div>
+                      <div class="card-text">
+                        <span class="card-title">Users</span>
+                        <span class="card-desc">Users who completed onboarding in the last 7 days</span>
+                      </div>
+                    </div>
+                    <div class="example-card" data-query="Most searched keywords in self-help">
+                      <div class="card-icon icon-orange">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                        </svg>
+                      </div>
+                      <div class="card-text">
+                        <span class="card-title">Search</span>
+                        <span class="card-desc">Most searched keywords in self-help</span>
+                      </div>
+                    </div>
+                    <div class="example-card" data-query="Top performing task lists by completion rate">
+                      <div class="card-icon icon-green">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+                        </svg>
+                      </div>
+                      <div class="card-text">
+                        <span class="card-title">Task lists</span>
+                        <span class="card-desc">Top performing task lists by completion rate</span>
+                      </div>
+                    </div>
+                    <div class="example-card" data-query="Beacons with highest interaction rate">
+                      <div class="card-icon icon-purple">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/>
+                        </svg>
+                      </div>
+                      <div class="card-text">
+                        <span class="card-title">Beacons</span>
+                        <span class="card-desc">Beacons with highest interaction rate</span>
+                      </div>
+                    </div>
+                    <div class="example-card" data-query="Average time spent on each flow step">
+                      <div class="card-icon icon-blue">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                        </svg>
+                      </div>
+                      <div class="card-text">
+                        <span class="card-title">Time</span>
+                        <span class="card-desc">Average time spent on each flow step</span>
+                      </div>
+                    </div>
+                    <div class="example-card" data-query="Surveys with lowest response rate">
+                      <div class="card-icon icon-orange">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+                        </svg>
+                      </div>
+                      <div class="card-text">
+                        <span class="card-title">Surveys</span>
+                        <span class="card-desc">Surveys with lowest response rate</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
+              <button id="nextBtn" class="carousel-arrow arrow-right" aria-label="Next examples">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="9 18 15 12 9 6"/>
+                </svg>
+              </button>
             </div>
-
-            <div id="toggleView" class="view hidden">
-              <div class="overlay-container">
-                <canvas id="toggleCanvas"></canvas>
-              </div>
-            </div>
-
-            <div id="diffView" class="view hidden">
-              <div class="overlay-container">
-                <canvas id="diffCanvas"></canvas>
-              </div>
-            </div>
-
-            <button id="toggleSwapBtn" class="pill-btn hidden" type="button">Show Development</button>
-            <div id="annotationLayer"></div>
-          </section>
+          </div>
         </main>
 
-        <aside id="annotationSidebar" class="sidebar">
-          <div class="sidebar-header">
-            <h2>Annotations</h2>
-            <button id="collapseSidebarBtn" class="icon-btn" type="button" aria-label="Collapse panel">⟩</button>
-          </div>
-          <div id="annotationList" class="annotation-list">
-            <div class="empty-annotations">
-              <p>No annotations yet</p>
-              <p class="hint">Click on the comparison to add notes</p>
-            </div>
-          </div>
-        </aside>
+        <footer class="bottom-footer">
+          <span>AI can make mistakes, double-check responses</span>
+        </footer>
       </div>
 
-      <footer class="statusbar">
-        <span id="statusText"></span>
-        <span id="annotationCount">0 annotations</span>
-      </footer>
+      <div class="fab-container">
+        <button class="fab fab-primary" aria-label="Open assistant">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+            <path d="M12 2a2 2 0 0 1 2 2v1a7 7 0 0 1 7 7v3l2 3H1l2-3v-3a7 7 0 0 1 7-7V4a2 2 0 0 1 2-2zM9.5 20a2.5 2.5 0 0 0 5 0" fill="#fff"/>
+          </svg>
+        </button>
+        <button class="fab fab-secondary" aria-label="Open chat">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+        </button>
+      </div>
     </div>
 
     <script src="./script.js"></script>
