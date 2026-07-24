@@ -11,6 +11,7 @@
     <div class="topbar-title">
       <h1>Process Map — Purchase Order to Payment</h1>
       <p class="subtitle">Directly-follows graph mined from case history. Thicker path = more frequent. Highlighted path = most common route.</p>
+      <span class="source-badge" id="source-badge">Sample data</span>
     </div>
     <div class="stats">
       <div class="stat"><span class="stat-value" id="stat-cases">–</span><span class="stat-label">cases</span></div>
@@ -22,6 +23,23 @@
 
   <main class="layout">
     <aside class="sidebar">
+      <div class="panel">
+        <h2>Your data</h2>
+        <p class="hint">
+          Upload a JSON event log to visualize your own process.
+          <button id="download-sample" class="link-button" type="button">Download sample format</button>
+        </p>
+        <label class="upload-dropzone" for="upload-input" id="upload-dropzone">
+          <input type="file" id="upload-input" accept=".json,application/json" hidden />
+          <svg class="upload-icon" width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
+            <path d="M11 3 V14 M6 8 L11 3 L16 8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M4 15 V17.5 A1.5 1.5 0 0 0 5.5 19 H16.5 A1.5 1.5 0 0 0 18 17.5 V15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          <span>Click to upload, or drag a .json file here</span>
+        </label>
+        <div id="upload-status" class="upload-status"></div>
+      </div>
+
       <div class="panel">
         <h2>Controls</h2>
 

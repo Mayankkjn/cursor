@@ -361,7 +361,7 @@ function renderVariantList(model) {
     });
   merged.select('.variant-rank').text((v) => `#${v.rank}`);
   merged.select('.variant-body').html((v) => `
-    <div class="variant-pct">${(v.pct * 100).toFixed(1)}% <span class="variant-count">(${v.count} cases)</span></div>
+    <div class="variant-pct">${(v.pct * 100).toFixed(1)}% <span class="variant-count">(${v.count} case${v.count === 1 ? '' : 's'})</span></div>
     <div class="variant-path">${v.path.join(' → ')}</div>
     <div class="variant-duration">Avg total time: ${formatDuration(v.avgDuration)}</div>
   `);
@@ -379,8 +379,83 @@ function regenerate(numCases) {
   state.cases = generateEventLog(numCases);
   state.model = buildProcessModel(state.cases);
   state.activeVariant = null;
+  setSourceBadge('Sample data');
+  setUploadStatus('');
   render(true);
 }
+
+function setSourceBadge(text) {
+  d3.select('#source-badge').text(text);
+}
+
+function setUploadStatus(message, kind) {
+  d3.select('#upload-status')
+    .attr('class', `upload-status${kind ? ` ${kind}` : ''}`)
+    .text(message);
+}
+
+function handleUploadFile(file) {
+  if (!/\.json$/i.test(file.name) && file.type && file.type !== 'application/json') {
+    setUploadStatus(`"${file.name}" doesn't look like a .json file — export your log as JSON and try again.`, 'error');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    let raw;
+    try {
+      raw = JSON.parse(reader.result);
+    } catch (err) {
+      setUploadStatus(`"${file.name}" isn't valid JSON: ${err.message}`, 'error');
+      return;
+    }
+    try {
+      const cases = normalizeCaseLog(raw);
+      state.cases = cases;
+      state.model = buildProcessModel(cases);
+      state.activeVariant = null;
+      state.threshold = 0;
+      d3.select('#threshold').property('value', 0);
+      d3.select('#threshold-value').text('0%');
+      setSourceBadge(file.name);
+      setUploadStatus(`Loaded ${cases.length} case${cases.length === 1 ? '' : 's'} from "${file.name}".`, 'success');
+      render(true);
+    } catch (err) {
+      setUploadStatus(`Couldn't read "${file.name}": ${err.message}`, 'error');
+    }
+  };
+  reader.onerror = () => setUploadStatus(`Couldn't read "${file.name}".`, 'error');
+  reader.readAsText(file);
+}
+
+// ---- upload ----
+d3.select('#upload-input').on('change', function () {
+  const file = this.files && this.files[0];
+  if (file) handleUploadFile(file);
+  this.value = '';
+});
+
+const dropzone = d3.select('#upload-dropzone');
+dropzone
+  .on('dragover', (event) => { event.preventDefault(); dropzone.classed('dragover', true); })
+  .on('dragleave', () => dropzone.classed('dragover', false))
+  .on('drop', (event) => {
+    event.preventDefault();
+    dropzone.classed('dragover', false);
+    const file = event.dataTransfer.files && event.dataTransfer.files[0];
+    if (file) handleUploadFile(file);
+  });
+
+d3.select('#download-sample').on('click', () => {
+  const blob = new Blob([JSON.stringify(SAMPLE_JSON_TEMPLATE, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'process-map-sample.json';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+});
 
 // ---- controls ----
 d3.select('#threshold').on('input', function () {
