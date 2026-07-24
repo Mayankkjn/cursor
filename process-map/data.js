@@ -151,71 +151,112 @@ const SAMPLE_JSON_TEMPLATE = {
   ],
 };
 
+// Pulls a plain array of { caseId?, steps: [...] } out of whatever shape the
+// uploaded JSON actually is. Recognizes a few real-world export shapes in
+// addition to this app's own { "cases": [...] } format; throws a specific,
+// actionable error for anything it can't turn into per-case event data.
+function extractRawCases(raw) {
+  if (Array.isArray(raw)) return raw;
+  if (raw && Array.isArray(raw.cases)) return raw.cases;
+
+  // Whatfix-style task-execution export: a shared "tasks" dictionary
+  // (task_id -> name/duration) plus one entry per user session in
+  // "task_executions", each holding that session's ordered task runs.
+  if (raw && Array.isArray(raw.task_executions) && Array.isArray(raw.tasks)) {
+    const taskNameById = new Map(raw.tasks.map((t) => [t.task_id, t.name || t.task_id]));
+    return raw.task_executions.map((session, i) => {
+      const steps = (session.tasks || []).map((exec) => ({
+        task: taskNameById.get(exec.task_id) || exec.task_id || 'Unknown step',
+        duration: exec.duration_ms != null ? exec.duration_ms / 60000 : exec.duration,
+      }));
+      const caseId = session.user_id
+        ? `${String(session.user_id).slice(0, 8)}-${session.session_date || i + 1}`
+        : `SESSION-${i + 1}`;
+      return { caseId, steps };
+    });
+  }
+
+  // A pre-built diagram (nodes/edges, e.g. from a layout tool) rather than
+  // an event log. There's no per-case sequence or duration data to mine
+  // here, so refuse rather than fabricate frequency/time/rework numbers.
+  if (raw && Array.isArray(raw.nodes) && Array.isArray(raw.edges)) {
+    throw new Error(
+      'This file is a pre-built diagram (nodes/edges), not a case log. Frequency, time, and rework ' +
+      'insights are computed from real process instances, so this tool needs per-case event data — ' +
+      'e.g. { "cases": [{ "steps": [{ "task": "...", "duration": 12 }] }] } — not a static graph. ' +
+      'Upload the underlying execution log if you have one.'
+    );
+  }
+
+  throw new Error('Expected a JSON array of cases, or an object like { "cases": [...] }.');
+}
+
 // Validates and normalizes an arbitrary uploaded JSON payload into the same
 // case-log shape generateEventLog() produces. Throws a descriptive Error
-// (case/step index included) on anything it can't make sense of.
+// (case/step index included) on anything it can't make sense of. Cases with
+// no steps are dropped rather than failing the whole import, since a export
+// covering thousands of cases will occasionally have an empty record.
 function normalizeCaseLog(raw) {
-  let rawCases;
-  if (Array.isArray(raw)) {
-    rawCases = raw;
-  } else if (raw && Array.isArray(raw.cases)) {
-    rawCases = raw.cases;
-  } else {
-    throw new Error('Expected a JSON array of cases, or an object like { "cases": [...] }.');
-  }
+  const rawCases = extractRawCases(raw);
 
   if (rawCases.length === 0) {
     throw new Error('The file has no cases to visualize.');
   }
 
-  return rawCases.map((rawCase, i) => {
-    const caseNum = i + 1;
-    let stepsRaw;
-    let caseId;
+  const cases = rawCases
+    .map((rawCase, i) => {
+      const caseNum = i + 1;
+      let stepsRaw;
+      let caseId;
 
-    if (Array.isArray(rawCase)) {
-      stepsRaw = rawCase;
-      caseId = `CASE-${caseNum}`;
-    } else if (rawCase && Array.isArray(rawCase.steps)) {
-      stepsRaw = rawCase.steps;
-      caseId = rawCase.caseId || rawCase.id || `CASE-${caseNum}`;
-    } else {
-      throw new Error(`Case ${caseNum} needs a "steps" array (or should itself be an array of steps).`);
-    }
-
-    if (stepsRaw.length === 0) {
-      throw new Error(`Case ${caseNum} ("${caseId}") has no steps.`);
-    }
-
-    let cursor = 0;
-    const steps = stepsRaw.map((rawStep, j) => {
-      const stepNum = j + 1;
-      let task;
-      let duration = 0;
-
-      if (typeof rawStep === 'string') {
-        task = rawStep;
-      } else if (rawStep && typeof rawStep === 'object') {
-        task = rawStep.task || rawStep.name || rawStep.activity || rawStep.step;
-        if (rawStep.duration != null) duration = Number(rawStep.duration);
-        else if (rawStep.minutes != null) duration = Number(rawStep.minutes);
-        else if (rawStep.durationMinutes != null) duration = Number(rawStep.durationMinutes);
-        else if (rawStep.seconds != null) duration = Number(rawStep.seconds) / 60;
-        else if (rawStep.durationHours != null) duration = Number(rawStep.durationHours) * 60;
+      if (Array.isArray(rawCase)) {
+        stepsRaw = rawCase;
+        caseId = `CASE-${caseNum}`;
+      } else if (rawCase && Array.isArray(rawCase.steps)) {
+        stepsRaw = rawCase.steps;
+        caseId = rawCase.caseId || rawCase.id || `CASE-${caseNum}`;
+      } else {
+        throw new Error(`Case ${caseNum} needs a "steps" array (or should itself be an array of steps).`);
       }
 
-      if (!task || typeof task !== 'string') {
-        throw new Error(
-          `Case ${caseNum} ("${caseId}"), step ${stepNum} is missing a task name (expected "task", "name", "activity", or "step").`
-        );
-      }
-      if (!Number.isFinite(duration) || duration < 0) duration = 0;
+      if (stepsRaw.length === 0) return null;
 
-      const step = { task, startOffset: cursor, duration };
-      cursor += duration;
-      return step;
-    });
+      let cursor = 0;
+      const steps = stepsRaw.map((rawStep, j) => {
+        const stepNum = j + 1;
+        let task;
+        let duration = 0;
 
-    return { caseId: String(caseId), totalDuration: cursor, steps };
-  });
+        if (typeof rawStep === 'string') {
+          task = rawStep;
+        } else if (rawStep && typeof rawStep === 'object') {
+          task = rawStep.task || rawStep.name || rawStep.activity || rawStep.step;
+          if (rawStep.duration != null) duration = Number(rawStep.duration);
+          else if (rawStep.minutes != null) duration = Number(rawStep.minutes);
+          else if (rawStep.durationMinutes != null) duration = Number(rawStep.durationMinutes);
+          else if (rawStep.seconds != null) duration = Number(rawStep.seconds) / 60;
+          else if (rawStep.durationHours != null) duration = Number(rawStep.durationHours) * 60;
+        }
+
+        if (!task || typeof task !== 'string') {
+          throw new Error(
+            `Case ${caseNum} ("${caseId}"), step ${stepNum} is missing a task name (expected "task", "name", "activity", or "step").`
+          );
+        }
+        if (!Number.isFinite(duration) || duration < 0) duration = 0;
+
+        const step = { task, startOffset: cursor, duration };
+        cursor += duration;
+        return step;
+      });
+
+      return { caseId: String(caseId), totalDuration: cursor, steps };
+    })
+    .filter(Boolean);
+
+  if (cases.length === 0) {
+    throw new Error('None of the cases in this file have any steps.');
+  }
+
+  return cases;
 }
