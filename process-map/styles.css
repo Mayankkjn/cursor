@@ -143,7 +143,27 @@ body {
   box-shadow: var(--shadow-sm);
 }
 
-.panel h2 { margin: 0 0 12px; font-size: 0.9rem; letter-spacing: -0.005em; }
+.panel h2 { margin: 0; font-size: 0.9rem; letter-spacing: -0.005em; }
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+.panel-chevron { color: var(--text-tertiary); flex-shrink: 0; transition: transform 0.18s ease; }
+.panel-header:hover .panel-chevron { color: var(--accent-ui); }
+.panel.collapsed .panel-chevron { transform: rotate(-90deg); }
+.panel-body { margin-top: 12px; }
+.panel.collapsed .panel-body { display: none; }
 .control-label { display: block; font-size: 0.78rem; color: var(--text-secondary); margin: 14px 0 6px; }
 .control-label:first-of-type { margin-top: 0; }
 

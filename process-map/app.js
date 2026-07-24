@@ -556,6 +556,13 @@ function handleUploadFile(file) {
   reader.readAsText(file);
 }
 
+// ---- collapsible sidebar panels ----
+d3.selectAll('.panel-header').on('click', function () {
+  const panel = this.closest('.panel');
+  const collapsed = panel.classList.toggle('collapsed');
+  d3.select(this).attr('aria-expanded', collapsed ? 'false' : 'true');
+});
+
 // ---- import modal ----
 function openImportModal() { d3.select('#import-modal').classed('hidden', false); }
 function closeImportModal() { d3.select('#import-modal').classed('hidden', true); }
