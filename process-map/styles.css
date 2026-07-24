@@ -8,8 +8,8 @@
   --text-secondary: #8b8fa6;
   --text-tertiary: #b2b5c6;
 
-  --accent-ui: #4f46e5;
-  --accent-ui-soft: #eeecfd;
+  --accent-ui: #c74900;
+  --accent-ui-soft: #fbe8dc;
 
   --path-main: #1f9d5c;
   --path-main-soft: #e4f6ec;
@@ -178,7 +178,7 @@ body {
   text-underline-offset: 2px;
   cursor: pointer;
 }
-.link-button:hover { filter: none; color: #372fc4; }
+.link-button:hover { filter: none; color: #9c3a00; }
 
 .sample-json-panel {
   margin-top: 10px;
