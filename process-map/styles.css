@@ -15,6 +15,8 @@
   --path-main-soft: #e4f6ec;
   --path-deviation: #9a9fb5;
   --path-deviation-soft: #eef0f6;
+  --rework: #d17d2c;
+  --rework-soft: #fbf0e2;
 
   --flag-start-bg: #dcf3f1;
   --flag-start-fg: #1f9d5c;
@@ -216,12 +218,17 @@ button:hover { filter: brightness(1.08); }
 .swatch { width: 22px; height: 3px; border-radius: 2px; display: inline-block; }
 .swatch.happy { background: var(--path-main); }
 .swatch.deviation { background: repeating-linear-gradient(90deg, var(--path-deviation) 0 4px, transparent 4px 7px); height: 2px; }
-.gradient-swatch {
-  width: 60px; height: 8px; border-radius: 4px; display: inline-block;
-  background: linear-gradient(90deg, #2ecc71, #f1c40f, #e74c3c);
-}
-.legend[data-mode="frequency"] .duration-only { display: none; }
-.legend[data-mode="duration"] .freq-only { display: none; }
+.swatch.rework { background: repeating-linear-gradient(90deg, var(--rework) 0 4px, transparent 4px 7px); height: 2px; }
+.gradient-swatch { width: 60px; height: 8px; border-radius: 4px; display: inline-block; }
+.gradient-swatch.duration-gradient { background: linear-gradient(90deg, #2ecc71, #f1c40f, #e74c3c); }
+.gradient-swatch.rework-gradient { background: linear-gradient(90deg, #e4e5ee, var(--rework)); }
+
+.legend[data-mode="frequency"] .duration-only,
+.legend[data-mode="frequency"] .rework-only { display: none; }
+.legend[data-mode="duration"] .freq-only,
+.legend[data-mode="duration"] .rework-only { display: none; }
+.legend[data-mode="rework"] .freq-only,
+.legend[data-mode="rework"] .duration-only { display: none; }
 
 .variant-panel { flex: 1; overflow-y: auto; }
 .hint { margin: 0 0 10px; font-size: 0.75rem; color: var(--text-secondary); }
@@ -239,6 +246,17 @@ button:hover { filter: brightness(1.08); }
 .variant-rank { font-weight: 700; color: var(--text-tertiary); font-size: 0.75rem; }
 .variant-pct { font-weight: 700; }
 .variant-count { font-weight: 400; color: var(--text-secondary); font-size: 0.78rem; }
+.fastest-badge {
+  display: inline-block;
+  font-size: 0.66rem;
+  font-weight: 700;
+  color: var(--path-main);
+  background: var(--path-main-soft);
+  border-radius: 100px;
+  padding: 1px 7px;
+  margin-left: 4px;
+  vertical-align: middle;
+}
 .variant-path { font-size: 0.72rem; color: var(--text-secondary); margin: 4px 0; line-height: 1.4; }
 .variant-duration { font-size: 0.72rem; color: var(--text-secondary); }
 
@@ -248,14 +266,16 @@ button:hover { filter: brightness(1.08); }
 /* ---- task cards ---- */
 .node.task .card-bg { fill: var(--card-bg); stroke: var(--card-border); stroke-width: 1px; filter: drop-shadow(0 1px 2px rgba(24,26,51,0.08)); }
 .node.task .card-accent { fill: var(--path-main); }
-.node.task.duration-mode .card-accent { fill: var(--duration-fill, var(--path-main)); }
+.node.task.metric-mode .card-accent { fill: var(--metric-fill, var(--path-main)); }
 .node-title { fill: var(--text-primary); font-size: 13px; font-weight: 600; pointer-events: none; }
 .node-meta { fill: var(--text-secondary); font-size: 11px; pointer-events: none; }
+.node-badge { fill: var(--rework); }
+.node-badge-label { fill: white; font-size: 8.5px; font-weight: 700; text-anchor: middle; pointer-events: none; }
 rect.icon-task { fill: none; stroke: var(--text-tertiary); stroke-width: 1.4px; }
 .icon-kebab circle { fill: var(--text-tertiary); }
 .icon-clock circle, .icon-clock path { stroke: var(--text-secondary); stroke-width: 1.3px; stroke-linecap: round; stroke-linejoin: round; fill: none; }
-.node.task.duration-mode .icon-clock circle,
-.node.task.duration-mode .icon-clock path { stroke: var(--duration-fill, var(--text-secondary)); }
+.node.task.metric-mode .icon-clock circle,
+.node.task.metric-mode .icon-clock path { stroke: var(--metric-fill, var(--text-secondary)); }
 
 /* ---- start / end pills ---- */
 .pill-bg { fill: var(--card-bg); stroke: var(--card-border); stroke-width: 1px; filter: drop-shadow(0 1px 2px rgba(24,26,51,0.08)); }
@@ -276,10 +296,55 @@ rect.icon-task { fill: none; stroke: var(--text-tertiary); stroke-width: 1.4px; 
 .edge.happy .edge-path { stroke: var(--path-main); stroke-width: 2px; }
 .edge.deviation .edge-path,
 .edge.deviation-bundle .edge-path { stroke: var(--path-deviation); stroke-width: 1.6px; stroke-dasharray: 5 4; }
+.edge.deviation.rework .edge-path { stroke: var(--rework); stroke-width: 1.8px; }
 .edge.dimmed { opacity: 0.15; }
 
 .edge-label rect { fill: var(--path-deviation-soft); }
 .edge-label text { fill: #5f6480; font-size: 10.5px; font-weight: 600; text-anchor: middle; dominant-baseline: middle; }
+.edge.deviation.rework .edge-label rect { fill: var(--rework-soft); }
+.edge.deviation.rework .edge-label text { fill: #9a5613; }
+
+/* ---- key insights ---- */
+.insight-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.insight-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  text-align: left;
+  background: #fafafd;
+  border: 1px solid var(--panel-border);
+  border-radius: 9px;
+  padding: 10px 11px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  font: inherit;
+  color: inherit;
+}
+.insight-card:hover { border-color: var(--accent-ui); background: var(--accent-ui-soft); }
+.insight-card:disabled { cursor: default; opacity: 0.5; }
+.insight-card:disabled:hover { border-color: var(--panel-border); background: #fafafd; }
+.insight-label { font-size: 0.68rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.03em; }
+.insight-value { font-size: 1.05rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.insight-detail { font-size: 0.7rem; color: var(--text-secondary); line-height: 1.35; }
+
+/* ---- ranked metric lists (time / rework) ---- */
+.metric-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.metric-item {
+  border: 1px solid var(--panel-border);
+  border-radius: 9px;
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.metric-item:hover { border-color: var(--accent-ui); }
+.metric-item.active { border-color: var(--accent-ui); background: var(--accent-ui-soft); }
+.metric-item-top { display: flex; justify-content: space-between; align-items: baseline; font-size: 0.82rem; font-weight: 600; }
+.metric-item-sub { font-size: 0.72rem; color: var(--text-secondary); margin-top: 1px; }
+.metric-bar-track { margin-top: 6px; height: 5px; border-radius: 3px; background: var(--path-deviation-soft); overflow: hidden; }
+.metric-bar-fill { height: 100%; border-radius: 3px; background: var(--accent-ui); }
+.metric-item.rework .metric-bar-fill { background: var(--rework); }
+.metric-empty { font-size: 0.78rem; color: var(--text-secondary); }
 
 .tooltip {
   position: fixed;

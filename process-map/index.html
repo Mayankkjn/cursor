@@ -18,11 +18,39 @@
       <div class="stat"><span class="stat-value" id="stat-variants">–</span><span class="stat-label">distinct paths</span></div>
       <div class="stat"><span class="stat-value" id="stat-happy-pct">–</span><span class="stat-label">follow top path</span></div>
       <div class="stat"><span class="stat-value" id="stat-avg-duration">–</span><span class="stat-label">avg cycle time</span></div>
+      <div class="stat"><span class="stat-value" id="stat-rework-pct">–</span><span class="stat-label">cases need rework</span></div>
     </div>
   </header>
 
   <main class="layout">
     <aside class="sidebar">
+      <div class="panel insights-panel">
+        <h2>What to automate first</h2>
+        <p class="hint">Click any signal to trace it on the map.</p>
+        <div class="insight-grid">
+          <button class="insight-card" id="insight-frequent" type="button">
+            <span class="insight-label">Most followed path</span>
+            <span class="insight-value" id="insight-frequent-value">–</span>
+            <span class="insight-detail" id="insight-frequent-detail"> </span>
+          </button>
+          <button class="insight-card" id="insight-fastest" type="button">
+            <span class="insight-label">Fastest path</span>
+            <span class="insight-value" id="insight-fastest-value">–</span>
+            <span class="insight-detail" id="insight-fastest-detail"> </span>
+          </button>
+          <button class="insight-card" id="insight-timesink" type="button">
+            <span class="insight-label">Biggest time sink</span>
+            <span class="insight-value" id="insight-timesink-value">–</span>
+            <span class="insight-detail" id="insight-timesink-detail"> </span>
+          </button>
+          <button class="insight-card" id="insight-rework" type="button">
+            <span class="insight-label">Top rework hotspot</span>
+            <span class="insight-value" id="insight-rework-value">–</span>
+            <span class="insight-detail" id="insight-rework-detail"> </span>
+          </button>
+        </div>
+      </div>
+
       <div class="panel">
         <h2>Your data</h2>
         <p class="hint">
@@ -55,7 +83,8 @@
         <label class="control-label">View mode</label>
         <div class="mode-toggle">
           <label><input type="radio" name="mode" value="frequency" checked /> Frequency &amp; deviation</label>
-          <label><input type="radio" name="mode" value="duration" /> Duration heatmap</label>
+          <label><input type="radio" name="mode" value="duration" /> Time hotspots</label>
+          <label><input type="radio" name="mode" value="rework" /> Rework hotspots</label>
         </div>
 
         <label class="control-label" for="threshold">
@@ -69,20 +98,33 @@
           <button id="regenerate">Regenerate log</button>
         </div>
 
-        <button id="clear-variant" class="ghost-button">Clear highlighted path</button>
+        <button id="clear-variant" class="ghost-button">Clear highlight</button>
 
         <div id="legend" class="legend" data-mode="frequency">
           <h3>Legend</h3>
           <div class="legend-row freq-only"><span class="swatch happy"></span> Most common path</div>
-          <div class="legend-row freq-only"><span class="swatch deviation"></span> Deviation from the most common path</div>
-          <div class="legend-row freq-only">Edge thickness = number of cases taking that step</div>
-          <div class="legend-row duration-only"><span class="gradient-swatch"></span> Fast (green) → slow (red) avg. task time</div>
+          <div class="legend-row freq-only"><span class="swatch deviation"></span> Deviation, moving forward</div>
+          <div class="legend-row freq-only"><span class="swatch rework"></span> Deviation that loops back (rework)</div>
+          <div class="legend-row duration-only"><span class="gradient-swatch duration-gradient"></span> Fast (green) → slow (red) avg. task time</div>
+          <div class="legend-row rework-only"><span class="gradient-swatch rework-gradient"></span> No rework (grey) → high rework (amber)</div>
         </div>
+      </div>
+
+      <div class="panel">
+        <h2>Where time is going</h2>
+        <p class="hint">Ranked by total time spent across all cases — the biggest automation payoff.</p>
+        <ul id="time-list" class="metric-list"></ul>
+      </div>
+
+      <div class="panel">
+        <h2>Where rework is happening</h2>
+        <p class="hint">Steps that get repeated within the same case.</p>
+        <ul id="rework-list" class="metric-list"></ul>
       </div>
 
       <div class="panel variant-panel">
         <h2>Paths, ranked by frequency</h2>
-        <p class="hint">Click a path to trace it on the map.</p>
+        <p class="hint">Click a path to trace it on the map. ⚡ marks the fastest observed path.</p>
         <ul id="variant-list"></ul>
       </div>
     </aside>

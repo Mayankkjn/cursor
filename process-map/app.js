@@ -1,4 +1,4 @@
-/* global d3, dagre, generateEventLog, buildProcessModel, START, END */
+/* global d3, dagre, generateEventLog, buildProcessModel, normalizeCaseLog, SAMPLE_JSON_TEMPLATE, START, END */
 
 const TASK_W = 220;
 const TASK_H = 62;
@@ -10,8 +10,8 @@ const state = {
   cases: [],
   model: null,
   threshold: 0, // hide edges below this % of the busiest edge
-  mode: 'frequency', // 'frequency' | 'duration'
-  activeVariant: null, // variant object or null
+  mode: 'frequency', // 'frequency' | 'duration' | 'rework'
+  highlight: null, // null | { kind: 'variant', value: variant } | { kind: 'node', value: nodeId }
 };
 
 const svg = d3.select('#graph');
@@ -36,6 +36,7 @@ function addMarker(id, color) {
 }
 addMarker('arrow-happy', '#1f9d5c');
 addMarker('arrow-deviation', '#9a9fb5');
+addMarker('arrow-rework', '#d17d2c');
 
 const zoomBehavior = d3.zoom()
   .scaleExtent([0.2, 2.5])
@@ -78,6 +79,12 @@ function labelForNode(id) {
 }
 
 function edgeKey(e) { return `${e.from}||${e.to}`; }
+
+function setHighlight(kind, value) {
+  const isSame = state.highlight && state.highlight.kind === kind && state.highlight.value === value;
+  state.highlight = isSame ? null : { kind, value };
+  render();
+}
 
 function applyThreshold(model, thresholdPct) {
   const maxEdgeCount = Math.max(...model.edges.map((e) => e.count));
@@ -182,11 +189,13 @@ function buildTaskCard(g, n, p) {
   g.append('rect').attr('class', 'card-accent').attr('width', 4).attr('height', p.height).attr('rx', 2);
   appendTaskIcon(g, 16, 14);
   g.append('text').attr('class', 'node-title').attr('x', 40).attr('y', 25).text(n.label);
+  if (n.reworkCaseCount > 0) {
+    g.append('circle').attr('class', 'node-badge').attr('cx', p.width - 34).attr('cy', 14).attr('r', 5);
+  }
   appendKebab(g, p.width - 16, p.height / 2 - 11);
-  const clock = appendClockIcon(g, 16, p.height - 24);
+  appendClockIcon(g, 16, p.height - 24);
   g.append('text').attr('class', 'node-meta').attr('x', 40).attr('y', p.height - 14)
     .text(`${pluralCases(n.caseCount)} · ${formatDuration(n.avgDuration)}`);
-  return clock;
 }
 
 function buildPill(g, n, p) {
@@ -223,22 +232,56 @@ function render(fit = false) {
   const renderGraph = buildRenderGraph(model);
   const { nodePos, edgePos } = layout(renderGraph);
 
+  // A deviation edge is "rework" when the transition's target was already
+  // visited earlier in the same case (graph.js flags this at the source),
+  // as opposed to a variant that simply orders steps differently.
+  renderGraph.edges.forEach((e) => {
+    e.isRework = e.kind === 'deviation' && e.sourceEdges[0].reworkCaseCount > 0;
+  });
+
   const durations = model.nodes.filter((n) => !n.virtual).map((n) => n.avgDuration);
   const durationColor = d3.scaleSequential(d3.interpolateRdYlGn)
     .domain([d3.max(durations) * 1.1, 0]); // red = slow, green = fast
 
-  const activeSeq = state.activeVariant
-    ? [START, ...state.activeVariant.path, END]
-    : null;
+  const maxReworkRate = d3.max(model.nodes.filter((n) => !n.virtual), (n) => n.reworkRate) || 0;
+  const reworkColor = d3.scaleSequential(d3.interpolateOranges).domain([0, maxReworkRate || 1]);
+  const metricFill = (n) => {
+    if (state.mode === 'duration') return durationColor(n.avgDuration);
+    if (state.mode === 'rework') return n.reworkRate > 0 ? reworkColor(n.reworkRate) : '#9fa3ba';
+    return null;
+  };
+
+  const highlight = state.highlight;
+  const activeSeq = highlight && highlight.kind === 'variant' ? [START, ...highlight.value.path, END] : null;
   const activeEdgeKeys = new Set();
   if (activeSeq) {
     for (let i = 0; i < activeSeq.length - 1; i++) activeEdgeKeys.add(`${activeSeq[i]}||${activeSeq[i + 1]}`);
   }
-  const edgeIsActive = (e) => !activeSeq || e.sourceEdges.some((se) => activeEdgeKeys.has(`${se.from}||${se.to}`));
+  const focusNodeId = highlight && highlight.kind === 'node' ? highlight.value : null;
+
+  const edgeIsActive = (e) => {
+    if (activeSeq) return e.sourceEdges.some((se) => activeEdgeKeys.has(`${se.from}||${se.to}`));
+    if (focusNodeId) return e.sourceEdges.some((se) => se.from === focusNodeId || se.to === focusNodeId);
+    return true;
+  };
+
+  // When focused on a single node, also keep its direct neighbors lit up —
+  // an active edge dangling from a greyed-out box reads as a rendering bug.
+  const focusNeighborIds = new Set();
+  if (focusNodeId) {
+    focusNeighborIds.add(focusNodeId);
+    renderGraph.edges.forEach((e) => {
+      if (edgeIsActive(e)) { focusNeighborIds.add(e.from); focusNeighborIds.add(e.to); }
+    });
+  }
+
   const nodeIsActive = (n) => {
-    if (!activeSeq) return true;
-    if (n.kind === 'diamond') return n.sourceEdges.some((se) => activeEdgeKeys.has(`${se.from}||${se.to}`));
-    return activeSeq.includes(n.id);
+    if (activeSeq) {
+      if (n.kind === 'diamond') return n.sourceEdges.some((se) => activeEdgeKeys.has(`${se.from}||${se.to}`));
+      return activeSeq.includes(n.id);
+    }
+    if (focusNodeId) return focusNeighborIds.has(n.id);
+    return true;
   };
 
   const lineGen = d3.line().x((d) => d.x).y((d) => d.y).curve(d3.curveBasis);
@@ -253,14 +296,23 @@ function render(fit = false) {
 
   const mergedEdges = edgeEnter.merge(edgeSel);
   mergedEdges
-    .attr('class', (e) => `edge ${e.kind}${edgeIsActive(e) ? '' : ' dimmed'}`)
+    .attr('class', (e) => {
+      const classes = ['edge', e.kind];
+      if (e.isRework) classes.push('rework');
+      if (!edgeIsActive(e)) classes.push('dimmed');
+      return classes.join(' ');
+    })
     .on('mouseenter', (event, e) => showTooltip(event, edgeTooltipHtml(e)))
     .on('mousemove', moveTooltip)
     .on('mouseleave', hideTooltip);
 
   mergedEdges.select('path.edge-path')
     .attr('d', (e) => lineGen(edgePos.get(edgeKey(e)).points))
-    .attr('marker-end', (e) => (e.kind === 'happy' ? 'url(#arrow-happy)' : 'url(#arrow-deviation)'))
+    .attr('marker-end', (e) => {
+      if (e.kind === 'happy') return 'url(#arrow-happy)';
+      if (e.isRework) return 'url(#arrow-rework)';
+      return 'url(#arrow-deviation)';
+    })
     .attr('stroke', (e) => (state.mode === 'duration' ? durationColor(estimateEdgeDuration(e, model)) : null));
 
   mergedEdges.each(function (e) {
@@ -289,8 +341,8 @@ function render(fit = false) {
       const p = nodePos.get(n.id);
       return `translate(${p.x - p.width / 2}, ${p.y - p.height / 2})`;
     })
-    .attr('class', (n) => `node ${n.kind}${state.mode === 'duration' && n.kind === 'task' ? ' duration-mode' : ''}${nodeIsActive(n) ? '' : ' dimmed'}`)
-    .style('--duration-fill', (n) => (state.mode === 'duration' && n.kind === 'task' ? durationColor(n.avgDuration) : null))
+    .attr('class', (n) => `node ${n.kind}${state.mode !== 'frequency' && n.kind === 'task' ? ' metric-mode' : ''}${nodeIsActive(n) ? '' : ' dimmed'}`)
+    .style('--metric-fill', (n) => (n.kind === 'task' ? metricFill(n) : null))
     .on('mouseenter', (event, n) => showTooltip(event, nodeTooltipHtml(n, model)))
     .on('mousemove', moveTooltip)
     .on('mouseleave', hideTooltip);
@@ -304,6 +356,9 @@ function render(fit = false) {
     else buildPill(g, n, p);
   });
 
+  renderInsights(model);
+  renderTimeList(model);
+  renderReworkList(model);
   renderVariantList(model);
   renderStats(model);
   if (fit) fitToView();
@@ -315,11 +370,15 @@ function nodeTooltipHtml(n, model) {
     const rows = n.sourceEdges.map((e) => `<div>→ ${labelForNode(e.to)}: ${pluralCases(e.caseCount)}</div>`).join('');
     return `<strong>${pluralCases(Number(n.label))} branch here</strong>${rows}`;
   }
+  const reworkLine = n.reworkCaseCount > 0
+    ? `<div>${(n.reworkRate * 100).toFixed(0)}% of cases looped back to redo this step</div>`
+    : '';
   return `
     <strong>${n.label}</strong>
     <div>${n.caseCount} of ${model.totalCases} cases (${(n.casePct * 100).toFixed(0)}%)</div>
-    <div>Avg time in task: ${formatDuration(n.avgDuration)}</div>
+    <div>Avg time in task: ${formatDuration(n.avgDuration)} · ${(n.timeShare * 100).toFixed(0)}% of all process time</div>
     <div>${n.visits} total visits${n.visits !== n.caseCount ? ' (includes rework)' : ''}</div>
+    ${reworkLine}
   `;
 }
 
@@ -333,7 +392,7 @@ function edgeTooltipHtml(e) {
   const orig = e.sourceEdges[0];
   return `
     <strong>${labelForNode(orig.from)} → ${labelForNode(orig.to)}</strong>
-    <div>${pluralCases(Number(e.label))} · deviation from the most common path</div>
+    <div>${pluralCases(Number(e.label))} · ${e.isRework ? 'rework: loops back to an earlier step' : 'deviation from the most common path'}</div>
   `;
 }
 
@@ -346,6 +405,75 @@ function moveTooltip(event) {
 }
 function hideTooltip() { tooltip.style('display', 'none'); }
 
+function renderInsights(model) {
+  d3.select('#insight-frequent-value').text(`${(model.happyPath.pct * 100).toFixed(0)}%`);
+  d3.select('#insight-frequent-detail').text(`${model.happyPath.path.length} steps · ${formatDuration(model.happyPath.avgDuration)} avg`);
+
+  d3.select('#insight-fastest-value').text(formatDuration(model.fastestPath.avgDuration));
+  d3.select('#insight-fastest-detail').text(`${(model.fastestPath.pct * 100).toFixed(1)}% of cases take this route`);
+
+  const topTime = model.timeRanking[0];
+  d3.select('#insight-timesink-value').text(topTime ? topTime.label : '–');
+  d3.select('#insight-timesink-detail').text(topTime ? `${(topTime.timeShare * 100).toFixed(0)}% of all time spent across the process` : '');
+
+  const topRework = model.reworkRanking[0];
+  d3.select('#insight-rework').property('disabled', !topRework);
+  d3.select('#insight-rework-value').text(topRework ? topRework.label : 'None found');
+  d3.select('#insight-rework-detail').text(topRework ? `${(topRework.reworkRate * 100).toFixed(0)}% of cases looped back here` : 'No repeated steps in this data');
+
+  const isActive = (kind, value) => state.highlight && state.highlight.kind === kind && state.highlight.value === value;
+  d3.select('#insight-frequent').classed('active', isActive('variant', model.happyPath));
+  d3.select('#insight-fastest').classed('active', isActive('variant', model.fastestPath));
+  d3.select('#insight-timesink').classed('active', !!topTime && isActive('node', topTime.id));
+  d3.select('#insight-rework').classed('active', !!topRework && isActive('node', topRework.id));
+}
+
+function renderTimeList(model) {
+  const top = model.timeRanking.slice(0, 5);
+  const list = d3.select('#time-list');
+  const items = list.selectAll('li').data(top, (n) => n.id);
+  items.exit().remove();
+  const enter = items.enter().append('li').attr('class', 'metric-item');
+  enter.append('div').attr('class', 'metric-item-top');
+  enter.append('div').attr('class', 'metric-item-sub');
+  enter.append('div').attr('class', 'metric-bar-track').append('div').attr('class', 'metric-bar-fill');
+
+  const merged = enter.merge(items);
+  merged
+    .attr('class', (n) => `metric-item${state.highlight && state.highlight.kind === 'node' && state.highlight.value === n.id ? ' active' : ''}`)
+    .on('click', (event, n) => setHighlight('node', n.id));
+  merged.select('.metric-item-top').html((n) => `<span>${n.label}</span><span>${(n.timeShare * 100).toFixed(0)}%</span>`);
+  merged.select('.metric-item-sub').text((n) => `${formatDuration(n.totalTime)} total · ${formatDuration(n.avgDuration)} avg · ${pluralCases(n.caseCount)}`);
+  merged.select('.metric-bar-fill').style('width', (n) => `${Math.max(2, n.timeShare * 100)}%`);
+}
+
+function renderReworkList(model) {
+  const top = model.reworkRanking.slice(0, 5);
+  const list = d3.select('#rework-list');
+  d3.select('#rework-list-empty').remove();
+
+  if (!top.length) {
+    list.selectAll('li').remove();
+    list.node().insertAdjacentHTML('afterend', '<p id="rework-list-empty" class="metric-empty">No steps show repeated visits in this data.</p>');
+    return;
+  }
+
+  const items = list.selectAll('li').data(top, (n) => n.id);
+  items.exit().remove();
+  const enter = items.enter().append('li').attr('class', 'metric-item rework');
+  enter.append('div').attr('class', 'metric-item-top');
+  enter.append('div').attr('class', 'metric-item-sub');
+  enter.append('div').attr('class', 'metric-bar-track').append('div').attr('class', 'metric-bar-fill');
+
+  const merged = enter.merge(items);
+  merged
+    .attr('class', (n) => `metric-item rework${state.highlight && state.highlight.kind === 'node' && state.highlight.value === n.id ? ' active' : ''}`)
+    .on('click', (event, n) => setHighlight('node', n.id));
+  merged.select('.metric-item-top').html((n) => `<span>${n.label}</span><span>${(n.reworkRate * 100).toFixed(0)}%</span>`);
+  merged.select('.metric-item-sub').text((n) => `${pluralCases(n.reworkCaseCount)} needed rework · ${n.reworkExtraVisits} extra visit${n.reworkExtraVisits === 1 ? '' : 's'}`);
+  merged.select('.metric-bar-fill').style('width', (n) => `${Math.max(2, n.reworkRate * 100)}%`);
+}
+
 function renderVariantList(model) {
   const list = d3.select('#variant-list');
   const items = list.selectAll('li').data(model.variants, (v) => v.signature);
@@ -356,14 +484,11 @@ function renderVariantList(model) {
 
   const merged = enter.merge(items);
   merged
-    .attr('class', (v) => `variant-item${state.activeVariant === v ? ' active' : ''}`)
-    .on('click', (event, v) => {
-      state.activeVariant = state.activeVariant === v ? null : v;
-      render();
-    });
+    .attr('class', (v) => `variant-item${state.highlight && state.highlight.kind === 'variant' && state.highlight.value === v ? ' active' : ''}`)
+    .on('click', (event, v) => setHighlight('variant', v));
   merged.select('.variant-rank').text((v) => `#${v.rank}`);
   merged.select('.variant-body').html((v) => `
-    <div class="variant-pct">${(v.pct * 100).toFixed(1)}% <span class="variant-count">(${v.count} case${v.count === 1 ? '' : 's'})</span></div>
+    <div class="variant-pct">${(v.pct * 100).toFixed(1)}% <span class="variant-count">(${v.count} case${v.count === 1 ? '' : 's'})</span>${v === model.fastestPath ? ' <span class="fastest-badge" title="Fastest observed path">⚡ fastest</span>' : ''}</div>
     <div class="variant-path">${v.path.join(' → ')}</div>
     <div class="variant-duration">Avg total time: ${formatDuration(v.avgDuration)}</div>
   `);
@@ -375,12 +500,13 @@ function renderStats(model) {
   const avgTotal = model.variants.reduce((s, v) => s + v.avgDuration * v.count, 0) / model.totalCases;
   d3.select('#stat-avg-duration').text(formatDuration(avgTotal));
   d3.select('#stat-happy-pct').text(`${(model.happyPath.pct * 100).toFixed(0)}%`);
+  d3.select('#stat-rework-pct').text(`${(model.reworkedCasePct * 100).toFixed(0)}%`);
 }
 
 function regenerate(numCases) {
   state.cases = generateEventLog(numCases);
   state.model = buildProcessModel(state.cases);
-  state.activeVariant = null;
+  state.highlight = null;
   setSourceBadge('Sample data');
   setUploadStatus('');
   render(true);
@@ -414,7 +540,7 @@ function handleUploadFile(file) {
       const cases = normalizeCaseLog(raw);
       state.cases = cases;
       state.model = buildProcessModel(cases);
-      state.activeVariant = null;
+      state.highlight = null;
       state.threshold = 0;
       d3.select('#threshold').property('value', 0);
       d3.select('#threshold-value').text('0%');
@@ -501,6 +627,16 @@ d3.select('#copy-sample').on('click', function () {
   });
 });
 
+// ---- key insights ----
+d3.select('#insight-frequent').on('click', () => setHighlight('variant', state.model.happyPath));
+d3.select('#insight-fastest').on('click', () => setHighlight('variant', state.model.fastestPath));
+d3.select('#insight-timesink').on('click', () => {
+  if (state.model.timeRanking[0]) setHighlight('node', state.model.timeRanking[0].id);
+});
+d3.select('#insight-rework').on('click', () => {
+  if (state.model.reworkRanking[0]) setHighlight('node', state.model.reworkRanking[0].id);
+});
+
 // ---- controls ----
 d3.select('#threshold').on('input', function () {
   state.threshold = +this.value / 100;
@@ -520,7 +656,7 @@ d3.select('#regenerate').on('click', () => {
 });
 
 d3.select('#clear-variant').on('click', () => {
-  state.activeVariant = null;
+  state.highlight = null;
   render();
 });
 
