@@ -69,6 +69,8 @@ function formatDuration(minutes) {
   return `${(hours / 24).toFixed(1)}d`;
 }
 
+function pluralCases(n) { return `${n} case${n === 1 ? '' : 's'}`; }
+
 function labelForNode(id) {
   if (id === START) return 'Start';
   if (id === END) return 'End';
@@ -183,7 +185,7 @@ function buildTaskCard(g, n, p) {
   appendKebab(g, p.width - 16, p.height / 2 - 11);
   const clock = appendClockIcon(g, 16, p.height - 24);
   g.append('text').attr('class', 'node-meta').attr('x', 40).attr('y', p.height - 14)
-    .text(`${n.caseCount} cases · ${formatDuration(n.avgDuration)}`);
+    .text(`${pluralCases(n.caseCount)} · ${formatDuration(n.avgDuration)}`);
   return clock;
 }
 
@@ -310,8 +312,8 @@ function render(fit = false) {
 function nodeTooltipHtml(n, model) {
   if (n.kind === 'start' || n.kind === 'end') return `<strong>${n.label}</strong>`;
   if (n.kind === 'diamond') {
-    const rows = n.sourceEdges.map((e) => `<div>→ ${labelForNode(e.to)}: ${e.caseCount} cases</div>`).join('');
-    return `<strong>${n.label} cases branch here</strong>${rows}`;
+    const rows = n.sourceEdges.map((e) => `<div>→ ${labelForNode(e.to)}: ${pluralCases(e.caseCount)}</div>`).join('');
+    return `<strong>${pluralCases(Number(n.label))} branch here</strong>${rows}`;
   }
   return `
     <strong>${n.label}</strong>
@@ -326,12 +328,12 @@ function edgeTooltipHtml(e) {
     return `<strong>${labelForNode(e.from)} → ${labelForNode(e.to)}</strong><div>Part of the most common path</div>`;
   }
   if (e.kind === 'deviation-bundle') {
-    return `<strong>${e.sourceEdges.length} deviation paths from ${labelForNode(e.from)}</strong><div>${e.label} cases total</div>`;
+    return `<strong>${e.sourceEdges.length} deviation paths from ${labelForNode(e.from)}</strong><div>${pluralCases(Number(e.label))} total</div>`;
   }
   const orig = e.sourceEdges[0];
   return `
     <strong>${labelForNode(orig.from)} → ${labelForNode(orig.to)}</strong>
-    <div>${e.label} cases · deviation from the most common path</div>
+    <div>${pluralCases(Number(e.label))} · deviation from the most common path</div>
   `;
 }
 
