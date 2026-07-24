@@ -28,7 +28,16 @@
         <p class="hint">
           Upload a JSON event log to visualize your own process.
           <button id="download-sample" class="link-button" type="button">Download sample format</button>
+          <span aria-hidden="true"> · </span>
+          <button id="toggle-sample" class="link-button" type="button">View JSON</button>
         </p>
+        <div id="sample-json-panel" class="sample-json-panel hidden">
+          <div class="sample-json-toolbar">
+            <span>process-map-sample.json</span>
+            <button id="copy-sample" class="copy-button" type="button">Copy</button>
+          </div>
+          <pre id="sample-json-code"></pre>
+        </div>
         <label class="upload-dropzone" for="upload-input" id="upload-dropzone">
           <input type="file" id="upload-input" accept=".json,application/json" hidden />
           <svg class="upload-icon" width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">

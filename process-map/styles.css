@@ -106,6 +106,47 @@ body {
 }
 .link-button:hover { filter: none; color: #372fc4; }
 
+.sample-json-panel {
+  margin-top: 10px;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fbfbfd;
+}
+.sample-json-panel.hidden { display: none; }
+.sample-json-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  background: #f2f2f8;
+  border-bottom: 1px solid var(--panel-border);
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+}
+.copy-button {
+  background: none;
+  border: 1px solid var(--panel-border);
+  color: var(--text-secondary);
+  padding: 2px 8px;
+  border-radius: 5px;
+  font-size: 0.7rem;
+  cursor: pointer;
+}
+.copy-button:hover { border-color: var(--accent-ui); color: var(--accent-ui); }
+.sample-json-panel pre {
+  margin: 0;
+  padding: 10px;
+  max-height: 220px;
+  overflow: auto;
+  font-size: 0.7rem;
+  line-height: 1.5;
+  color: var(--text-primary);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  white-space: pre;
+}
+
 .upload-dropzone {
   display: flex;
   flex-direction: column;

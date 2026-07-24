@@ -459,6 +459,48 @@ d3.select('#download-sample').on('click', () => {
   URL.revokeObjectURL(url);
 });
 
+// A programmatic <a download> click is blocked inside some sandboxed
+// embeds, so "View JSON" gives a copy-pasteable fallback that always works.
+function copyText(text) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    return navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
+  }
+  return fallbackCopy(text);
+}
+function fallbackCopy(text) {
+  return new Promise((resolve) => {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    try { document.execCommand('copy'); } catch (err) { /* best effort */ }
+    document.body.removeChild(ta);
+    resolve();
+  });
+}
+
+d3.select('#toggle-sample').on('click', function () {
+  const panel = d3.select('#sample-json-panel');
+  const willShow = panel.classed('hidden');
+  panel.classed('hidden', !willShow);
+  d3.select(this).text(willShow ? 'Hide JSON' : 'View JSON');
+  if (willShow && !panel.attr('data-filled')) {
+    d3.select('#sample-json-code').text(JSON.stringify(SAMPLE_JSON_TEMPLATE, null, 2));
+    panel.attr('data-filled', 'true');
+  }
+});
+
+d3.select('#copy-sample').on('click', function () {
+  const btn = d3.select(this);
+  copyText(JSON.stringify(SAMPLE_JSON_TEMPLATE, null, 2)).then(() => {
+    btn.text('Copied!');
+    setTimeout(() => btn.text('Copy'), 1500);
+  });
+});
+
 // ---- controls ----
 d3.select('#threshold').on('input', function () {
   state.threshold = +this.value / 100;
