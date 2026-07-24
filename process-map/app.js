@@ -543,7 +543,7 @@ function handleUploadFile(file) {
       state.highlight = null;
       state.threshold = 0;
       d3.select('#threshold').property('value', 0);
-      d3.select('#threshold-value').text('0%');
+      updateThresholdHeadline(0);
       setSourceBadge(file.name);
       setUploadStatus(`Loaded ${cases.length} case${cases.length === 1 ? '' : 's'} from "${file.name}".`, 'success');
       render(true);
@@ -659,9 +659,15 @@ d3.select('#insight-rework').on('click', () => {
 });
 
 // ---- controls ----
+function updateThresholdHeadline(value) {
+  d3.select('#threshold-headline').text(
+    value == 0 ? 'Showing all paths' : `Showing paths above ${value}% frequency`
+  );
+}
+
 d3.select('#threshold').on('input', function () {
   state.threshold = +this.value / 100;
-  d3.select('#threshold-value').text(`${this.value}%`);
+  updateThresholdHeadline(this.value);
   render(true);
 });
 
