@@ -176,6 +176,37 @@ function extractRawCases(raw) {
     });
   }
 
+  // Ground-truth process export: { processes: [{ nodes: [{id,name}],
+  // execution_paths: [{ path: [{task_id, task_start_time, task_end_time}],
+  // count, metadata }] }] }. Each execution_path is a distinct trace that
+  // may represent more than one real case (via "count"), which is a
+  // legitimate log-compression technique, not fabricated data — so it's
+  // expanded into that many identical cases rather than counted once.
+  if (raw && Array.isArray(raw.processes) && raw.processes.length) {
+    const process = raw.processes[0];
+    if (!Array.isArray(process.nodes) || !Array.isArray(process.execution_paths)) {
+      throw new Error('Expected each entry in "processes" to have "nodes" and "execution_paths" arrays.');
+    }
+    const taskNameById = new Map(process.nodes.map((n) => [n.id, n.name || n.id]));
+    const cases = [];
+    process.execution_paths.forEach((ep, i) => {
+      const steps = (ep.path || []).map((step) => {
+        let duration = 0;
+        if (step.task_start_time != null && step.task_end_time != null) {
+          const ms = Number(step.task_end_time) - Number(step.task_start_time);
+          if (Number.isFinite(ms) && ms > 0) duration = ms / 60000;
+        }
+        return { task: taskNameById.get(step.task_id) || step.task_id || 'Unknown step', duration };
+      });
+      const baseId = (ep.metadata && ep.metadata.support_ticket_id) || ep.id || `PATH-${i + 1}`;
+      const repeat = Math.min(5000, Math.max(1, Math.round(Number(ep.count)) || 1));
+      for (let k = 0; k < repeat; k++) {
+        cases.push({ caseId: repeat > 1 ? `${baseId}-${k + 1}` : String(baseId), steps });
+      }
+    });
+    return cases;
+  }
+
   // A pre-built diagram (nodes/edges, e.g. from a layout tool) rather than
   // an event log. There's no per-case sequence or duration data to mine
   // here, so refuse rather than fabricate frequency/time/rework numbers.
