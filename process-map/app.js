@@ -547,6 +547,7 @@ function handleUploadFile(file) {
       setSourceBadge(file.name);
       setUploadStatus(`Loaded ${cases.length} case${cases.length === 1 ? '' : 's'} from "${file.name}".`, 'success');
       render(true);
+      setTimeout(closeImportModal, 700);
     } catch (err) {
       setUploadStatus(`Couldn't read "${file.name}": ${err.message}`, 'error');
     }
@@ -554,6 +555,19 @@ function handleUploadFile(file) {
   reader.onerror = () => setUploadStatus(`Couldn't read "${file.name}".`, 'error');
   reader.readAsText(file);
 }
+
+// ---- import modal ----
+function openImportModal() { d3.select('#import-modal').classed('hidden', false); }
+function closeImportModal() { d3.select('#import-modal').classed('hidden', true); }
+
+d3.select('#import-button').on('click', openImportModal);
+d3.select('#import-close').on('click', closeImportModal);
+d3.select('#import-modal').on('click', function (event) {
+  if (event.target === this) closeImportModal();
+});
+d3.select(document).on('keydown', (event) => {
+  if (event.key === 'Escape' && !d3.select('#import-modal').classed('hidden')) closeImportModal();
+});
 
 // ---- upload ----
 d3.select('#upload-input').on('change', function () {
