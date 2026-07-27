@@ -38,6 +38,12 @@ addMarker('arrow-happy', '#1f9d5c');
 addMarker('arrow-deviation', '#9a9fb5');
 addMarker('arrow-rework', '#d17d2c');
 
+const taskIconGradient = defs.append('linearGradient')
+  .attr('id', 'task-icon-gradient')
+  .attr('x1', '0').attr('y1', '0').attr('x2', '1').attr('y2', '1');
+taskIconGradient.append('stop').attr('offset', '0').attr('stop-color', '#C7C9D6');
+taskIconGradient.append('stop').attr('offset', '1').attr('stop-color', '#8B8FA6');
+
 const zoomBehavior = d3.zoom()
   .scaleExtent([0.2, 2.5])
   .on('zoom', (event) => viewport.attr('transform', event.transform));
@@ -165,7 +171,9 @@ function layout(renderGraph) {
 
 // ---- small inline icons ----
 function appendTaskIcon(g, x, y) {
-  g.append('rect').attr('class', 'icon-task').attr('x', x).attr('y', y).attr('width', 14).attr('height', 14).attr('rx', 3);
+  const k = g.append('g').attr('class', 'icon-task');
+  k.append('rect').attr('class', 'icon-task-body').attr('x', x).attr('y', y).attr('width', 14).attr('height', 14).attr('rx', 3.5);
+  k.append('rect').attr('class', 'icon-task-highlight').attr('x', x + 2).attr('y', y + 2).attr('width', 10).attr('height', 3).attr('rx', 1.5);
 }
 function appendKebab(g, x, y) {
   const k = g.append('g').attr('class', 'icon-kebab');
