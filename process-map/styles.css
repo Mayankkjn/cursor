@@ -396,8 +396,9 @@ button:hover { filter: brightness(1.08); }
 .node-meta { fill: var(--text-secondary); font-size: 11px; pointer-events: none; }
 .node-badge { fill: var(--rework); }
 .node-badge-label { fill: white; font-size: 8.5px; font-weight: 700; text-anchor: middle; pointer-events: none; }
-.icon-task-body { fill: url(#task-icon-gradient); }
-.icon-task-highlight { fill: #ffffff; opacity: 0.4; }
+.icon-task-body { fill: #5B5E78; }
+.icon-task-inset { fill: #ffffff; }
+.icon-task-dot { fill: #5B5E78; }
 .icon-kebab circle { fill: var(--text-tertiary); }
 .icon-clock circle, .icon-clock path { stroke: var(--text-secondary); stroke-width: 1.3px; stroke-linecap: round; stroke-linejoin: round; fill: none; }
 .node.task.metric-mode .icon-clock circle,
