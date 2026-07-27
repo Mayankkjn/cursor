@@ -687,4 +687,14 @@ d3.select('#clear-variant').on('click', () => {
   render();
 });
 
+// If the user arrived here by clicking a process on the Overview page,
+// reflect that process's name in the header (one-time; doesn't persist
+// across a plain reload of this page).
+const selectedProcessName = sessionStorage.getItem('selectedProcessName');
+if (selectedProcessName) {
+  document.getElementById('page-title').textContent = `Process Map — ${selectedProcessName}`;
+  document.title = `Process Map — ${selectedProcessName}`;
+  sessionStorage.removeItem('selectedProcessName');
+}
+
 regenerate(500);
