@@ -56,6 +56,18 @@ body {
   flex-wrap: wrap;
 }
 
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-decoration: none;
+  margin-bottom: 8px;
+}
+.back-link:hover { color: var(--accent-ui); }
+
 .topbar-title h1 { margin: 0 0 4px; font-size: 1.2rem; letter-spacing: -0.01em; }
 .subtitle { margin: 0; color: var(--text-secondary); font-size: 0.85rem; max-width: 640px; }
 .source-badge {
@@ -489,7 +501,13 @@ rect.icon-task { fill: none; stroke: var(--text-tertiary); stroke-width: 1.4px; 
 
   <header class="topbar">
     <div class="topbar-title">
-      <h1>Process Map — Purchase Order to Payment</h1>
+      <a class="back-link" href="home.html">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+          <path d="M9 3 L4.5 7 L9 11" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        Overview
+      </a>
+      <h1 id="page-title">Process Map — Purchase Order to Payment</h1>
       <p class="subtitle">Directly-follows graph mined from case history. Thicker path = more frequent. Highlighted path = most common route.</p>
       <span class="source-badge" id="source-badge">Sample data</span>
     </div>
@@ -5637,6 +5655,16 @@ d3.select('#clear-variant').on('click', () => {
   state.highlight = null;
   render();
 });
+
+// If the user arrived here by clicking a process on the Overview page,
+// reflect that process's name in the header (one-time; doesn't persist
+// across a plain reload of this page).
+const selectedProcessName = sessionStorage.getItem('selectedProcessName');
+if (selectedProcessName) {
+  document.getElementById('page-title').textContent = `Process Map — ${selectedProcessName}`;
+  document.title = `Process Map — ${selectedProcessName}`;
+  sessionStorage.removeItem('selectedProcessName');
+}
 
 regenerate(500);
 
