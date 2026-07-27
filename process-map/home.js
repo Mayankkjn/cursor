@@ -41,6 +41,11 @@ function renderFilterOptions() {
 
 function openProcess(row) {
   sessionStorage.setItem('selectedProcessName', row.title);
+  if (row.datasetRaw) {
+    sessionStorage.setItem('selectedProcessData', JSON.stringify(row.datasetRaw));
+  } else {
+    sessionStorage.removeItem('selectedProcessData');
+  }
   window.location.href = 'index.html';
 }
 
