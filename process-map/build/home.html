@@ -1,10 +1,10 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Whatfix Lens — Overview</title>
-<style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Whatfix Lens — Overview</title>
+  <style>
 :root {
   --sidebar-bg: #12141c;
   --sidebar-border: #232633;
@@ -195,7 +195,6 @@ body {
 </style>
 </head>
 <body>
-
   <div class="app-shell">
     <aside class="side-nav" id="side-nav">
       <div class="side-nav-header">
@@ -332,11 +331,7 @@ body {
     </main>
   </div>
 
-
-
-
-
-<script>
+  <script>
 // Sample process: Purchase Order to Payment
 // Each variant is one real-world route through the process. Weight controls
 // how often that route occurs relative to the others in the generated log.
@@ -632,7 +627,7 @@ function normalizeCaseLog(raw) {
 }
 
 </script>
-<script>
+  <script>
 // Turns a raw event log (array of cases) into a directly-follows graph plus
 // the metrics that actually drive an automation decision: not just "what
 // paths exist", but where time concentrates, where rework loops happen, and
@@ -784,7 +779,7 @@ function buildProcessModel(cases) {
 }
 
 </script>
-<script>
+  <script>
 // Real uploaded ground-truth datasets, embedded so the Overview page can
 // link straight to them (as opposed to the generic synthetic demo data that
 // every other example row falls back to). Each entry's `data` is the exact
@@ -808,7 +803,7 @@ const EXTRA_PROCESS_EXAMPLES = [
 ];
 
 </script>
-<script>
+  <script>
 // Sample process catalog for the Overview page. Exactly 10 example rows.
 // #1 "Purchase Order to Payment" opens the process map's own synthetic demo
 // generator. #2 and #3 are backed by real uploaded ground-truth data (see
@@ -903,7 +898,7 @@ function generateProcessCatalog() {
 }
 
 </script>
-<script>
+  <script>
 const PAGE_SIZE = 16;
 
 const state = {
