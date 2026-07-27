@@ -5658,15 +5658,35 @@ d3.select('#clear-variant').on('click', () => {
 
 // If the user arrived here by clicking a process on the Overview page,
 // reflect that process's name in the header (one-time; doesn't persist
-// across a plain reload of this page).
+// across a plain reload of this page) and, if that row carried a real
+// dataset, load it instead of the synthetic demo generator.
 const selectedProcessName = sessionStorage.getItem('selectedProcessName');
+const selectedProcessDataRaw = sessionStorage.getItem('selectedProcessData');
+sessionStorage.removeItem('selectedProcessName');
+sessionStorage.removeItem('selectedProcessData');
+
 if (selectedProcessName) {
   document.getElementById('page-title').textContent = `Process Map — ${selectedProcessName}`;
   document.title = `Process Map — ${selectedProcessName}`;
-  sessionStorage.removeItem('selectedProcessName');
 }
 
-regenerate(500);
+let loadedFromHandoff = false;
+if (selectedProcessDataRaw) {
+  try {
+    const cases = normalizeCaseLog(JSON.parse(selectedProcessDataRaw));
+    state.cases = cases;
+    state.model = buildProcessModel(cases);
+    state.highlight = null;
+    setSourceBadge(selectedProcessName || 'Example data');
+    render(true);
+    loadedFromHandoff = true;
+  } catch (err) {
+    // Fall through to the default demo data below if the handoff payload
+    // was somehow malformed — better than a blank map.
+  }
+}
+
+if (!loadedFromHandoff) regenerate(500);
 
 </script>
 </body>

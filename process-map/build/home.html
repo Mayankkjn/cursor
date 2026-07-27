@@ -329,17 +329,499 @@ body {
   </div>
 
 
-<script>
-// Sample process catalog for the Overview page. Exactly 10 example
-// processes — enough to demonstrate the table (search/sort/filter/click-
-// through) without pretending this is a real multi-hundred-process org.
-// "Purchase Order to Payment" is first and is the one process that maps to
-// real data: it's the same demo dataset the process map itself opens with.
 
-const PROCESS_TEMPLATES = [
-  { title: 'Purchase Order to Payment', description: 'End-to-end purchase order handling: request, approval, vendor selection, receipt, and payment', role: 'Manager', businessUnit: 'Finance', medianDurationSeconds: 79200, processCount: 500, users: 340 },
-  { title: 'Case Identification & Authorisation', description: 'Analysis of the new requests and suggesting alternates', role: 'Manager', businessUnit: 'Finance', medianDurationSeconds: 664, processCount: 90, users: 234 },
-  { title: 'Discharge planning', description: 'Detailed plan for discharge of the patient post hospitalisation', role: 'Manager', businessUnit: 'Support', medianDurationSeconds: 909, processCount: 143, users: 354 },
+
+
+<script>
+// Sample process: Purchase Order to Payment
+// Each variant is one real-world route through the process. Weight controls
+// how often that route occurs relative to the others in the generated log.
+
+const START = '● START';
+const END = '■ END';
+
+const VARIANT_DEFS = [
+  {
+    id: 'v1',
+    label: 'Standard flow',
+    weight: 66,
+    path: [
+      'Create Request', 'Manager Approval', 'Budget Check',
+      'Vendor Selection', 'PO Creation', 'Goods Receipt',
+      'Invoice Match', 'Payment',
+    ],
+  },
+  {
+    id: 'v2',
+    label: 'Low-value PO (budget check skipped)',
+    weight: 14,
+    path: [
+      'Create Request', 'Manager Approval',
+      'Vendor Selection', 'PO Creation', 'Goods Receipt',
+      'Invoice Match', 'Payment',
+    ],
+  },
+  {
+    id: 'v3',
+    label: 'Invoice mismatch rework loop',
+    weight: 9,
+    path: [
+      'Create Request', 'Manager Approval', 'Budget Check',
+      'Vendor Selection', 'PO Creation', 'Goods Receipt',
+      'Invoice Mismatch', 'Vendor Selection', 'PO Creation', 'Goods Receipt',
+      'Invoice Match', 'Payment',
+    ],
+  },
+  {
+    id: 'v4',
+    label: 'Rejected at approval',
+    weight: 6,
+    path: [
+      'Create Request', 'Manager Approval', 'Rejected',
+    ],
+  },
+  {
+    id: 'v5',
+    label: 'Approval/budget order swapped',
+    weight: 5,
+    path: [
+      'Create Request', 'Budget Check', 'Manager Approval',
+      'Vendor Selection', 'PO Creation', 'Goods Receipt',
+      'Invoice Match', 'Payment',
+    ],
+  },
+];
+
+// [min, max] minutes a task typically takes. Used to synthesize durations.
+const STEP_DURATION_MINUTES = {
+  'Create Request': [5, 25],
+  'Manager Approval': [30, 300],
+  'Budget Check': [15, 120],
+  'Vendor Selection': [60, 600],
+  'PO Creation': [10, 45],
+  'Goods Receipt': [180, 2000],
+  'Invoice Match': [20, 100],
+  'Invoice Mismatch': [40, 180],
+  'Payment': [15, 60],
+  'Rejected': [5, 20],
+};
+
+function pickVariant() {
+  const total = VARIANT_DEFS.reduce((s, v) => s + v.weight, 0);
+  let r = Math.random() * total;
+  for (const v of VARIANT_DEFS) {
+    if (r < v.weight) return v;
+    r -= v.weight;
+  }
+  return VARIANT_DEFS[VARIANT_DEFS.length - 1];
+}
+
+function randomDuration(task) {
+  const [min, max] = STEP_DURATION_MINUTES[task] || [10, 60];
+  // Skew toward the low end with an occasional long tail, like real cycle times.
+  const skew = Math.pow(Math.random(), 2);
+  return Math.round(min + skew * (max - min));
+}
+
+function generateEventLog(numCases = 500) {
+  const cases = [];
+  for (let i = 0; i < numCases; i++) {
+    const variant = pickVariant();
+    let cursor = 0;
+    const steps = variant.path.map((task) => {
+      const duration = randomDuration(task);
+      const step = { task, startOffset: cursor, duration };
+      cursor += duration;
+      return step;
+    });
+    cases.push({
+      caseId: `PO-${1000 + i}`,
+      variantId: variant.id,
+      totalDuration: cursor,
+      steps,
+    });
+  }
+  return cases;
+}
+
+// A small, hand-written example a user can download to see the expected
+// upload format: either { "cases": [...] } or a bare array of cases; each
+// case either { "caseId", "steps": [...] } or a bare array of steps; each
+// step either a plain string or { "task", "duration" } (minutes).
+const SAMPLE_JSON_TEMPLATE = {
+  cases: [
+    {
+      caseId: 'CASE-1001',
+      steps: [
+        { task: 'Create Request', duration: 12 },
+        { task: 'Manager Approval', duration: 95 },
+        { task: 'Budget Check', duration: 40 },
+        { task: 'Vendor Selection', duration: 180 },
+        { task: 'PO Creation', duration: 20 },
+        { task: 'Goods Receipt', duration: 600 },
+        { task: 'Invoice Match', duration: 45 },
+        { task: 'Payment', duration: 25 },
+      ],
+    },
+    {
+      caseId: 'CASE-1002',
+      steps: [
+        { task: 'Create Request', duration: 8 },
+        { task: 'Manager Approval', duration: 110 },
+        { task: 'Vendor Selection', duration: 220 },
+        { task: 'PO Creation', duration: 18 },
+        { task: 'Goods Receipt', duration: 540 },
+        { task: 'Invoice Match', duration: 38 },
+        { task: 'Payment', duration: 22 },
+      ],
+    },
+    {
+      caseId: 'CASE-1003',
+      steps: [
+        { task: 'Create Request', duration: 15 },
+        { task: 'Manager Approval', duration: 60 },
+        { task: 'Rejected', duration: 10 },
+      ],
+    },
+  ],
+};
+
+// Pulls a plain array of { caseId?, steps: [...] } out of whatever shape the
+// uploaded JSON actually is. Recognizes a few real-world export shapes in
+// addition to this app's own { "cases": [...] } format; throws a specific,
+// actionable error for anything it can't turn into per-case event data.
+function extractRawCases(raw) {
+  if (Array.isArray(raw)) return raw;
+  if (raw && Array.isArray(raw.cases)) return raw.cases;
+
+  // Whatfix-style task-execution export: a shared "tasks" dictionary
+  // (task_id -> name/duration) plus one entry per user session in
+  // "task_executions", each holding that session's ordered task runs.
+  if (raw && Array.isArray(raw.task_executions) && Array.isArray(raw.tasks)) {
+    const taskNameById = new Map(raw.tasks.map((t) => [t.task_id, t.name || t.task_id]));
+    return raw.task_executions.map((session, i) => {
+      const steps = (session.tasks || []).map((exec) => ({
+        task: taskNameById.get(exec.task_id) || exec.task_id || 'Unknown step',
+        duration: exec.duration_ms != null ? exec.duration_ms / 60000 : exec.duration,
+      }));
+      const caseId = session.user_id
+        ? `${String(session.user_id).slice(0, 8)}-${session.session_date || i + 1}`
+        : `SESSION-${i + 1}`;
+      return { caseId, steps };
+    });
+  }
+
+  // Ground-truth process export: { processes: [{ nodes: [{id,name}],
+  // execution_paths: [{ path: [{task_id, task_start_time, task_end_time}],
+  // count, metadata }] }] }. Each execution_path is a distinct trace that
+  // may represent more than one real case (via "count"), which is a
+  // legitimate log-compression technique, not fabricated data — so it's
+  // expanded into that many identical cases rather than counted once.
+  if (raw && Array.isArray(raw.processes) && raw.processes.length) {
+    const process = raw.processes[0];
+    if (!Array.isArray(process.nodes) || !Array.isArray(process.execution_paths)) {
+      throw new Error('Expected each entry in "processes" to have "nodes" and "execution_paths" arrays.');
+    }
+    const taskNameById = new Map(process.nodes.map((n) => [n.id, n.name || n.id]));
+    const cases = [];
+    process.execution_paths.forEach((ep, i) => {
+      const steps = (ep.path || []).map((step) => {
+        let duration = 0;
+        if (step.task_start_time != null && step.task_end_time != null) {
+          const ms = Number(step.task_end_time) - Number(step.task_start_time);
+          if (Number.isFinite(ms) && ms > 0) duration = ms / 60000;
+        }
+        return { task: taskNameById.get(step.task_id) || step.task_id || 'Unknown step', duration };
+      });
+      const baseId = (ep.metadata && ep.metadata.support_ticket_id) || ep.id || `PATH-${i + 1}`;
+      const repeat = Math.min(5000, Math.max(1, Math.round(Number(ep.count)) || 1));
+      for (let k = 0; k < repeat; k++) {
+        cases.push({ caseId: repeat > 1 ? `${baseId}-${k + 1}` : String(baseId), steps });
+      }
+    });
+    return cases;
+  }
+
+  // A pre-built diagram (nodes/edges, e.g. from a layout tool) rather than
+  // an event log. There's no per-case sequence or duration data to mine
+  // here, so refuse rather than fabricate frequency/time/rework numbers.
+  if (raw && Array.isArray(raw.nodes) && Array.isArray(raw.edges)) {
+    throw new Error(
+      'This file is a pre-built diagram (nodes/edges), not a case log. Frequency, time, and rework ' +
+      'insights are computed from real process instances, so this tool needs per-case event data — ' +
+      'e.g. { "cases": [{ "steps": [{ "task": "...", "duration": 12 }] }] } — not a static graph. ' +
+      'Upload the underlying execution log if you have one.'
+    );
+  }
+
+  throw new Error('Expected a JSON array of cases, or an object like { "cases": [...] }.');
+}
+
+// Validates and normalizes an arbitrary uploaded JSON payload into the same
+// case-log shape generateEventLog() produces. Throws a descriptive Error
+// (case/step index included) on anything it can't make sense of. Cases with
+// no steps are dropped rather than failing the whole import, since a export
+// covering thousands of cases will occasionally have an empty record.
+function normalizeCaseLog(raw) {
+  const rawCases = extractRawCases(raw);
+
+  if (rawCases.length === 0) {
+    throw new Error('The file has no cases to visualize.');
+  }
+
+  const cases = rawCases
+    .map((rawCase, i) => {
+      const caseNum = i + 1;
+      let stepsRaw;
+      let caseId;
+
+      if (Array.isArray(rawCase)) {
+        stepsRaw = rawCase;
+        caseId = `CASE-${caseNum}`;
+      } else if (rawCase && Array.isArray(rawCase.steps)) {
+        stepsRaw = rawCase.steps;
+        caseId = rawCase.caseId || rawCase.id || `CASE-${caseNum}`;
+      } else {
+        throw new Error(`Case ${caseNum} needs a "steps" array (or should itself be an array of steps).`);
+      }
+
+      if (stepsRaw.length === 0) return null;
+
+      let cursor = 0;
+      const steps = stepsRaw.map((rawStep, j) => {
+        const stepNum = j + 1;
+        let task;
+        let duration = 0;
+
+        if (typeof rawStep === 'string') {
+          task = rawStep;
+        } else if (rawStep && typeof rawStep === 'object') {
+          task = rawStep.task || rawStep.name || rawStep.activity || rawStep.step;
+          if (rawStep.duration != null) duration = Number(rawStep.duration);
+          else if (rawStep.minutes != null) duration = Number(rawStep.minutes);
+          else if (rawStep.durationMinutes != null) duration = Number(rawStep.durationMinutes);
+          else if (rawStep.seconds != null) duration = Number(rawStep.seconds) / 60;
+          else if (rawStep.durationHours != null) duration = Number(rawStep.durationHours) * 60;
+        }
+
+        if (!task || typeof task !== 'string') {
+          throw new Error(
+            `Case ${caseNum} ("${caseId}"), step ${stepNum} is missing a task name (expected "task", "name", "activity", or "step").`
+          );
+        }
+        if (!Number.isFinite(duration) || duration < 0) duration = 0;
+
+        const step = { task, startOffset: cursor, duration };
+        cursor += duration;
+        return step;
+      });
+
+      return { caseId: String(caseId), totalDuration: cursor, steps };
+    })
+    .filter(Boolean);
+
+  if (cases.length === 0) {
+    throw new Error('None of the cases in this file have any steps.');
+  }
+
+  return cases;
+}
+
+</script>
+<script>
+// Turns a raw event log (array of cases) into a directly-follows graph plus
+// the metrics that actually drive an automation decision: not just "what
+// paths exist", but where time concentrates, where rework loops happen, and
+// which observed path is fastest end-to-end.
+
+function buildProcessModel(cases) {
+  const nodeStats = new Map(); // task -> {visits, totalDuration, cases}
+  const edgeStats = new Map(); // "from||to" -> {count, cases}
+  const variantMap = new Map(); // signature -> {count, path, caseIds, totalDuration}
+  const reworkStats = new Map(); // task -> {caseCount, extraVisits}
+  const reworkedCaseIds = new Set(); // cases where ANY step repeated
+
+  const touch = (map, key, init) => {
+    if (!map.has(key)) map.set(key, init());
+    return map.get(key);
+  };
+
+  for (const c of cases) {
+    // Node stats: count every visit (a rework loop can visit a task twice)
+    c.steps.forEach((s) => {
+      const stat = touch(nodeStats, s.task, () => ({ visits: 0, totalDuration: 0, cases: new Set() }));
+      stat.visits += 1;
+      stat.totalDuration += s.duration;
+      stat.cases.add(c.caseId);
+    });
+
+    // Rework: did this case revisit the same task more than once?
+    const visitsInCase = new Map();
+    c.steps.forEach((s) => visitsInCase.set(s.task, (visitsInCase.get(s.task) || 0) + 1));
+    visitsInCase.forEach((count, task) => {
+      if (count > 1) {
+        const r = touch(reworkStats, task, () => ({ caseCount: 0, extraVisits: 0 }));
+        r.caseCount += 1;
+        r.extraVisits += count - 1;
+        reworkedCaseIds.add(c.caseId);
+      }
+    });
+
+    // Edge stats. A transition is flagged as "rework" specifically when its
+    // target task was already visited earlier in this same case — i.e. the
+    // case is looping back to redo work, not just following a variant order
+    // where that task happens to come later on its first-ever visit.
+    const seenInCase = new Set();
+    let prevTask = START;
+    for (let i = 0; i <= c.steps.length; i++) {
+      const toTask = i < c.steps.length ? c.steps[i].task : END;
+      const key = `${prevTask}||${toTask}`;
+      const stat = touch(edgeStats, key, () => ({ from: prevTask, to: toTask, count: 0, cases: new Set(), reworkCases: new Set() }));
+      stat.count += 1;
+      stat.cases.add(c.caseId);
+      if (toTask !== END && seenInCase.has(toTask)) stat.reworkCases.add(c.caseId);
+      if (toTask !== END) seenInCase.add(toTask);
+      prevTask = toTask;
+    }
+
+    // Variant signature = the exact sequence of tasks (order matters, loops included)
+    const signature = c.steps.map((s) => s.task).join(' → ');
+    const variant = touch(variantMap, signature, () => ({
+      signature,
+      path: c.steps.map((s) => s.task),
+      count: 0,
+      caseIds: [],
+      totalDuration: 0,
+    }));
+    variant.count += 1;
+    variant.caseIds.push(c.caseId);
+    variant.totalDuration += c.totalDuration;
+  }
+
+  const totalCases = cases.length;
+
+  const nodes = Array.from(nodeStats.entries()).map(([task, stat]) => {
+    const rework = reworkStats.get(task);
+    return {
+      id: task,
+      label: task,
+      visits: stat.visits,
+      caseCount: stat.cases.size,
+      casePct: stat.cases.size / totalCases,
+      avgDuration: stat.totalDuration / stat.visits,
+      totalTime: stat.totalDuration,
+      reworkCaseCount: rework ? rework.caseCount : 0,
+      reworkExtraVisits: rework ? rework.extraVisits : 0,
+      reworkRate: (rework ? rework.caseCount : 0) / totalCases,
+    };
+  });
+  nodes.push({ id: START, label: 'Start', visits: totalCases, caseCount: totalCases, casePct: 1, avgDuration: 0, totalTime: 0, reworkCaseCount: 0, reworkRate: 0, virtual: true });
+  nodes.push({ id: END, label: 'End', visits: totalCases, caseCount: totalCases, casePct: 1, avgDuration: 0, totalTime: 0, reworkCaseCount: 0, reworkRate: 0, virtual: true });
+
+  const edges = Array.from(edgeStats.values()).map((e) => ({
+    from: e.from,
+    to: e.to,
+    count: e.count,
+    caseCount: e.cases.size,
+    casePct: e.cases.size / totalCases,
+    reworkCaseCount: e.reworkCases.size,
+  }));
+
+  const variants = Array.from(variantMap.values())
+    .sort((a, b) => b.count - a.count)
+    .map((v, i) => ({
+      ...v,
+      rank: i + 1,
+      pct: v.count / totalCases,
+      avgDuration: v.totalDuration / v.count,
+    }));
+
+  // The most frequent variant is treated as the "happy path" baseline.
+  const happyPath = variants[0];
+  const happyPathEdgeKeys = new Set();
+  if (happyPath) {
+    const seq = [START, ...happyPath.path, END];
+    for (let i = 0; i < seq.length - 1; i++) happyPathEdgeKeys.add(`${seq[i]}||${seq[i + 1]}`);
+  }
+  edges.forEach((e) => {
+    e.onHappyPath = happyPathEdgeKeys.has(`${e.from}||${e.to}`);
+  });
+
+  // Where is the most time being spent? Rank real tasks by their aggregate
+  // time burden (avg duration × how often it's hit) — that's what actually
+  // drives ROI, not just the slowest single visit.
+  const realNodes = nodes.filter((n) => !n.virtual);
+  const totalProcessTime = realNodes.reduce((s, n) => s + n.totalTime, 0);
+  realNodes.forEach((n) => { n.timeShare = totalProcessTime ? n.totalTime / totalProcessTime : 0; });
+  const timeRanking = realNodes.slice().sort((a, b) => b.totalTime - a.totalTime);
+
+  // Where is the most rework happening?
+  const reworkRanking = realNodes.filter((n) => n.reworkCaseCount > 0).sort((a, b) => b.reworkCaseCount - a.reworkCaseCount);
+
+  // Which observed path finishes fastest? Ignore one-off outlier variants
+  // (fewer than ~1% of cases) so a single lucky case can't claim the title.
+  const significantVariants = variants.filter((v) => v.count >= Math.max(2, totalCases * 0.01));
+  const fastestPath = (significantVariants.length ? significantVariants : variants)
+    .slice()
+    .sort((a, b) => a.avgDuration - b.avgDuration)[0];
+
+  return {
+    nodes,
+    edges,
+    variants,
+    totalCases,
+    happyPath,
+    fastestPath,
+    totalProcessTime,
+    timeRanking,
+    reworkRanking,
+    reworkedCasePct: reworkedCaseIds.size / totalCases,
+  };
+}
+
+</script>
+<script>
+// Real uploaded ground-truth datasets, embedded so the Overview page can
+// link straight to them (as opposed to the generic synthetic demo data that
+// every other example row falls back to). Each entry's `data` is the exact
+// raw JSON a user would otherwise upload via the Import modal.
+
+const EXTRA_PROCESS_EXAMPLES = [
+  {
+    title: 'Tech Support Ticket Handling',
+    description: 'Triage, investigate, resolve or escalate, and close inbound support tickets',
+    role: 'Support',
+    businessUnit: 'Support',
+    data: {"processes": [{"id": "process_tech_support_ticket_handling", "name": "Tech Support Ticket Handling", "objective": "Handle inbound support tickets end to end: triage the queue, review the ticket, investigate (Monitor/Confluence/dashboard/related tickets or via API tooling), resolve directly or escalate to dev via a SUCC ticket when a code fix is required, communicate with the customer (resolution, workaround, acknowledgement, or request for time), log time, and finalize (close/update) \u2014 including live-chat handling and reassignment variations.", "nodes": [{"id": "task_queue_all_unsolved", "name": "Review Queue: All Unsolved (Team)", "description": "Zendesk views: all unsolved tickets at team level"}, {"id": "task_queue_my_open", "name": "Review Queue: My Open", "description": "Zendesk filter view of agent's open tickets"}, {"id": "task_queue_my_pending", "name": "Review Queue: My Pending", "description": "Zendesk filter view of agent's pending tickets"}, {"id": "task_queue_on_hold", "name": "Review Queue: On Hold", "description": "Zendesk filter view of agent's on-hold tickets"}, {"id": "task_queue_unassigned", "name": "Review Queue: All Unassigned", "description": "Zendesk filter view of unassigned tickets"}, {"id": "task_queue_new", "name": "Review Queue: New", "description": "Zendesk filter view of new tickets"}, {"id": "task_review_ticket", "name": "Review Ticket", "description": "Open a Zendesk ticket and review its content/history"}, {"id": "task_check_related_ticket", "name": "Check Related Ticket", "description": "Open/reference a related or duplicate ticket"}, {"id": "task_investigate_monitor", "name": "Investigate in Monitor", "description": "Look up account configuration in eumonitor/Monitor"}, {"id": "task_investigate_confluence", "name": "Investigate in Confluence", "description": "Research solution in Confluence/Atlassian wiki"}, {"id": "task_investigate_dashboard", "name": "Investigate in Dashboard", "description": "Inspect account dashboard-guidance content"}, {"id": "task_use_api_tool", "name": "Use API Tool", "description": "Use API client (Postman) to perform bulk content copy across ENTs"}, {"id": "task_escalate_dev_succ", "name": "Escalate to Dev (SUCC)", "description": "Create/update a SUCC ticket in JIRA to route to dev"}, {"id": "task_followup_dev", "name": "Follow up with Dev", "description": "Push/monitor dev for progress; Slack huddle with dev"}, {"id": "task_internal_note", "name": "Add Internal Note", "description": "Internal note on ticket (e.g., waiting on dev, monitor config finding)"}, {"id": "task_reply_customer", "name": "Reply to Customer", "description": "Public reply to customer: resolution, workaround, ask for time, or acknowledgement"}, {"id": "task_time_tracking", "name": "Time Tracking", "description": "Log time spent on the ticket"}, {"id": "task_finalize_ticket", "name": "Finalize Ticket", "description": "Close or update the ticket (treated as equivalent terminal action)"}, {"id": "task_assign_ticket", "name": "Assign Ticket", "description": "Assign/reassign the ticket to another tech support agent"}, {"id": "task_live_chat", "name": "Live Chat with Customer", "description": "Handle ticket via Zendesk live chat channel"}], "execution_paths": [{"id": "path_111374_succ", "path": [{"task_id": "task_escalate_dev_succ", "task_start_time": 1782303162326, "task_end_time": 1782303772236, "screenshots": ["1782303162326.jpg", "1782303447124.jpg", "1782303772236.jpg"]}, {"task_id": "task_review_ticket", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_followup_dev", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_reply_customer", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_time_tracking", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_finalize_ticket", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_reply_customer", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_time_tracking", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_finalize_ticket", "task_start_time": null, "task_end_time": null, "screenshots": []}], "users": ["Supreet J"], "count": 1, "metadata": {"support_ticket_id": "111374", "succ_ticket_id": "40727", "account": "Lightbeam", "issue": "Quickread issue", "ticket_type": "incident_with_succ_escalation"}, "metadata_evidence": {"source": "direct", "evidence_screenshots": ["1782303162326.jpg", "1782303493921.jpg"], "reason": "Zendesk ticket 111374 and JIRA SUCC-40727 both visible in URL bar / tab across frames 5-25."}}, {"id": "path_109896_succ", "path": [{"task_id": "task_escalate_dev_succ", "task_start_time": 1782304744363, "task_end_time": 1782304765486, "screenshots": ["1782304744363.jpg", "1782304752048.jpg", "1782304765486.jpg"]}, {"task_id": "task_followup_dev", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_reply_customer", "task_start_time": null, "task_end_time": null, "screenshots": []}], "users": ["Supreet J"], "count": 1, "metadata": {"support_ticket_id": "109896", "succ_ticket_id": "40539", "account": "Skoda", "issue": "Flow Copy", "ticket_type": "incident_with_succ_escalation"}, "metadata_evidence": {"source": "direct", "evidence_screenshots": ["1782304744363.jpg"], "reason": "JIRA SUCC-40539 visible in URL at frame ~72; Skoda flow-copy context."}}, {"id": "path_111687", "path": [{"task_id": "task_review_ticket", "task_start_time": 1782303218561, "task_end_time": 1782303222331, "screenshots": ["1782303218561.jpg", "1782303220138.jpg", "1782303222331.jpg"]}], "users": ["Supreet J"], "count": 1, "metadata": {"support_ticket_id": "111687", "account": "Spencer Ogden", "issue": "Popup & Launcher", "ticket_type": "incident_review_only"}, "metadata_evidence": {"source": "direct", "evidence_screenshots": ["1782303218561.jpg"], "reason": "Zendesk ticket 111687 visible in URL at frames 10-12; reviewed only, no resolution action."}}, {"id": "path_111365", "path": [{"task_id": "task_review_ticket", "task_start_time": 1782303293802, "task_end_time": 1782309445686, "screenshots": ["1782303293802.jpg", "1782306241507.jpg", "1782309445686.jpg"]}, {"task_id": "task_reply_customer", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_time_tracking", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_finalize_ticket", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_followup_dev", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_investigate_monitor", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_internal_note", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_reply_customer", "task_start_time": null, "task_end_time": null, "screenshots": []}], "users": ["Supreet J"], "count": 1, "metadata": {"support_ticket_id": "111365", "account": "Skoda", "issue": "Content copy from SuccessFactors", "ticket_type": "incident_with_dev_dependency", "note": "long_duration"}, "metadata_evidence": {"source": "direct", "evidence_screenshots": ["1782303293802.jpg", "1782306684524.jpg", "1782308878464.jpg"], "reason": "Zendesk 111365 oscillates with eumonitor monitor-config screens across frames 13-300; long resolution loop (closed, customer follow-up, dev huddle, monitor-config internal note, re-reply)."}}, {"id": "path_110586", "path": [{"task_id": "task_review_ticket", "task_start_time": 1782305486866, "task_end_time": 1782310664676, "screenshots": ["1782305486866.jpg", "1782308731160.jpg", "1782310664676.jpg"]}, {"task_id": "task_reply_customer", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_reply_customer", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_time_tracking", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_finalize_ticket", "task_start_time": null, "task_end_time": null, "screenshots": []}], "users": ["Supreet J"], "count": 1, "metadata": {"support_ticket_id": "110586", "account": "Fox Rehab", "ticket_type": "incident_standard"}, "metadata_evidence": {"source": "direct", "evidence_screenshots": ["1782305486866.jpg"], "reason": "Zendesk ticket 110586 visible in URL; spans interleaved work frames 114-404."}}, {"id": "path_110379", "path": [{"task_id": "task_review_ticket", "task_start_time": 1782303937263, "task_end_time": 1782304084159, "screenshots": ["1782303937263.jpg", "1782303997835.jpg", "1782304084159.jpg"]}, {"task_id": "task_reply_customer", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_time_tracking", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_finalize_ticket", "task_start_time": null, "task_end_time": null, "screenshots": []}], "users": ["Supreet J"], "count": 1, "metadata": {"support_ticket_id": "110379", "account": "Skoda", "ticket_type": "incident_standard"}, "metadata_evidence": {"source": "direct", "evidence_screenshots": ["1782303937263.jpg"], "reason": "Zendesk ticket 110379 visible in URL frames 36-40."}}, {"id": "path_110926", "path": [{"task_id": "task_review_ticket", "task_start_time": 1782304119057, "task_end_time": 1782304242066, "screenshots": ["1782304119057.jpg", "1782304239882.jpg", "1782304242066.jpg"]}, {"task_id": "task_reply_customer", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_finalize_ticket", "task_start_time": null, "task_end_time": null, "screenshots": []}], "users": ["Supreet J"], "count": 1, "metadata": {"support_ticket_id": "110926", "account": "Anduril Industries", "ticket_type": "incident_standard"}, "metadata_evidence": {"source": "direct", "evidence_screenshots": ["1782304119057.jpg"], "reason": "Zendesk ticket 110926 visible in URL frames 42-46."}}, {"id": "path_111387", "path": [{"task_id": "task_review_ticket", "task_start_time": 1782306971312, "task_end_time": 1782306977116, "screenshots": ["1782306971312.jpg", "1782306974136.jpg", "1782306977116.jpg"]}, {"task_id": "task_reply_customer", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_finalize_ticket", "task_start_time": null, "task_end_time": null, "screenshots": []}], "users": ["Supreet J"], "count": 1, "metadata": {"support_ticket_id": "111387", "account": "Genesis Healthcare", "ticket_type": "incident_deviation", "deviation": "time_tracking_skipped"}, "metadata_evidence": {"source": "direct", "evidence_screenshots": ["1782306971312.jpg"], "reason": "Zendesk ticket 111387 visible in URL; per GT, Time Tracking node deliberately absent (labeled deviation)."}}, {"id": "path_111689", "path": [{"task_id": "task_review_ticket", "task_start_time": 1782304676282, "task_end_time": 1782304676282, "screenshots": ["1782304676282.jpg"]}, {"task_id": "task_reply_customer", "task_start_time": null, "task_end_time": null, "screenshots": []}], "users": ["Supreet J"], "count": 1, "metadata": {"support_ticket_id": "111689", "account": "Proximus", "ticket_type": "incident_acknowledged"}, "metadata_evidence": {"source": "direct", "evidence_screenshots": ["1782304676282.jpg"], "reason": "Zendesk ticket 111689 (Proximus, Incident 'PMIT: Add a number') visible in URL bar at 12:37:56 UTC."}}, {"id": "path_111690", "path": [{"task_id": "task_review_ticket", "task_start_time": 1782305083187, "task_end_time": 1782305204616, "screenshots": ["1782305083187.jpg", "1782305122080.jpg", "1782305204616.jpg"]}, {"task_id": "task_check_related_ticket", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_reply_customer", "task_start_time": null, "task_end_time": null, "screenshots": []}], "users": ["Supreet J"], "count": 1, "metadata": {"support_ticket_id": "111690", "related_ticket_id": "111324", "account": "MindTickle", "ticket_type": "incident_acknowledged"}, "metadata_evidence": {"source": "direct", "evidence_screenshots": ["1782305083187.jpg"], "reason": "Zendesk ticket 111690 visible in URL frames 88-96; related 111324 referenced."}}, {"id": "path_111692_chat", "path": [{"task_id": "task_live_chat", "task_start_time": 1782306099820, "task_end_time": 1782327096807, "screenshots": ["1782306099820.jpg", "1782311674452.jpg", "1782327096807.jpg"]}, {"task_id": "task_investigate_dashboard", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_investigate_monitor", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_reply_customer", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_finalize_ticket", "task_start_time": null, "task_end_time": null, "screenshots": []}], "users": ["Supreet J"], "count": 1, "metadata": {"support_ticket_id": "111692", "account": "Sanofi", "contact": "Milana Papakul", "ticket_type": "incident_live_chat", "channel": "chat"}, "metadata_evidence": {"source": "direct", "evidence_screenshots": ["1782315021401.jpg", "1782327096807.jpg"], "reason": "Zendesk chat URL (chat/agent#visitors...) and Sanofi dashboard-guidance/monitor visible; live-chat handling variation of incident 111692."}}, {"id": "path_111695", "path": [{"task_id": "task_review_ticket", "task_start_time": 1782307117982, "task_end_time": 1782310881085, "screenshots": ["1782307117982.jpg", "1782309473269.jpg", "1782310881085.jpg"]}, {"task_id": "task_check_related_ticket", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_internal_note", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_reply_customer", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_time_tracking", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_finalize_ticket", "task_start_time": null, "task_end_time": null, "screenshots": []}], "users": ["Supreet J"], "count": 1, "metadata": {"support_ticket_id": "111695", "related_ticket_id": "111149", "account": "Skoda", "source_ent": "100_VW_AG", "ticket_type": "incident_cancelled_duplicate"}, "metadata_evidence": {"source": "direct", "evidence_screenshots": ["1782307117982.jpg"], "reason": "Zendesk 111695 visible; references 111149; customer cancels as duplicate."}}, {"id": "path_111149", "path": [{"task_id": "task_review_ticket", "task_start_time": 1782307380970, "task_end_time": 1782312953270, "screenshots": ["1782307380970.jpg", "1782310305099.jpg", "1782312953270.jpg"]}, {"task_id": "task_investigate_confluence", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_use_api_tool", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_reply_customer", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_time_tracking", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_finalize_ticket", "task_start_time": null, "task_end_time": null, "screenshots": []}], "users": ["Supreet J"], "count": 1, "metadata": {"support_ticket_id": "111149", "duplicate_of": "111695", "ticket_type": "incident_resolved_via_api"}, "metadata_evidence": {"source": "direct", "evidence_screenshots": ["1782311564578.jpg", "1782312764909.jpg"], "reason": "Zendesk 111149 with Confluence 'Copy Content across ENT API' pages and Postman API client visible frames ~205-560."}}, {"id": "path_111694", "path": [{"task_id": "task_review_ticket", "task_start_time": 1782305333313, "task_end_time": 1782315876862, "screenshots": ["1782305333313.jpg", "1782310664676.jpg", "1782315876862.jpg"]}, {"task_id": "task_investigate_monitor", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_reply_customer", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_time_tracking", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_finalize_ticket", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_review_ticket", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_time_tracking", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_escalate_dev_succ", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_time_tracking", "task_start_time": null, "task_end_time": null, "screenshots": []}], "users": ["Supreet J"], "count": 1, "metadata": {"support_ticket_id": "111694", "account": "Mountain America Credit Union", "subject": "Keystone", "requester_type": "internal_csm", "spawned_succ_ticket_id": "40754", "ticket_type": "incident_internal_with_succ_spawn"}, "metadata_evidence": {"source": "direct", "evidence_screenshots": ["1782306684524.jpg", "1782315021401.jpg"], "reason": "Zendesk 111694 (MACU / Keystone) visible with subject 'Software Update Failure for Keystone'; later JIRA workedon view for spawned SUCC-40754."}}, {"id": "path_111696", "path": [{"task_id": "task_reply_customer", "task_start_time": 1782306519440, "task_end_time": 1782306519440, "screenshots": ["1782306519440.jpg"]}, {"task_id": "task_time_tracking", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_finalize_ticket", "task_start_time": null, "task_end_time": null, "screenshots": []}], "users": ["Supreet J"], "count": 1, "metadata": {"support_ticket_id": "111696", "account": "Ameriprise", "ticket_type": "incident_standard"}, "metadata_evidence": {"source": "direct", "evidence_screenshots": ["1782306519440.jpg"], "reason": "Zendesk ticket 111696 (Ameriprise) visible in URL bar at 13:08:39 UTC (frame index 175)."}}, {"id": "path_111697", "path": [{"task_id": "task_time_tracking", "task_start_time": 1782306543253, "task_end_time": 1782306543253, "screenshots": ["1782306543253.jpg"]}, {"task_id": "task_finalize_ticket", "task_start_time": null, "task_end_time": null, "screenshots": []}], "users": ["Supreet J"], "count": 1, "metadata": {"support_ticket_id": "111697", "ticket_type": "incident_time_logged"}, "metadata_evidence": {"source": "direct", "evidence_screenshots": ["1782306543253.jpg"], "reason": "Zendesk ticket 111697 visible in URL bar at 13:09:03 UTC (frame index 176)."}}, {"id": "path_110970", "path": [{"task_id": "task_review_ticket", "task_start_time": 1782315119032, "task_end_time": 1782315231947, "screenshots": ["1782315119032.jpg", "1782315126738.jpg", "1782315231947.jpg"]}, {"task_id": "task_assign_ticket", "task_start_time": null, "task_end_time": null, "screenshots": []}], "users": ["Supreet J"], "count": 1, "metadata": {"support_ticket_id": "110970", "account": "CDW", "ticket_type": "incident_reassigned"}, "metadata_evidence": {"source": "direct", "evidence_screenshots": ["1782315119032.jpg"], "reason": "Zendesk ticket 110970 (CDW) visible in URL frames 642-646; reassigned to another tech."}}, {"id": "path_day_workflow_triage", "path": [{"task_id": "task_queue_all_unsolved", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_queue_my_open", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_queue_my_pending", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_queue_my_pending", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_queue_my_pending", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_queue_my_open", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_queue_my_open", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_queue_on_hold", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_queue_my_open", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_queue_my_open", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_queue_my_pending", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_queue_new", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_queue_my_open", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_queue_on_hold", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_queue_my_pending", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_queue_unassigned", "task_start_time": null, "task_end_time": null, "screenshots": []}, {"task_id": "task_queue_my_pending", "task_start_time": null, "task_end_time": null, "screenshots": []}], "users": ["Supreet J"], "count": 1, "metadata": {"workflow_type": "inter_ticket_triage", "description": "Agent's recurring queue-review navigation threading the workday"}, "metadata_evidence": {"source": "direct", "evidence_screenshots": ["1782305083187.jpg", "1782311564578.jpg"], "reason": "Zendesk /agent/filters/... queue views recur throughout the session between ticket work; ordering per GT. Individual queue-touch timestamps deferred to sub-step pass."}}], "decision_nodes": [{"node": "task_review_ticket", "branches": [{"condition": "resolvable_directly == true", "next": "task_reply_customer", "reason": "Standard resolution: reply, time-track, finalize"}, {"condition": "needs_dev == true", "next": "task_escalate_dev_succ", "reason": "Escalation deviation: raise SUCC to dev, then wait/follow-up before closing"}], "merge_node": "task_finalize_ticket"}, {"node": "task_followup_dev", "branches": [{"condition": "dev_fix_ready == false", "next": "task_reply_customer", "reason": "Provide workaround / ask for time while waiting on dev"}, {"condition": "dev_fix_ready == true", "next": "task_finalize_ticket", "reason": "Close once dev resolves"}], "merge_node": "task_finalize_ticket"}], "_generation_notes": {"tier": "A", "scope": "Ticket-level ground truth. Each execution_path's first node carries the ticket-level span (task_start_time/task_end_time) and representative screenshots, verified via direct Zendesk URL evidence. Intra-ticket sub-steps (reply/time-tracking/finalize/etc.) are structurally present with task_start_time/task_end_time=null and screenshots=[] (Tier B, deferred).", "session": "Supreet J, Tech Support, 2026-06-24, 816 frames, epoch-ms filenames (UTC).", "excluded_noise": "HR/SuccessFactors, calendar, YouTube-music, ChatGPT, NotebookLM, Gmail, iCloud, and other non-ticket activity.", "dropped_per_gt": ["item13 Monitor AXA_XL_IWB", "item16 SUCC 40662 Oncor", "item17 WFX TripArc"], "deviations": ["111387 Genesis: time-tracking skipped"]}}]},
+  },
+  {
+    title: 'Resolve Customer Support Tickets',
+    description: 'Review tickets and provide responses to resolve customer issues',
+    role: 'Coordinator',
+    businessUnit: 'Support',
+    data: {"processes": [{"execution_paths": [{"metadata": {"customer": "SKODA_SuccessFactor", "ticket_id": "111365"}, "id": "path_1", "metadata_evidence": {"source": "direct", "reason": "Ticket ID and customer name are visible on the Zendesk ticket page.", "evidence_screenshots": ["1782303491009.jpg"]}, "count": 1, "users": ["443b1b1b-3da9-3814-99c7-572c6aabbb41"], "path": [{"screenshots": ["1782303491009.jpg"], "task_id": "review_ticket", "task_start_time": 1782303491009, "task_end_time": 1782303491009}, {"task_id": "draft_response", "task_start_time": 1782303493921, "task_end_time": 1782303493921, "screenshots": ["1782303493921.jpg"]}, {"task_id": "submit_update", "task_start_time": 1782303615435, "task_end_time": 1782303615435, "screenshots": ["1782303615435.jpg"]}]}, {"users": ["443b1b1b-3da9-3814-99c7-572c6aabbb41"], "count": 1, "metadata": {"customer": "Alan Staurt", "ticket_id": "111687"}, "metadata_evidence": {"evidence_screenshots": ["1782303421890.jpg"], "reason": "Ticket ID and customer name are visible on the Zendesk ticket page.", "source": "direct"}, "id": "path_2", "path": [{"task_end_time": 1782303024106, "task_start_time": 1782302977760, "task_id": "review_email", "screenshots": ["1782302977760.jpg", "1782303024106.jpg"]}, {"task_id": "review_ticket", "task_start_time": 1782303293802, "task_end_time": 1782303455888, "screenshots": ["1782303293802.jpg", "1782303421890.jpg", "1782303451762.jpg", "1782303455888.jpg"]}]}, {"count": 1, "users": ["443b1b1b-3da9-3814-99c7-572c6aabbb41"], "id": "path_3", "metadata_evidence": {"source": "direct", "evidence_screenshots": ["1782304237276.jpg"], "reason": "Ticket ID and issue description are visible on the Zendesk ticket page."}, "metadata": {"issue": "Links Not Being Crawled", "ticket_id": "110586"}, "path": [{"screenshots": ["1782304237276.jpg", "1782304240744.jpg", "1782304242066.jpg", "1782304245996.jpg", "1782304250344.jpg", "1782304262047.jpg", "1782304264502.jpg", "1782304267675.jpg", "1782304268912.jpg", "1782304269571.jpg", "1782304280472.jpg", "1782304286678.jpg", "1782304289201.jpg"], "task_id": "review_ticket", "task_end_time": 1782304289201, "task_start_time": 1782304237276}]}, {"metadata_evidence": {"source": "direct", "evidence_screenshots": ["1782304333042.jpg"], "reason": "Ticket ID and issue description are visible on the Zendesk ticket page."}, "id": "path_4", "metadata": {"issue": "Unable to receive ticket updates", "ticket_id": "110379"}, "users": ["443b1b1b-3da9-3814-99c7-572c6aabbb41"], "count": 1, "path": [{"screenshots": ["1782304333042.jpg", "1782304364524.jpg", "1782304385761.jpg", "1782304387386.jpg"], "task_end_time": 1782304387386, "task_start_time": 1782304333042, "task_id": "review_ticket"}, {"task_end_time": 1782304450229, "task_start_time": 1782304419304, "task_id": "draft_response", "screenshots": ["1782304419304.jpg", "1782304420069.jpg", "1782304420780.jpg", "1782304421689.jpg", "1782304450229.jpg"]}, {"screenshots": ["1782304490505.jpg", "1782304523641.jpg", "1782304526868.jpg", "1782304532608.jpg", "1782304542325.jpg", "1782304550062.jpg", "1782304551764.jpg", "1782304559524.jpg", "1782304621606.jpg", "1782304624247.jpg", "1782304625937.jpg", "1782304642243.jpg", "1782304663229.jpg", "1782304676282.jpg", "1782304689146.jpg"], "task_id": "submit_update", "task_end_time": 1782304689146, "task_start_time": 1782304490505}]}], "name": "Resolve Customer Support Tickets", "nodes": [{"description": "Review customer ticket", "name": "Review Customer Ticket", "id": "review_ticket"}, {"id": "draft_response", "description": "Draft response using AI assistant", "name": "Draft Ticket Response"}, {"description": "Submit ticket update", "name": "Submit Ticket Update", "id": "submit_update"}, {"name": "Review Customer Email", "description": "Review customer email", "id": "review_email"}], "objective": "Resolve customer issues by reviewing tickets and providing appropriate responses.", "id": "process_1"}, {"name": "Collaborate on Technical Issues", "execution_paths": [{"path": [{"task_start_time": 1782303621341, "task_end_time": 1782303671398, "task_id": "review_messages", "screenshots": ["1782303621341.jpg", "1782303625160.jpg", "1782303633107.jpg", "1782303642037.jpg", "1782303650739.jpg", "1782303654461.jpg", "1782303661772.jpg", "1782303664930.jpg", "1782303668143.jpg", "1782303671398.jpg"]}, {"task_start_time": 1782303686433, "task_end_time": 1782303774781, "task_id": "draft_message", "screenshots": ["1782303686433.jpg", "1782303733257.jpg", "1782303735370.jpg", "1782303736142.jpg", "1782303759490.jpg", "1782303772236.jpg", "1782303773258.jpg", "1782303774781.jpg"]}, {"screenshots": ["1782303796016.jpg", "1782303798517.jpg", "1782303810251.jpg", "1782303813116.jpg", "1782303830176.jpg", "1782303832418.jpg", "1782303835939.jpg", "1782304031214.jpg", "1782304084159.jpg", "1782304087175.jpg"], "task_start_time": 1782303796016, "task_end_time": 1782304087175, "task_id": "discuss_issue"}], "users": ["443b1b1b-3da9-3814-99c7-572c6aabbb41"], "count": 1, "metadata_evidence": {"source": "direct", "evidence_screenshots": ["1782303774781.jpg"], "reason": "The topic of the drafted message and Slack conversations is the Quick Read responses issue."}, "id": "path_1", "metadata": {"topic": "Quick Read responses issue"}}, {"metadata": {"issue_key": "SUCC-40727"}, "id": "path_2", "metadata_evidence": {"source": "direct", "evidence_screenshots": ["1782303107985.jpg"], "reason": "The Jira issue key is visible on the page."}, "count": 1, "users": ["443b1b1b-3da9-3814-99c7-572c6aabbb41"], "path": [{"task_start_time": 1782303107985, "task_end_time": 1782303167404, "task_id": "review_issue", "screenshots": ["1782303107985.jpg", "1782303131173.jpg", "1782303145299.jpg", "1782303148561.jpg", "1782303162326.jpg", "1782303167404.jpg"]}]}, {"metadata": {"issue_key": "SUCC-40539"}, "id": "path_3", "metadata_evidence": {"reason": "The Jira issue key is visible on the page.", "evidence_screenshots": ["1782303204672.jpg"], "source": "direct"}, "count": 1, "users": ["443b1b1b-3da9-3814-99c7-572c6aabbb41"], "path": [{"screenshots": ["1782303204672.jpg", "1782303209185.jpg", "1782303210044.jpg", "1782303218561.jpg", "1782303220138.jpg", "1782303222331.jpg"], "task_start_time": 1782303204672, "task_end_time": 1782303222331, "task_id": "review_issue"}]}], "id": "process_2", "nodes": [{"id": "review_messages", "name": "Review Messages", "description": "Review messages"}, {"name": "Draft Message", "description": "Draft message using AI", "id": "draft_message"}, {"name": "Discuss Issue", "description": "Discuss issue with colleagues", "id": "discuss_issue"}, {"name": "Review Issue Details", "description": "Review issue details", "id": "review_issue"}], "objective": "Collaborate with colleagues to investigate and resolve technical issues."}, {"nodes": [{"id": "review_instructions", "description": "Review tax filing instructions", "name": "Review Tax Filing Instructions"}, {"name": "Download Tax Documents", "description": "Download tax documents", "id": "download_documents"}, {"description": "Email tax documents", "name": "Email Tax Documents", "id": "email_documents"}], "objective": "Download and process necessary tax documents for filing returns.", "id": "process_3", "execution_paths": [{"path": [{"task_end_time": 1782303881819, "task_start_time": 1782303880342, "task_id": "review_instructions", "screenshots": ["1782303880342.jpg", "1782303881819.jpg"]}, {"task_id": "download_documents", "task_start_time": 1782303893155, "task_end_time": 1782303915327, "screenshots": ["1782303893155.jpg", "1782303908641.jpg", "1782303911298.jpg", "1782303913800.jpg", "1782303915327.jpg"]}, {"screenshots": ["1782303928059.jpg", "1782303937263.jpg", "1782303995651.jpg", "1782303997835.jpg", "1782304094827.jpg", "1782304117940.jpg", "1782304119057.jpg"], "task_id": "email_documents", "task_end_time": 1782304119057, "task_start_time": 1782303928059}], "metadata_evidence": {"source": "direct", "evidence_screenshots": ["1782303880342.jpg"], "reason": "The email subject and downloaded files indicate FY 2025-26 Form 16."}, "id": "path_1", "metadata": {"financial_year": "FY 2025-26", "document_type": "Form 16"}, "users": ["443b1b1b-3da9-3814-99c7-572c6aabbb41"], "count": 1}], "name": "Process Tax Documents"}, {"nodes": [{"id": "review_requests", "name": "Review Feature Requests", "description": "Review feature requests"}], "objective": "Review and process requests for account access and feature enablement.", "id": "process_4", "name": "Review Feature Enablement Requests", "execution_paths": [{"path": [{"screenshots": ["1782303841548.jpg", "1782303843230.jpg", "1782303848227.jpg", "1782303854762.jpg", "1782303862093.jpg"], "task_start_time": 1782303841548, "task_end_time": 1782303862093, "task_id": "review_requests"}, {"task_start_time": 1782304179797, "task_end_time": 1782304227395, "task_id": "review_requests", "screenshots": ["1782304179797.jpg", "1782304182937.jpg", "1782304186349.jpg", "1782304221142.jpg", "1782304224994.jpg", "1782304227395.jpg"]}], "users": ["443b1b1b-3da9-3814-99c7-572c6aabbb41"], "count": 1, "metadata": {"channel": "#account-access-and-feature-enablement"}, "metadata_evidence": {"reason": "The Slack channel name is visible on the screen.", "evidence_screenshots": ["1782303841548.jpg"], "source": "direct"}, "id": "path_1"}]}]},
+  },
+];
+
+</script>
+<script>
+// Sample process catalog for the Overview page. Exactly 10 example rows.
+// #1 "Purchase Order to Payment" opens the process map's own synthetic demo
+// generator. #2 and #3 are backed by real uploaded ground-truth data (see
+// sample-datasets.js) — their stats below are computed from that data, not
+// invented. The rest are decorative placeholders to fill out the table.
+
+const PURCHASE_ORDER_TEMPLATE = {
+  title: 'Purchase Order to Payment',
+  description: 'End-to-end purchase order handling: request, approval, vendor selection, receipt, and payment',
+  role: 'Manager',
+  businessUnit: 'Finance',
+  medianDurationSeconds: 79200,
+  processCount: 500,
+  users: 340,
+};
+
+const PLACEHOLDER_TEMPLATES = [
   { title: 'Care transition', description: 'Changing the hospitals for a patient based on request', role: 'Support', businessUnit: 'Support', medianDurationSeconds: 792, processCount: 165, users: 235 },
   { title: 'Pharmacy selection', description: 'Selecting the pharmacy based on medical records', role: 'Coordinator', businessUnit: 'Finance', medianDurationSeconds: 724, processCount: 176, users: 432 },
   { title: 'Claim denial handling', description: 'Reviewing denial reasons and identifying next steps', role: 'Support', businessUnit: 'Finance', medianDurationSeconds: 662, processCount: 198, users: 875 },
@@ -349,7 +831,8 @@ const PROCESS_TEMPLATES = [
   { title: 'Appeals processing', description: 'Handling member appeals against a prior decision', role: 'Specialist', businessUnit: 'Operations', medianDurationSeconds: 707, processCount: 159, users: 503 },
 ];
 
-function formatMedianDuration(totalSeconds) {
+function formatMedianDuration(rawSeconds) {
+  const totalSeconds = Math.round(rawSeconds);
   if (totalSeconds >= 3600) {
     const h = Math.floor(totalSeconds / 3600);
     const m = Math.floor((totalSeconds % 3600) / 60);
@@ -360,8 +843,59 @@ function formatMedianDuration(totalSeconds) {
   return `${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`;
 }
 
+function median(numbers) {
+  if (!numbers.length) return 0;
+  const sorted = numbers.slice().sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
+// Turns one embedded real dataset into a catalog row by actually running it
+// through the same normalizeCaseLog/buildProcessModel pipeline the Import
+// modal uses, so the stats shown here are real, not placeholders.
+function buildRealExampleRow(example, index) {
+  try {
+    const cases = normalizeCaseLog(example.data);
+    const totalDurations = cases.map((c) => c.totalDuration);
+    const process = example.data.processes[0];
+    const distinctUsers = new Set(
+      (process.execution_paths || []).flatMap((ep) => ep.users || [])
+    );
+    return {
+      id: `PROC-REAL-${index}`,
+      title: example.title,
+      description: example.description,
+      role: example.role,
+      businessUnit: example.businessUnit,
+      medianDurationSeconds: median(totalDurations) * 60,
+      processCount: cases.length,
+      users: distinctUsers.size || cases.length,
+      datasetRaw: example.data,
+    };
+  } catch (err) {
+    return {
+      id: `PROC-REAL-${index}`,
+      title: example.title,
+      description: example.description,
+      role: example.role,
+      businessUnit: example.businessUnit,
+      medianDurationSeconds: 0,
+      processCount: 0,
+      users: 0,
+      datasetRaw: example.data,
+    };
+  }
+}
+
 function generateProcessCatalog() {
-  return PROCESS_TEMPLATES.map((template, i) => ({ id: `PROC-${1000 + i}`, ...template }));
+  const rows = [{ id: 'PROC-1000', ...PURCHASE_ORDER_TEMPLATE }];
+  (typeof EXTRA_PROCESS_EXAMPLES !== 'undefined' ? EXTRA_PROCESS_EXAMPLES : []).forEach((example, i) => {
+    rows.push(buildRealExampleRow(example, i + 1));
+  });
+  PLACEHOLDER_TEMPLATES.forEach((template, i) => {
+    rows.push({ id: `PROC-${1010 + i}`, ...template });
+  });
+  return rows;
 }
 
 </script>
@@ -409,6 +943,11 @@ function renderFilterOptions() {
 
 function openProcess(row) {
   sessionStorage.setItem('selectedProcessName', row.title);
+  if (row.datasetRaw) {
+    sessionStorage.setItem('selectedProcessData', JSON.stringify(row.datasetRaw));
+  } else {
+    sessionStorage.removeItem('selectedProcessData');
+  }
   window.location.href = 'index.html';
 }
 
