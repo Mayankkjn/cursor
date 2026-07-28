@@ -56,20 +56,19 @@ body {
   flex-wrap: wrap;
 }
 
+.title-row { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+
 .back-link {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  font-size: 0.78rem;
-  font-weight: 600;
+  justify-content: center;
   color: var(--text-secondary);
   text-decoration: none;
-  margin-bottom: 8px;
 }
 .back-link:hover { color: var(--accent-ui); }
 
 .topbar-title { min-width: 0; }
-.topbar-title h1 { margin: 0 0 4px; font-size: 1.2rem; letter-spacing: -0.01em; }
+.topbar-title h1 { margin: 0; font-size: 1.2rem; letter-spacing: -0.01em; }
 .subtitle { margin: 0; color: var(--text-secondary); font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .topbar-right { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
@@ -80,7 +79,9 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  background: var(--card-bg);
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
   border-bottom: 1px solid var(--panel-border);
   padding: 14px 28px;
 }
@@ -530,23 +531,25 @@ button:hover { filter: brightness(1.08); }
   width: 36px;
   height: 36px;
   background: #ffffff;
-  color: var(--accent-ui);
-  border: 1px solid var(--accent-ui);
+  color: #3D3C52;
+  border: 1px solid #DFDDE7;
   border-radius: 8px;
   cursor: pointer;
   box-shadow: var(--shadow-md);
   padding: 0;
 }
+.icon-toolbar-btn svg { color: #6B697B; }
 .icon-toolbar-btn:hover { background: var(--accent-ui-soft); }
-.icon-toolbar-btn.active { background: var(--accent-ui); color: #ffffff; }
+.icon-toolbar-btn.active { background: var(--accent-ui); color: #ffffff; border-color: var(--accent-ui); }
+.icon-toolbar-btn.active svg { color: #ffffff; }
 
 .ai-summary-btn {
   display: flex;
   align-items: center;
   gap: 7px;
   background: #ffffff;
-  color: var(--accent-ui);
-  border: 1px solid var(--accent-ui);
+  color: #3D3C52;
+  border: 1px solid #DFDDE7;
   border-radius: 8px;
   padding: 8px 14px;
   font-size: 0.82rem;
@@ -554,8 +557,10 @@ button:hover { filter: brightness(1.08); }
   cursor: pointer;
   box-shadow: var(--shadow-md);
 }
+.ai-summary-btn svg { color: #6B697B; }
 .ai-summary-btn:hover { background: var(--accent-ui-soft); }
-.ai-summary-btn.active { background: var(--accent-ui); color: #ffffff; }
+.ai-summary-btn.active { background: var(--accent-ui); color: #ffffff; border-color: var(--accent-ui); }
+.ai-summary-btn.active svg { color: #ffffff; }
 
 .ai-summary-panel {
   position: absolute;
@@ -714,13 +719,14 @@ button:hover { filter: brightness(1.08); }
 <body>
   <header class="topbar">
     <div class="topbar-title">
-      <a class="back-link" href="home.html">
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-          <path d="M9 3 L4.5 7 L9 11" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
-        </svg>
-        Overview
-      </a>
-      <h1>Process Map — Purchase Approval by Cost</h1>
+      <div class="title-row">
+        <a class="back-link" href="home.html" aria-label="Back to Overview">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+            <path d="M9 3 L4.5 7 L9 11" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </a>
+        <h1>Process Map — Purchase Approval by Cost</h1>
+      </div>
       <p class="subtitle">A decision node near the start of the process routes each case into one of three structurally distinct approval processes, based on the request cost.</p>
     </div>
   </header>
