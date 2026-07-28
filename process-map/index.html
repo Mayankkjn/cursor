@@ -110,31 +110,6 @@
 
       <div class="panel">
         <button class="panel-header" type="button" aria-expanded="true">
-          <h2>Controls</h2>
-          <svg class="panel-chevron" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
-            <path d="M3 5 L7 9 L11 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-        </button>
-        <div class="panel-body">
-          <label class="control-label">View mode</label>
-          <div class="mode-toggle">
-            <label><input type="radio" name="mode" value="frequency" checked /> Frequency &amp; deviation</label>
-            <label><input type="radio" name="mode" value="duration" /> Time hotspots</label>
-            <label><input type="radio" name="mode" value="rework" /> Rework hotspots</label>
-          </div>
-
-          <label class="control-label" for="case-count">Sample size</label>
-          <div class="regen-row">
-            <input type="number" id="case-count" min="20" max="5000" value="500" />
-            <button id="regenerate">Regenerate log</button>
-          </div>
-
-          <button id="clear-variant" class="ghost-button">Clear highlight</button>
-        </div>
-      </div>
-
-      <div class="panel">
-        <button class="panel-header" type="button" aria-expanded="true">
           <h2>Path Filter</h2>
           <svg class="panel-chevron" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
             <path d="M3 5 L7 9 L11 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
@@ -157,13 +132,11 @@
             <span>All paths</span>
           </div>
 
-          <div id="legend" class="legend" data-mode="frequency">
+          <div class="legend">
             <h3>Legend</h3>
-            <div class="legend-row freq-only"><span class="swatch happy"></span> Most common path</div>
-            <div class="legend-row freq-only"><span class="swatch deviation"></span> Deviation, moving forward</div>
-            <div class="legend-row freq-only"><span class="swatch rework"></span> Deviation that loops back (rework)</div>
-            <div class="legend-row duration-only"><span class="gradient-swatch duration-gradient"></span> Fast (green) → slow (red) avg. task time</div>
-            <div class="legend-row rework-only"><span class="gradient-swatch rework-gradient"></span> No rework (grey) → high rework (amber)</div>
+            <div class="legend-row"><span class="swatch happy"></span> Most common path</div>
+            <div class="legend-row"><span class="swatch deviation"></span> Deviation, moving forward</div>
+            <div class="legend-row"><span class="swatch rework"></span> Deviation that loops back (rework)</div>
           </div>
         </div>
       </div>

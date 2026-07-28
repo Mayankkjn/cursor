@@ -10,7 +10,6 @@ const state = {
   cases: [],
   model: null,
   threshold: 0, // hide edges below this % of the busiest edge
-  mode: 'frequency', // 'frequency' | 'duration' | 'rework'
   highlight: null, // null | { kind: 'variant', value: variant } | { kind: 'node', value: nodeId }
 };
 
@@ -221,15 +220,6 @@ function buildDiamond(g, n, p) {
     .text(n.label === '1' ? 'case' : 'cases');
 }
 
-function estimateEdgeDuration(e, model) {
-  const durations = e.sourceEdges
-    .map((se) => model.nodes.find((n) => n.id === se.to))
-    .filter((t) => t && !t.virtual)
-    .map((t) => t.avgDuration);
-  if (!durations.length) return 0;
-  return durations.reduce((a, b) => a + b, 0) / durations.length;
-}
-
 function render(fit = false) {
   const model = state.model;
   applyThreshold(model, state.threshold);
@@ -243,18 +233,6 @@ function render(fit = false) {
   renderGraph.edges.forEach((e) => {
     e.isRework = e.kind === 'deviation' && e.sourceEdges[0].reworkCaseCount > 0;
   });
-
-  const durations = model.nodes.filter((n) => !n.virtual).map((n) => n.avgDuration);
-  const durationColor = d3.scaleSequential(d3.interpolateRdYlGn)
-    .domain([d3.max(durations) * 1.1, 0]); // red = slow, green = fast
-
-  const maxReworkRate = d3.max(model.nodes.filter((n) => !n.virtual), (n) => n.reworkRate) || 0;
-  const reworkColor = d3.scaleSequential(d3.interpolateOranges).domain([0, maxReworkRate || 1]);
-  const metricFill = (n) => {
-    if (state.mode === 'duration') return durationColor(n.avgDuration);
-    if (state.mode === 'rework') return n.reworkRate > 0 ? reworkColor(n.reworkRate) : '#9fa3ba';
-    return null;
-  };
 
   const highlight = state.highlight;
   const activeSeq = highlight && highlight.kind === 'variant' ? [START, ...highlight.value.path, END] : null;
@@ -317,8 +295,7 @@ function render(fit = false) {
       if (e.kind === 'happy') return 'url(#arrow-happy)';
       if (e.isRework) return 'url(#arrow-rework)';
       return 'url(#arrow-deviation)';
-    })
-    .attr('stroke', (e) => (state.mode === 'duration' ? durationColor(estimateEdgeDuration(e, model)) : null));
+    });
 
   mergedEdges.each(function (e) {
     const labelGroup = d3.select(this).select('g.edge-label');
@@ -346,8 +323,7 @@ function render(fit = false) {
       const p = nodePos.get(n.id);
       return `translate(${p.x - p.width / 2}, ${p.y - p.height / 2})`;
     })
-    .attr('class', (n) => `node ${n.kind}${state.mode !== 'frequency' && n.kind === 'task' ? ' metric-mode' : ''}${nodeIsActive(n) ? '' : ' dimmed'}`)
-    .style('--metric-fill', (n) => (n.kind === 'task' ? metricFill(n) : null))
+    .attr('class', (n) => `node ${n.kind}${nodeIsActive(n) ? '' : ' dimmed'}`)
     .on('mouseenter', (event, n) => showTooltip(event, nodeTooltipHtml(n, model)))
     .on('mousemove', moveTooltip)
     .on('mouseleave', hideTooltip);
@@ -789,22 +765,6 @@ function stepPathFilter(delta) {
 }
 d3.select('#pf-minus').on('click', () => stepPathFilter(-10));
 d3.select('#pf-plus').on('click', () => stepPathFilter(10));
-
-d3.selectAll('input[name="mode"]').on('change', function () {
-  state.mode = this.value;
-  d3.select('#legend').attr('data-mode', state.mode);
-  render();
-});
-
-d3.select('#regenerate').on('click', () => {
-  const n = +d3.select('#case-count').property('value') || 500;
-  regenerate(n);
-});
-
-d3.select('#clear-variant').on('click', () => {
-  state.highlight = null;
-  render();
-});
 
 // If the user arrived here by clicking a process on the Overview page,
 // reflect that process's name in the header (one-time; doesn't persist
