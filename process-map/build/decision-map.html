@@ -723,13 +723,13 @@ button:hover { filter: brightness(1.08); }
         </a>
         <h1>Process Map — Purchase Approval by Cost</h1>
       </div>
-      <p class="subtitle">A decision node near the start of the process routes each case into one of three structurally distinct approval processes, based on the request cost.</p>
+      <p class="subtitle">A decision node near the start of the process routes each request into one of three structurally distinct approval processes, based on the request cost.</p>
     </div>
   </header>
 
   <div class="kpi-band" id="kpi-band">
     <div class="stats">
-      <div class="stat"><span class="stat-value">60</span><span class="stat-label">cases</span></div>
+      <div class="stat"><span class="stat-value">60</span><span class="stat-label">requests</span></div>
       <div class="stat"><span class="stat-value">3</span><span class="stat-label">distinct processes</span></div>
       <div class="stat"><span class="stat-value">1</span><span class="stat-label">decision point</span></div>
       <div class="stat"><span class="stat-value">60%</span><span class="stat-label">follow top process</span></div>
@@ -794,7 +794,7 @@ button:hover { filter: brightness(1.08); }
             <button class="insight-card" id="dm-insight-timesink" type="button" data-path="3">
               <span class="insight-label">Biggest time sink</span>
               <span class="insight-value">Path 3</span>
-              <span class="insight-detail">contributes most total time across all cases</span>
+              <span class="insight-detail">contributes most total time across all requests</span>
             </button>
             <button class="insight-card" id="dm-insight-decision" type="button" data-path="">
               <span class="insight-label">Decision point</span>
@@ -817,15 +817,15 @@ button:hover { filter: brightness(1.08); }
           <ul class="metric-list" id="dm-path-list">
             <li class="metric-item" data-path="1">
               <div class="metric-item-top"><span>Path 1 · $50k &gt; Cost &gt; $10k</span><span>10%</span></div>
-              <div class="metric-item-sub">10 tasks · 11m 10s avg · 6 cases</div>
+              <div class="metric-item-sub">10 tasks · 11m 10s avg · 6 requests</div>
             </li>
             <li class="metric-item" data-path="2">
               <div class="metric-item-top"><span>Path 2 · Cost&lt;$10K</span><span>30%</span></div>
-              <div class="metric-item-sub">3 tasks · 09m 50s avg · 18 cases</div>
+              <div class="metric-item-sub">3 tasks · 09m 50s avg · 18 requests</div>
             </li>
             <li class="metric-item" data-path="3">
               <div class="metric-item-top"><span>Path 3 · Cost&gt;$50k</span><span>60%</span></div>
-              <div class="metric-item-sub">7 tasks · 12m 12s avg · 36 cases</div>
+              <div class="metric-item-sub">7 tasks · 12m 12s avg · 36 requests</div>
             </li>
           </ul>
         </div>
@@ -1203,7 +1203,7 @@ function escapeHtml(str) {
 }
 
 function pluralCases(n) {
-  return `${n} case${n === 1 ? '' : 's'}`;
+  return `${n} request${n === 1 ? '' : 's'}`;
 }
 
 // ---- builds one path's task-level map as real SVG task cards (same visual
@@ -1289,7 +1289,7 @@ function buildDeviationBranchSvg(deviation, mainX, afterCardY, nextCardY) {
   const branchCenterX = branchX + branchW / 2;
 
   let html = arrowSvg(mainEdgeX, branchMidY, branchNearEdgeX, branchMidY, true);
-  html += taskCardSvg(branchX, afterCardY, deviation.step.name, `${deviation.step.minutes}m · ~${deviation.pct}% of cases`, branchW);
+  html += taskCardSvg(branchX, afterCardY, deviation.step.name, `${deviation.step.minutes}m · ~${deviation.pct}% of requests`, branchW);
   html += `<path d="M${branchCenterX},${afterCardY + CARD_H} L${branchCenterX},${nextMidY} L${mainEdgeX},${nextMidY}" stroke="#9a9fb5" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#dm-arrow-grey)" fill="none" />`;
 
   const labelX = (mainEdgeX + branchNearEdgeX) / 2;
@@ -1507,10 +1507,10 @@ function buildDecisionAISummaryHtml() {
   const biggestSink = timeContribution.reduce((a, b) => (b.totalMinutes > a.totalMinutes ? b : a));
 
   return `
-    <p>This process starts with a shared "Process authorisation" step, then a <strong>decision node on request cost</strong> routes each of the ${totalCases} cases into one of <strong>3 structurally distinct downstream processes</strong> — not just a deviation of one path, but genuinely different task sequences.</p>
-    <p><strong>Dominant process:</strong> ${dominant.label} (${escapeHtml(dominant.condition)}) is followed by ${Math.round(dominant.pct * 100)}% of cases (${dominant.cases}), averaging ${dominant.avgLabel} end-to-end.</p>
+    <p>This process starts with a shared "Process authorisation" step, then a <strong>decision node on request cost</strong> routes each of the ${totalCases} requests into one of <strong>3 structurally distinct downstream processes</strong> — not just a deviation of one path, but genuinely different task sequences.</p>
+    <p><strong>Dominant process:</strong> ${dominant.label} (${escapeHtml(dominant.condition)}) is followed by ${Math.round(dominant.pct * 100)}% of requests (${dominant.cases}), averaging ${dominant.avgLabel} end-to-end.</p>
     <p><strong>Fastest process:</strong> ${fastest.label} (${escapeHtml(fastest.condition)}) finishes fastest at ${fastest.avgLabel} on average — worth understanding why, since it's also the only branch with zero flagged deviations internally.</p>
-    <p><strong>Where time concentrates:</strong> ${biggestSink.label} contributes the most total time across all cases (${biggestSink.cases} cases × ${biggestSink.avgLabel} avg), making it the best target for automation or simplification.</p>
+    <p><strong>Where time concentrates:</strong> ${biggestSink.label} contributes the most total time across all requests (${biggestSink.cases} requests × ${biggestSink.avgLabel} avg), making it the best target for automation or simplification.</p>
     <p class="summary-callout">Since the decision variable (Cost) is known up front, routing logic itself is cheap to automate — the bigger opportunity is streamlining ${biggestSink.label}'s task list, which is where most of the process's total time actually goes.</p>
   `;
 }

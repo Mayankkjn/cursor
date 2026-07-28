@@ -69,7 +69,7 @@ function formatDuration(minutes) {
   return `${(hours / 24).toFixed(1)}d`;
 }
 
-function pluralCases(n) { return `${n} case${n === 1 ? '' : 's'}`; }
+function pluralCases(n) { return `${n} process${n === 1 ? '' : 'es'}`; }
 
 function labelForNode(id) {
   if (id === START) return 'Start';
@@ -217,7 +217,7 @@ function buildDiamond(g, n, p) {
     .attr('d', `M${half},0 L${p.width},${half} L${half},${p.height} L0,${half} Z`);
   g.append('text').attr('class', 'diamond-label').attr('x', half).attr('y', half - 2).text(n.label);
   g.append('text').attr('class', 'diamond-sub').attr('x', half).attr('y', half + 14)
-    .text(n.label === '1' ? 'case' : 'cases');
+    .text(n.label === '1' ? 'process' : 'processes');
 }
 
 function render(fit = false) {
@@ -303,7 +303,7 @@ function render(fit = false) {
     if (e.kind === 'happy' || !e.label) return;
     const pts = edgePos.get(edgeKey(e)).points;
     const mid = pts[Math.floor(pts.length / 2)];
-    const text = `${e.label} case${e.label === '1' ? '' : 's'}`;
+    const text = `${e.label} process${e.label === '1' ? '' : 'es'}`;
     const t = labelGroup.append('text').attr('x', mid.x).attr('y', mid.y).text(text);
     const bbox = t.node().getBBox();
     labelGroup.insert('rect', 'text')
@@ -352,11 +352,11 @@ function nodeTooltipHtml(n, model) {
     return `<strong>${pluralCases(Number(n.label))} branch here</strong>${rows}`;
   }
   const reworkLine = n.reworkCaseCount > 0
-    ? `<div>${(n.reworkRate * 100).toFixed(0)}% of cases looped back to redo this step</div>`
+    ? `<div>${(n.reworkRate * 100).toFixed(0)}% of processes looped back to redo this step</div>`
     : '';
   return `
     <strong>${n.label}</strong>
-    <div>${n.caseCount} of ${model.totalCases} cases (${(n.casePct * 100).toFixed(0)}%)</div>
+    <div>${n.caseCount} of ${model.totalCases} processes (${(n.casePct * 100).toFixed(0)}%)</div>
     <div>Avg time in task: ${formatDuration(n.avgDuration)} · ${(n.timeShare * 100).toFixed(0)}% of all process time</div>
     <div>${n.visits} total visits${n.visits !== n.caseCount ? ' (includes rework)' : ''}</div>
     ${reworkLine}
@@ -391,7 +391,7 @@ function renderInsights(model) {
   d3.select('#insight-frequent-detail').text(`${model.happyPath.path.length} steps · ${formatDuration(model.happyPath.avgDuration)} avg`);
 
   d3.select('#insight-fastest-value').text(formatDuration(model.fastestPath.avgDuration));
-  d3.select('#insight-fastest-detail').text(`${(model.fastestPath.pct * 100).toFixed(1)}% of cases take this route`);
+  d3.select('#insight-fastest-detail').text(`${(model.fastestPath.pct * 100).toFixed(1)}% of processes take this route`);
 
   const topTime = model.timeRanking[0];
   d3.select('#insight-timesink-value').text(topTime ? topTime.label : '–');
@@ -400,7 +400,7 @@ function renderInsights(model) {
   const topRework = model.reworkRanking[0];
   d3.select('#insight-rework').property('disabled', !topRework);
   d3.select('#insight-rework-value').text(topRework ? topRework.label : 'None found');
-  d3.select('#insight-rework-detail').text(topRework ? `${(topRework.reworkRate * 100).toFixed(0)}% of cases looped back here` : 'No repeated steps in this data');
+  d3.select('#insight-rework-detail').text(topRework ? `${(topRework.reworkRate * 100).toFixed(0)}% of processes looped back here` : 'No repeated steps in this data');
 
   const isActive = (kind, value) => state.highlight && state.highlight.kind === kind && state.highlight.value === value;
   d3.select('#insight-frequent').classed('active', isActive('variant', model.happyPath));
@@ -469,7 +469,7 @@ function renderVariantList(model) {
     .on('click', (event, v) => setHighlight('variant', v));
   merged.select('.variant-rank').text((v) => `#${v.rank}`);
   merged.select('.variant-body').html((v) => `
-    <div class="variant-pct">${(v.pct * 100).toFixed(1)}% <span class="variant-count">(${v.count} case${v.count === 1 ? '' : 's'})</span>${v === model.fastestPath ? ' <span class="fastest-badge" title="Fastest observed path">⚡ fastest</span>' : ''}</div>
+    <div class="variant-pct">${(v.pct * 100).toFixed(1)}% <span class="variant-count">(${v.count} process${v.count === 1 ? '' : 'es'})</span>${v === model.fastestPath ? ' <span class="fastest-badge" title="Fastest observed path">⚡ fastest</span>' : ''}</div>
     <div class="variant-path">${v.path.join(' → ')}</div>
     <div class="variant-duration">Avg total time: ${formatDuration(v.avgDuration)}</div>
   `);
@@ -499,14 +499,14 @@ function buildAISummaryHtml(model) {
   const steps = (path) => path.map(escapeHtml).join(' → ');
 
   paragraphs.push(
-    `<p>This map is mined from <strong>${model.totalCases} case${model.totalCases === 1 ? '' : 's'}</strong>, ` +
+    `<p>This map is mined from <strong>${model.totalCases} process${model.totalCases === 1 ? '' : 'es'}</strong>, ` +
     `which fan out into <strong>${model.variants.length} distinct path${model.variants.length === 1 ? '' : 's'}</strong> ` +
     `through the process.</p>`
   );
 
   if (model.happyPath) {
     paragraphs.push(
-      `<p><strong>Most common path:</strong> ${pct(model.happyPath.pct)} of cases (${model.happyPath.count}) follow the same ` +
+      `<p><strong>Most common path:</strong> ${pct(model.happyPath.pct)} of processes (${model.happyPath.count}) follow the same ` +
       `${model.happyPath.path.length}-step route, taking about ${formatDuration(model.happyPath.avgDuration)} on average: ` +
       `${steps(model.happyPath.path)}.</p>`
     );
@@ -531,11 +531,11 @@ function buildAISummaryHtml(model) {
   const reworkTop = model.reworkRanking[0];
   if (model.reworkedCasePct > 0 && reworkTop) {
     paragraphs.push(
-      `<p><strong>Rework:</strong> ${pct(model.reworkedCasePct)} of cases loop back to redo a step at least once, most often at ` +
+      `<p><strong>Rework:</strong> ${pct(model.reworkedCasePct)} of processes loop back to redo a step at least once, most often at ` +
       `"${escapeHtml(reworkTop.label)}" (${pluralCases(reworkTop.reworkCaseCount)} re-enter it).</p>`
     );
   } else {
-    paragraphs.push(`<p><strong>Rework:</strong> no meaningful rework loops detected — cases mostly move forward without looping back.</p>`);
+    paragraphs.push(`<p><strong>Rework:</strong> no meaningful rework loops detected — processes mostly move forward without looping back.</p>`);
   }
 
   if (timeSink) {
@@ -623,7 +623,7 @@ function handleUploadFile(file) {
       state.highlight = null;
       state.threshold = 0;
       d3.select('#pf-slider').property('value', 100);
-      setUploadStatus(`Loaded ${cases.length} case${cases.length === 1 ? '' : 's'} from "${file.name}".`, 'success');
+      setUploadStatus(`Loaded ${cases.length} process${cases.length === 1 ? '' : 'es'} from "${file.name}".`, 'success');
       render(true);
       setTimeout(closeImportModal, 700);
     } catch (err) {

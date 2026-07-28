@@ -86,7 +86,7 @@ function escapeHtml(str) {
 }
 
 function pluralCases(n) {
-  return `${n} case${n === 1 ? '' : 's'}`;
+  return `${n} request${n === 1 ? '' : 's'}`;
 }
 
 // ---- builds one path's task-level map as real SVG task cards (same visual
@@ -172,7 +172,7 @@ function buildDeviationBranchSvg(deviation, mainX, afterCardY, nextCardY) {
   const branchCenterX = branchX + branchW / 2;
 
   let html = arrowSvg(mainEdgeX, branchMidY, branchNearEdgeX, branchMidY, true);
-  html += taskCardSvg(branchX, afterCardY, deviation.step.name, `${deviation.step.minutes}m · ~${deviation.pct}% of cases`, branchW);
+  html += taskCardSvg(branchX, afterCardY, deviation.step.name, `${deviation.step.minutes}m · ~${deviation.pct}% of requests`, branchW);
   html += `<path d="M${branchCenterX},${afterCardY + CARD_H} L${branchCenterX},${nextMidY} L${mainEdgeX},${nextMidY}" stroke="#9a9fb5" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#dm-arrow-grey)" fill="none" />`;
 
   const labelX = (mainEdgeX + branchNearEdgeX) / 2;
@@ -390,10 +390,10 @@ function buildDecisionAISummaryHtml() {
   const biggestSink = timeContribution.reduce((a, b) => (b.totalMinutes > a.totalMinutes ? b : a));
 
   return `
-    <p>This process starts with a shared "Process authorisation" step, then a <strong>decision node on request cost</strong> routes each of the ${totalCases} cases into one of <strong>3 structurally distinct downstream processes</strong> — not just a deviation of one path, but genuinely different task sequences.</p>
-    <p><strong>Dominant process:</strong> ${dominant.label} (${escapeHtml(dominant.condition)}) is followed by ${Math.round(dominant.pct * 100)}% of cases (${dominant.cases}), averaging ${dominant.avgLabel} end-to-end.</p>
+    <p>This process starts with a shared "Process authorisation" step, then a <strong>decision node on request cost</strong> routes each of the ${totalCases} requests into one of <strong>3 structurally distinct downstream processes</strong> — not just a deviation of one path, but genuinely different task sequences.</p>
+    <p><strong>Dominant process:</strong> ${dominant.label} (${escapeHtml(dominant.condition)}) is followed by ${Math.round(dominant.pct * 100)}% of requests (${dominant.cases}), averaging ${dominant.avgLabel} end-to-end.</p>
     <p><strong>Fastest process:</strong> ${fastest.label} (${escapeHtml(fastest.condition)}) finishes fastest at ${fastest.avgLabel} on average — worth understanding why, since it's also the only branch with zero flagged deviations internally.</p>
-    <p><strong>Where time concentrates:</strong> ${biggestSink.label} contributes the most total time across all cases (${biggestSink.cases} cases × ${biggestSink.avgLabel} avg), making it the best target for automation or simplification.</p>
+    <p><strong>Where time concentrates:</strong> ${biggestSink.label} contributes the most total time across all requests (${biggestSink.cases} requests × ${biggestSink.avgLabel} avg), making it the best target for automation or simplification.</p>
     <p class="summary-callout">Since the decision variable (Cost) is known up front, routing logic itself is cheap to automate — the bigger opportunity is streamlining ${biggestSink.label}'s task list, which is where most of the process's total time actually goes.</p>
   `;
 }

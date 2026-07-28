@@ -17,7 +17,7 @@
         </a>
         <h1 id="page-title">Process Map — Purchase Order to Payment</h1>
       </div>
-      <p class="subtitle">Directly-follows graph mined from case history. Thicker path = more frequent. Highlighted path = most common route.</p>
+      <p class="subtitle">Directly-follows graph mined from process history. Thicker path = more frequent. Highlighted path = most common route.</p>
     </div>
     <button id="import-button" class="import-button" type="button">
       <svg width="16" height="16" viewBox="0 0 22 22" aria-hidden="true">
@@ -30,11 +30,11 @@
 
   <div class="kpi-band" id="kpi-band">
     <div class="stats">
-      <div class="stat"><span class="stat-value" id="stat-cases">–</span><span class="stat-label">cases</span></div>
+      <div class="stat"><span class="stat-value" id="stat-cases">–</span><span class="stat-label">processes</span></div>
       <div class="stat"><span class="stat-value" id="stat-variants">–</span><span class="stat-label">distinct paths</span></div>
       <div class="stat"><span class="stat-value" id="stat-happy-pct">–</span><span class="stat-label">follow top path</span></div>
       <div class="stat"><span class="stat-value" id="stat-avg-duration">–</span><span class="stat-label">avg cycle time</span></div>
-      <div class="stat"><span class="stat-value" id="stat-rework-pct">–</span><span class="stat-label">cases need rework</span></div>
+      <div class="stat"><span class="stat-value" id="stat-rework-pct">–</span><span class="stat-label">processes need rework</span></div>
     </div>
 
     <div class="canvas-toolbar">
@@ -169,7 +169,7 @@
             </svg>
           </button>
           <div class="panel-body">
-            <p class="hint">Ranked by total time spent across all cases — the biggest automation payoff.</p>
+            <p class="hint">Ranked by total time spent across all processes — the biggest automation payoff.</p>
             <ul id="time-list" class="metric-list"></ul>
           </div>
         </div>
@@ -182,7 +182,7 @@
             </svg>
           </button>
           <div class="panel-body">
-            <p class="hint">Steps that get repeated within the same case.</p>
+            <p class="hint">Steps that get repeated within the same process.</p>
             <ul id="rework-list" class="metric-list"></ul>
           </div>
         </div>
