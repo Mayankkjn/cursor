@@ -20,19 +20,29 @@
       <p class="subtitle">A decision node near the start of the process routes each case into one of three structurally distinct approval processes, based on the request cost.</p>
       <span class="source-badge">Sample data</span>
     </div>
-    <div class="topbar-right">
-      <div class="stats">
-        <div class="stat"><span class="stat-value">60</span><span class="stat-label">cases</span></div>
-        <div class="stat"><span class="stat-value">3</span><span class="stat-label">distinct processes</span></div>
-        <div class="stat"><span class="stat-value">1</span><span class="stat-label">decision point</span></div>
-        <div class="stat"><span class="stat-value">60%</span><span class="stat-label">follow top process</span></div>
-        <div class="stat"><span class="stat-value">15m 27s</span><span class="stat-label">avg cycle time</span></div>
-      </div>
-    </div>
   </header>
 
-  <main class="layout">
-    <aside class="sidebar">
+  <div class="kpi-band" id="kpi-band">
+    <div class="stats">
+      <div class="stat"><span class="stat-value">60</span><span class="stat-label">cases</span></div>
+      <div class="stat"><span class="stat-value">3</span><span class="stat-label">distinct processes</span></div>
+      <div class="stat"><span class="stat-value">1</span><span class="stat-label">decision point</span></div>
+      <div class="stat"><span class="stat-value">60%</span><span class="stat-label">follow top process</span></div>
+      <div class="stat"><span class="stat-value">15m 27s</span><span class="stat-label">avg cycle time</span></div>
+    </div>
+  </div>
+
+  <main class="canvas-wrap" id="canvas-wrap">
+    <div id="insights-panel" class="side-drawer hidden">
+      <div class="side-drawer-header">
+        <h2>Insights</h2>
+        <button id="insights-close" class="ai-summary-close" type="button" aria-label="Close insights">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+            <path d="M2 2 L10 10 M10 2 L2 10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+          </svg>
+        </button>
+      </div>
+      <div class="side-drawer-body">
       <div class="panel insights-panel">
         <button class="panel-header" type="button" aria-expanded="true">
           <h2>Key Takeaways</h2>
@@ -69,39 +79,6 @@
 
       <div class="panel">
         <button class="panel-header" type="button" aria-expanded="true">
-          <h2>Path Filter</h2>
-          <svg class="panel-chevron" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
-            <path d="M3 5 L7 9 L11 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-        </button>
-        <div class="panel-body">
-          <div class="pf-row">
-            <span class="pf-label">Process Variants</span>
-            <span class="pf-value" id="dm-pf-value">100%</span>
-          </div>
-          <p class="pf-subtext" id="dm-pf-subtext">Showing 5 of 5 process variants</p>
-
-          <div class="pf-slider-row">
-            <button class="pf-step-btn" id="dm-pf-minus" type="button" aria-label="Show fewer variants">&minus;</button>
-            <input type="range" id="dm-pf-slider" class="pf-slider" min="0" max="100" value="100" />
-            <button class="pf-step-btn" id="dm-pf-plus" type="button" aria-label="Show more variants">+</button>
-          </div>
-          <div class="pf-slider-labels">
-            <span>Popular path</span>
-            <span>All paths</span>
-          </div>
-
-          <div class="legend">
-            <h3>Legend</h3>
-            <div class="legend-row"><span class="swatch happy"></span> Most common path</div>
-            <div class="legend-row"><span class="swatch deviation"></span> Deviation, moving forward</div>
-            <div class="legend-row"><span class="swatch rework"></span> Deviation that loops back (rework)</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="panel">
-        <button class="panel-header" type="button" aria-expanded="true">
           <h2>Processes</h2>
           <svg class="panel-chevron" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
             <path d="M3 5 L7 9 L11 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
@@ -125,9 +102,34 @@
           </ul>
         </div>
       </div>
-    </aside>
+      </div>
+    </div>
 
-    <section class="canvas-wrap" id="canvas-wrap">
+    <div class="floating-path-filter" id="floating-path-filter">
+      <div class="pf-row">
+        <span class="pf-label">Process Variants</span>
+        <span class="pf-value" id="dm-pf-value">100%</span>
+      </div>
+      <p class="pf-subtext" id="dm-pf-subtext">Showing 5 of 5 process variants</p>
+
+      <div class="pf-slider-row">
+        <button class="pf-step-btn" id="dm-pf-minus" type="button" aria-label="Show fewer variants">&minus;</button>
+        <input type="range" id="dm-pf-slider" class="pf-slider" min="0" max="100" value="100" />
+        <button class="pf-step-btn" id="dm-pf-plus" type="button" aria-label="Show more variants">+</button>
+      </div>
+      <div class="pf-slider-labels">
+        <span>Popular path</span>
+        <span>All paths</span>
+      </div>
+    </div>
+
+    <div class="floating-legend" id="floating-legend">
+      <h3>Legend</h3>
+      <div class="legend-row"><span class="swatch happy"></span> Most common path</div>
+      <div class="legend-row"><span class="swatch deviation"></span> Deviation, moving forward</div>
+      <div class="legend-row"><span class="swatch rework"></span> Deviation that loops back (rework)</div>
+    </div>
+
       <svg id="decision-graph" viewBox="0 0 1900 1260" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <marker id="dm-arrow-green" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
@@ -359,6 +361,14 @@
       </svg>
 
       <div class="canvas-toolbar">
+        <button id="insights-btn" class="ai-summary-btn" type="button" aria-expanded="false">
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M8 1.5 C4.9 1.5 2.5 3.8 2.5 6.8 C2.5 8.7 3.4 10.3 4.9 11.3 V13 C4.9 13.6 5.4 14 5.9 14 H10.1 C10.6 14 11.1 13.6 11.1 13 V11.3 C12.6 10.3 13.5 8.7 13.5 6.8 C13.5 3.8 11.1 1.5 8 1.5 Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" />
+            <path d="M6.2 14.9 H9.8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" />
+            <path d="M8 4.3 V8.3 M8 8.3 L6.3 6.9" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          Insights
+        </button>
         <button id="ai-summary-btn" class="ai-summary-btn" type="button" aria-expanded="false">
           <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
             <path d="M8 1 L9.2 5.6 L13.5 7 L9.2 8.4 L8 13 L6.8 8.4 L2.5 7 L6.8 5.6 Z" />
@@ -366,28 +376,32 @@
           </svg>
           AI Summary
         </button>
+        <button id="fullscreen-btn" class="icon-toolbar-btn" type="button" aria-label="Toggle full screen" aria-pressed="false">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M6 2 H2 V6 M10 2 H14 V6 M6 14 H2 V10 M10 14 H14 V10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+      </div>
 
-        <div id="ai-summary-panel" class="ai-summary-panel hidden">
-          <div class="ai-summary-panel-header">
-            <span class="ai-summary-panel-title">
-              <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-                <path d="M8 1 L9.2 5.6 L13.5 7 L9.2 8.4 L8 13 L6.8 8.4 L2.5 7 L6.8 5.6 Z" />
-              </svg>
-              AI Summary
-            </span>
-            <button id="ai-summary-close" class="ai-summary-close" type="button" aria-label="Close">
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                <path d="M2 2 L10 10 M10 2 L2 10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
-              </svg>
-            </button>
-          </div>
-          <div id="ai-summary-body" class="ai-summary-body"></div>
+      <div id="ai-summary-panel" class="ai-summary-panel hidden">
+        <div class="ai-summary-panel-header">
+          <span class="ai-summary-panel-title">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <path d="M8 1 L9.2 5.6 L13.5 7 L9.2 8.4 L8 13 L6.8 8.4 L2.5 7 L6.8 5.6 Z" />
+            </svg>
+            AI Summary
+          </span>
+          <button id="ai-summary-close" class="ai-summary-close" type="button" aria-label="Close">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+              <path d="M2 2 L10 10 M10 2 L2 10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+            </svg>
+          </button>
         </div>
+        <div id="ai-summary-body" class="ai-summary-body"></div>
       </div>
 
       <div class="zoom-hint">Scroll to zoom · drag to pan · click "N tasks" to open that process's task-level map</div>
       <div id="dm-tooltip" class="dm-tooltip"></div>
-    </section>
   </main>
 
   <script src="vendor/d3.min.js"></script>

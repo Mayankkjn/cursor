@@ -549,6 +549,7 @@ function buildAISummaryHtml(model) {
 }
 
 function openAISummary() {
+  closeInsights();
   const btn = document.getElementById('ai-summary-btn');
   const panel = document.getElementById('ai-summary-panel');
   const body = document.getElementById('ai-summary-body');
@@ -572,6 +573,19 @@ function closeAISummary() {
   document.getElementById('ai-summary-btn').classList.remove('active');
   document.getElementById('ai-summary-btn').setAttribute('aria-expanded', 'false');
   document.getElementById('ai-summary-panel').classList.add('hidden');
+}
+
+function openInsights() {
+  closeAISummary();
+  document.getElementById('insights-btn').classList.add('active');
+  document.getElementById('insights-btn').setAttribute('aria-expanded', 'true');
+  document.getElementById('insights-panel').classList.remove('hidden');
+}
+
+function closeInsights() {
+  document.getElementById('insights-btn').classList.remove('active');
+  document.getElementById('insights-btn').setAttribute('aria-expanded', 'false');
+  document.getElementById('insights-panel').classList.add('hidden');
 }
 
 function regenerate(numCases) {
@@ -633,6 +647,21 @@ d3.select('#ai-summary-btn').on('click', () => {
   else closeAISummary();
 });
 d3.select('#ai-summary-close').on('click', closeAISummary);
+
+// ---- insights drawer ----
+d3.select('#insights-btn').on('click', () => {
+  const panel = document.getElementById('insights-panel');
+  if (panel.classList.contains('hidden')) openInsights();
+  else closeInsights();
+});
+d3.select('#insights-close').on('click', closeInsights);
+
+// ---- fullscreen toggle ----
+d3.select('#fullscreen-btn').on('click', function () {
+  const isFullscreen = document.body.classList.toggle('app-fullscreen');
+  d3.select(this).classed('active', isFullscreen).attr('aria-pressed', String(isFullscreen));
+  requestAnimationFrame(fitToView);
+});
 
 // ---- collapsible sidebar panels ----
 d3.selectAll('.panel-header').on('click', function () {

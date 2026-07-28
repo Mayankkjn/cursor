@@ -83,6 +83,15 @@ body {
 
 .topbar-right { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
 
+.kpi-band {
+  flex-shrink: 0;
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--panel-border);
+  padding: 14px 28px;
+}
+body.app-fullscreen .topbar,
+body.app-fullscreen .kpi-band { display: none; }
+
 .stats { display: flex; gap: 28px; }
 .stat { display: flex; flex-direction: column; align-items: center; min-width: 80px; }
 .stat-value { font-size: 1.4rem; font-weight: 700; font-variant-numeric: tabular-nums; }
@@ -138,15 +147,35 @@ body {
 }
 .modal-close:hover { color: var(--text-primary); background: var(--bg); }
 
-.layout {
-  flex: 1;
+/* ---- Insights side drawer (shared by index.html and decision-map.html) ---- */
+.side-drawer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: 380px;
+  max-width: calc(100vw - 24px);
+  background: var(--card-bg);
+  border-left: 1px solid var(--panel-border);
+  box-shadow: var(--shadow-md);
+  z-index: 15;
   display: flex;
-  min-height: 0;
+  flex-direction: column;
 }
+.side-drawer.hidden { display: none; }
 
-.sidebar {
-  width: 320px;
+.side-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--panel-border);
   flex-shrink: 0;
+}
+.side-drawer-header h2 { margin: 0; font-size: 1rem; }
+
+.side-drawer-body {
+  flex: 1;
   overflow-y: auto;
   padding: 16px;
   display: flex;
@@ -336,9 +365,8 @@ button {
 }
 button:hover { filter: brightness(1.08); }
 
-.legend { margin-top: 16px; border-top: 1px solid var(--panel-border); padding-top: 12px; }
-.legend h3 { margin: 0 0 8px; font-size: 0.78rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em; }
 .legend-row { display: flex; align-items: center; gap: 8px; font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 7px; }
+.legend-row:last-child { margin-bottom: 0; }
 .swatch { width: 22px; height: 3px; border-radius: 2px; display: inline-block; }
 .swatch.happy { background: var(--path-main); }
 .swatch.deviation { background: repeating-linear-gradient(90deg, var(--path-deviation) 0 4px, transparent 4px 7px); height: 2px; }
@@ -459,8 +487,53 @@ button:hover { filter: brightness(1.08); }
 .metric-item.rework .metric-bar-fill { background: var(--rework); }
 .metric-empty { font-size: 0.78rem; color: var(--text-secondary); }
 
+/* ---- floating widgets over the canvas ---- */
+.floating-path-filter {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  width: 300px;
+  max-width: calc(100vw - 32px);
+  background: var(--card-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: var(--shadow-md);
+  z-index: 5;
+}
+
+.floating-legend {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  background: var(--card-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  box-shadow: var(--shadow-md);
+  z-index: 5;
+}
+.floating-legend h3 { margin: 0 0 8px; font-size: 0.78rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em; }
+
 /* ---- AI summary ---- */
-.canvas-toolbar { position: absolute; top: 16px; right: 16px; z-index: 5; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+.canvas-toolbar { position: absolute; top: 16px; right: 16px; z-index: 20; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+
+.icon-toolbar-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: #ffffff;
+  color: var(--accent-ui);
+  border: 1px solid var(--accent-ui);
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: var(--shadow-md);
+  padding: 0;
+}
+.icon-toolbar-btn:hover { background: var(--accent-ui-soft); }
+.icon-toolbar-btn.active { background: var(--accent-ui); color: #ffffff; }
 
 .ai-summary-btn {
   display: flex;
@@ -480,8 +553,11 @@ button:hover { filter: brightness(1.08); }
 .ai-summary-btn.active { background: var(--accent-ui); color: #ffffff; }
 
 .ai-summary-panel {
+  position: absolute;
+  top: 138px;
+  right: 16px;
   width: 340px;
-  max-height: min(560px, calc(100vh - 180px));
+  max-height: min(560px, calc(100vh - 220px));
   background: #ffffff;
   border: 1px solid var(--panel-border);
   border-radius: 12px;
@@ -489,6 +565,7 @@ button:hover { filter: brightness(1.08); }
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  z-index: 19;
 }
 .ai-summary-panel.hidden { display: none; }
 
@@ -546,23 +623,24 @@ button:hover { filter: brightness(1.08); }
       <p class="subtitle">Directly-follows graph mined from case history. Thicker path = more frequent. Highlighted path = most common route.</p>
       <span class="source-badge" id="source-badge">Sample data</span>
     </div>
-    <div class="topbar-right">
-      <div class="stats">
-        <div class="stat"><span class="stat-value" id="stat-cases">–</span><span class="stat-label">cases</span></div>
-        <div class="stat"><span class="stat-value" id="stat-variants">–</span><span class="stat-label">distinct paths</span></div>
-        <div class="stat"><span class="stat-value" id="stat-happy-pct">–</span><span class="stat-label">follow top path</span></div>
-        <div class="stat"><span class="stat-value" id="stat-avg-duration">–</span><span class="stat-label">avg cycle time</span></div>
-        <div class="stat"><span class="stat-value" id="stat-rework-pct">–</span><span class="stat-label">cases need rework</span></div>
-      </div>
-      <button id="import-button" class="import-button" type="button">
-        <svg width="16" height="16" viewBox="0 0 22 22" aria-hidden="true">
-          <path d="M11 3 V14 M6 8 L11 3 L16 8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-          <path d="M4 15 V17.5 A1.5 1.5 0 0 0 5.5 19 H16.5 A1.5 1.5 0 0 0 18 17.5 V15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-        </svg>
-        Import
-      </button>
-    </div>
+    <button id="import-button" class="import-button" type="button">
+      <svg width="16" height="16" viewBox="0 0 22 22" aria-hidden="true">
+        <path d="M11 3 V14 M6 8 L11 3 L16 8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+        <path d="M4 15 V17.5 A1.5 1.5 0 0 0 5.5 19 H16.5 A1.5 1.5 0 0 0 18 17.5 V15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+      Import
+    </button>
   </header>
+
+  <div class="kpi-band" id="kpi-band">
+    <div class="stats">
+      <div class="stat"><span class="stat-value" id="stat-cases">–</span><span class="stat-label">cases</span></div>
+      <div class="stat"><span class="stat-value" id="stat-variants">–</span><span class="stat-label">distinct paths</span></div>
+      <div class="stat"><span class="stat-value" id="stat-happy-pct">–</span><span class="stat-label">follow top path</span></div>
+      <div class="stat"><span class="stat-value" id="stat-avg-duration">–</span><span class="stat-label">avg cycle time</span></div>
+      <div class="stat"><span class="stat-value" id="stat-rework-pct">–</span><span class="stat-label">cases need rework</span></div>
+    </div>
+  </div>
 
   <div id="import-modal" class="modal-overlay hidden">
     <div class="modal-panel">
@@ -599,146 +677,159 @@ button:hover { filter: brightness(1.08); }
     </div>
   </div>
 
-  <main class="layout">
-    <aside class="sidebar">
-      <div class="panel insights-panel">
-        <button class="panel-header" type="button" aria-expanded="true">
-          <h2>Key Takeaways</h2>
-          <svg class="panel-chevron" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
-            <path d="M3 5 L7 9 L11 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-        </button>
-        <div class="panel-body">
-          <p class="hint">Click any signal to trace it on the map.</p>
-          <div class="insight-grid">
-            <button class="insight-card" id="insight-frequent" type="button">
-              <span class="insight-label">Most followed path</span>
-              <span class="insight-value" id="insight-frequent-value">–</span>
-              <span class="insight-detail" id="insight-frequent-detail"> </span>
-            </button>
-            <button class="insight-card" id="insight-fastest" type="button">
-              <span class="insight-label">Fastest path</span>
-              <span class="insight-value" id="insight-fastest-value">–</span>
-              <span class="insight-detail" id="insight-fastest-detail"> </span>
-            </button>
-            <button class="insight-card" id="insight-timesink" type="button">
-              <span class="insight-label">Biggest time sink</span>
-              <span class="insight-value" id="insight-timesink-value">–</span>
-              <span class="insight-detail" id="insight-timesink-detail"> </span>
-            </button>
-            <button class="insight-card" id="insight-rework" type="button">
-              <span class="insight-label">Top rework hotspot</span>
-              <span class="insight-value" id="insight-rework-value">–</span>
-              <span class="insight-detail" id="insight-rework-detail"> </span>
-            </button>
-          </div>
-        </div>
-      </div>
+  <main class="canvas-wrap" id="canvas-wrap">
+    <svg id="graph"></svg>
+    <div id="tooltip" class="tooltip"></div>
 
-      <div class="panel">
-        <button class="panel-header" type="button" aria-expanded="true">
-          <h2>Path Filter</h2>
-          <svg class="panel-chevron" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
-            <path d="M3 5 L7 9 L11 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-        </button>
-        <div class="panel-body">
-          <div class="pf-row">
-            <span class="pf-label">Process Variants</span>
-            <span class="pf-value" id="pf-value">100%</span>
-          </div>
-          <p class="pf-subtext" id="pf-subtext">Showing all process variants</p>
+    <div class="canvas-toolbar">
+      <button id="insights-btn" class="ai-summary-btn" type="button" aria-expanded="false">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M8 1.5 C4.9 1.5 2.5 3.8 2.5 6.8 C2.5 8.7 3.4 10.3 4.9 11.3 V13 C4.9 13.6 5.4 14 5.9 14 H10.1 C10.6 14 11.1 13.6 11.1 13 V11.3 C12.6 10.3 13.5 8.7 13.5 6.8 C13.5 3.8 11.1 1.5 8 1.5 Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" />
+          <path d="M6.2 14.9 H9.8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" />
+          <path d="M8 4.3 V8.3 M8 8.3 L6.3 6.9" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        Insights
+      </button>
+      <button id="ai-summary-btn" class="ai-summary-btn" type="button" aria-expanded="false">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+          <path d="M8 1 L9.2 5.6 L13.5 7 L9.2 8.4 L8 13 L6.8 8.4 L2.5 7 L6.8 5.6 Z" />
+          <path d="M13 1.5 L13.5 3 L15 3.5 L13.5 4 L13 5.5 L12.5 4 L11 3.5 L12.5 3 Z" />
+        </svg>
+        AI Summary
+      </button>
+      <button id="fullscreen-btn" class="icon-toolbar-btn" type="button" aria-label="Toggle full screen" aria-pressed="false">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M6 2 H2 V6 M10 2 H14 V6 M6 14 H2 V10 M10 14 H14 V10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </button>
+    </div>
 
-          <div class="pf-slider-row">
-            <button class="pf-step-btn" id="pf-minus" type="button" aria-label="Show fewer variants">&minus;</button>
-            <input type="range" id="pf-slider" class="pf-slider" min="0" max="100" value="100" />
-            <button class="pf-step-btn" id="pf-plus" type="button" aria-label="Show more variants">+</button>
-          </div>
-          <div class="pf-slider-labels">
-            <span>Popular path</span>
-            <span>All paths</span>
-          </div>
-
-          <div class="legend">
-            <h3>Legend</h3>
-            <div class="legend-row"><span class="swatch happy"></span> Most common path</div>
-            <div class="legend-row"><span class="swatch deviation"></span> Deviation, moving forward</div>
-            <div class="legend-row"><span class="swatch rework"></span> Deviation that loops back (rework)</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="panel">
-        <button class="panel-header" type="button" aria-expanded="true">
-          <h2>Where time is going</h2>
-          <svg class="panel-chevron" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
-            <path d="M3 5 L7 9 L11 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-        </button>
-        <div class="panel-body">
-          <p class="hint">Ranked by total time spent across all cases — the biggest automation payoff.</p>
-          <ul id="time-list" class="metric-list"></ul>
-        </div>
-      </div>
-
-      <div class="panel">
-        <button class="panel-header" type="button" aria-expanded="true">
-          <h2>Where rework is happening</h2>
-          <svg class="panel-chevron" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
-            <path d="M3 5 L7 9 L11 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-        </button>
-        <div class="panel-body">
-          <p class="hint">Steps that get repeated within the same case.</p>
-          <ul id="rework-list" class="metric-list"></ul>
-        </div>
-      </div>
-
-      <div class="panel variant-panel">
-        <button class="panel-header" type="button" aria-expanded="true">
-          <h2>Paths, ranked by frequency</h2>
-          <svg class="panel-chevron" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
-            <path d="M3 5 L7 9 L11 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-        </button>
-        <div class="panel-body">
-          <p class="hint">Click a path to trace it on the map. ⚡ marks the fastest observed path.</p>
-          <ul id="variant-list"></ul>
-        </div>
-      </div>
-    </aside>
-
-    <section class="canvas-wrap">
-      <svg id="graph"></svg>
-      <div id="tooltip" class="tooltip"></div>
-
-      <div class="canvas-toolbar">
-        <button id="ai-summary-btn" class="ai-summary-btn" type="button" aria-expanded="false">
-          <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+    <div id="ai-summary-panel" class="ai-summary-panel hidden">
+      <div class="ai-summary-panel-header">
+        <span class="ai-summary-panel-title">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
             <path d="M8 1 L9.2 5.6 L13.5 7 L9.2 8.4 L8 13 L6.8 8.4 L2.5 7 L6.8 5.6 Z" />
-            <path d="M13 1.5 L13.5 3 L15 3.5 L13.5 4 L13 5.5 L12.5 4 L11 3.5 L12.5 3 Z" />
           </svg>
           AI Summary
+        </span>
+        <button id="ai-summary-close" class="ai-summary-close" type="button" aria-label="Close summary">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+            <path d="M2 2 L10 10 M10 2 L2 10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+          </svg>
         </button>
+      </div>
+      <div id="ai-summary-body" class="ai-summary-body"></div>
+    </div>
 
-        <div id="ai-summary-panel" class="ai-summary-panel hidden">
-          <div class="ai-summary-panel-header">
-            <span class="ai-summary-panel-title">
-              <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-                <path d="M8 1 L9.2 5.6 L13.5 7 L9.2 8.4 L8 13 L6.8 8.4 L2.5 7 L6.8 5.6 Z" />
-              </svg>
-              AI Summary
-            </span>
-            <button id="ai-summary-close" class="ai-summary-close" type="button" aria-label="Close summary">
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                <path d="M2 2 L10 10 M10 2 L2 10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
-              </svg>
-            </button>
+    <div id="insights-panel" class="side-drawer hidden">
+      <div class="side-drawer-header">
+        <h2>Insights</h2>
+        <button id="insights-close" class="ai-summary-close" type="button" aria-label="Close insights">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+            <path d="M2 2 L10 10 M10 2 L2 10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+          </svg>
+        </button>
+      </div>
+      <div class="side-drawer-body">
+        <div class="panel insights-panel">
+          <button class="panel-header" type="button" aria-expanded="true">
+            <h2>Key Takeaways</h2>
+            <svg class="panel-chevron" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+              <path d="M3 5 L7 9 L11 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+          <div class="panel-body">
+            <p class="hint">Click any signal to trace it on the map.</p>
+            <div class="insight-grid">
+              <button class="insight-card" id="insight-frequent" type="button">
+                <span class="insight-label">Most followed path</span>
+                <span class="insight-value" id="insight-frequent-value">–</span>
+                <span class="insight-detail" id="insight-frequent-detail"> </span>
+              </button>
+              <button class="insight-card" id="insight-fastest" type="button">
+                <span class="insight-label">Fastest path</span>
+                <span class="insight-value" id="insight-fastest-value">–</span>
+                <span class="insight-detail" id="insight-fastest-detail"> </span>
+              </button>
+              <button class="insight-card" id="insight-timesink" type="button">
+                <span class="insight-label">Biggest time sink</span>
+                <span class="insight-value" id="insight-timesink-value">–</span>
+                <span class="insight-detail" id="insight-timesink-detail"> </span>
+              </button>
+              <button class="insight-card" id="insight-rework" type="button">
+                <span class="insight-label">Top rework hotspot</span>
+                <span class="insight-value" id="insight-rework-value">–</span>
+                <span class="insight-detail" id="insight-rework-detail"> </span>
+              </button>
+            </div>
           </div>
-          <div id="ai-summary-body" class="ai-summary-body"></div>
+        </div>
+
+        <div class="panel">
+          <button class="panel-header" type="button" aria-expanded="true">
+            <h2>Where time is going</h2>
+            <svg class="panel-chevron" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+              <path d="M3 5 L7 9 L11 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+          <div class="panel-body">
+            <p class="hint">Ranked by total time spent across all cases — the biggest automation payoff.</p>
+            <ul id="time-list" class="metric-list"></ul>
+          </div>
+        </div>
+
+        <div class="panel">
+          <button class="panel-header" type="button" aria-expanded="true">
+            <h2>Where rework is happening</h2>
+            <svg class="panel-chevron" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+              <path d="M3 5 L7 9 L11 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+          <div class="panel-body">
+            <p class="hint">Steps that get repeated within the same case.</p>
+            <ul id="rework-list" class="metric-list"></ul>
+          </div>
+        </div>
+
+        <div class="panel variant-panel">
+          <button class="panel-header" type="button" aria-expanded="true">
+            <h2>Paths, ranked by frequency</h2>
+            <svg class="panel-chevron" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+              <path d="M3 5 L7 9 L11 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+          <div class="panel-body">
+            <p class="hint">Click a path to trace it on the map. ⚡ marks the fastest observed path.</p>
+            <ul id="variant-list"></ul>
+          </div>
         </div>
       </div>
-    </section>
+    </div>
+
+    <div class="floating-path-filter" id="floating-path-filter">
+      <div class="pf-row">
+        <span class="pf-label">Process Variants</span>
+        <span class="pf-value" id="pf-value">100%</span>
+      </div>
+      <p class="pf-subtext" id="pf-subtext">Showing all process variants</p>
+
+      <div class="pf-slider-row">
+        <button class="pf-step-btn" id="pf-minus" type="button" aria-label="Show fewer variants">&minus;</button>
+        <input type="range" id="pf-slider" class="pf-slider" min="0" max="100" value="100" />
+        <button class="pf-step-btn" id="pf-plus" type="button" aria-label="Show more variants">+</button>
+      </div>
+      <div class="pf-slider-labels">
+        <span>Popular path</span>
+        <span>All paths</span>
+      </div>
+    </div>
+
+    <div class="floating-legend" id="floating-legend">
+      <h3>Legend</h3>
+      <div class="legend-row"><span class="swatch happy"></span> Most common path</div>
+      <div class="legend-row"><span class="swatch deviation"></span> Deviation, moving forward</div>
+      <div class="legend-row"><span class="swatch rework"></span> Deviation that loops back (rework)</div>
+    </div>
   </main>
 
   <script>
@@ -5558,6 +5649,7 @@ function buildAISummaryHtml(model) {
 }
 
 function openAISummary() {
+  closeInsights();
   const btn = document.getElementById('ai-summary-btn');
   const panel = document.getElementById('ai-summary-panel');
   const body = document.getElementById('ai-summary-body');
@@ -5581,6 +5673,19 @@ function closeAISummary() {
   document.getElementById('ai-summary-btn').classList.remove('active');
   document.getElementById('ai-summary-btn').setAttribute('aria-expanded', 'false');
   document.getElementById('ai-summary-panel').classList.add('hidden');
+}
+
+function openInsights() {
+  closeAISummary();
+  document.getElementById('insights-btn').classList.add('active');
+  document.getElementById('insights-btn').setAttribute('aria-expanded', 'true');
+  document.getElementById('insights-panel').classList.remove('hidden');
+}
+
+function closeInsights() {
+  document.getElementById('insights-btn').classList.remove('active');
+  document.getElementById('insights-btn').setAttribute('aria-expanded', 'false');
+  document.getElementById('insights-panel').classList.add('hidden');
 }
 
 function regenerate(numCases) {
@@ -5642,6 +5747,21 @@ d3.select('#ai-summary-btn').on('click', () => {
   else closeAISummary();
 });
 d3.select('#ai-summary-close').on('click', closeAISummary);
+
+// ---- insights drawer ----
+d3.select('#insights-btn').on('click', () => {
+  const panel = document.getElementById('insights-panel');
+  if (panel.classList.contains('hidden')) openInsights();
+  else closeInsights();
+});
+d3.select('#insights-close').on('click', closeInsights);
+
+// ---- fullscreen toggle ----
+d3.select('#fullscreen-btn').on('click', function () {
+  const isFullscreen = document.body.classList.toggle('app-fullscreen');
+  d3.select(this).classed('active', isFullscreen).attr('aria-pressed', String(isFullscreen));
+  requestAnimationFrame(fitToView);
+});
 
 // ---- collapsible sidebar panels ----
 d3.selectAll('.panel-header').on('click', function () {

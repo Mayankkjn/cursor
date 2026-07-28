@@ -399,6 +399,7 @@ function buildDecisionAISummaryHtml() {
 }
 
 function openAISummary() {
+  closeInsights();
   const btn = document.getElementById('ai-summary-btn');
   const panel = document.getElementById('ai-summary-panel');
   const body = document.getElementById('ai-summary-body');
@@ -424,12 +425,38 @@ function closeAISummary() {
   document.getElementById('ai-summary-panel').classList.add('hidden');
 }
 
+function openInsights() {
+  closeAISummary();
+  document.getElementById('insights-btn').classList.add('active');
+  document.getElementById('insights-btn').setAttribute('aria-expanded', 'true');
+  document.getElementById('insights-panel').classList.remove('hidden');
+}
+
+function closeInsights() {
+  document.getElementById('insights-btn').classList.remove('active');
+  document.getElementById('insights-btn').setAttribute('aria-expanded', 'false');
+  document.getElementById('insights-panel').classList.add('hidden');
+}
+
 document.getElementById('ai-summary-btn').addEventListener('click', () => {
   const panel = document.getElementById('ai-summary-panel');
   if (panel.classList.contains('hidden')) openAISummary();
   else closeAISummary();
 });
 document.getElementById('ai-summary-close').addEventListener('click', closeAISummary);
+
+document.getElementById('insights-btn').addEventListener('click', () => {
+  const panel = document.getElementById('insights-panel');
+  if (panel.classList.contains('hidden')) openInsights();
+  else closeInsights();
+});
+document.getElementById('insights-close').addEventListener('click', closeInsights);
+
+document.getElementById('fullscreen-btn').addEventListener('click', function () {
+  const isFullscreen = document.body.classList.toggle('app-fullscreen');
+  this.classList.toggle('active', isFullscreen);
+  this.setAttribute('aria-pressed', String(isFullscreen));
+});
 
 updatePathFilterUI();
 relayout();
