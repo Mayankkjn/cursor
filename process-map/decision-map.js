@@ -62,7 +62,7 @@ const PATH_STEPS = {
   },
 };
 
-const state = { mode: 'frequency', threshold: 0 };
+const state = { threshold: 0 };
 
 const PATH_META = {
   1: { label: 'Path 1', condition: '$50k > Cost > $10k', pct: 0.10, avgLabel: '11m 10s', cases: 6 },
@@ -91,13 +91,12 @@ function pluralCases(n) {
 
 // ---- builds one path's task-level map as real SVG task cards (same visual
 // language as the "Process authorisation" card) connected by plain arrows ----
-function taskCardSvg(x, y, title, meta, width, accentColor) {
+function taskCardSvg(x, y, title, meta, width) {
   const w = width || CARD_W;
-  const accentStyle = accentColor ? ` style="fill:${accentColor};"` : '';
   return `
     <g class="dm-task-card">
       <rect x="${x}" y="${y}" width="${w}" height="${CARD_H}" rx="12" />
-      <rect x="${x}" y="${y}" width="4" height="${CARD_H}" rx="2" class="dm-task-accent"${accentStyle} />
+      <rect x="${x}" y="${y}" width="4" height="${CARD_H}" rx="2" class="dm-task-accent" />
       <rect x="${x + 22}" y="${y + 16}" width="18" height="14" rx="3" class="dm-subtask-icon" />
       <text x="${x + 54}" y="${y + 30}" class="dm-task-title" style="font-size:15px;">${escapeHtml(title)}</text>
       <g class="dm-icon-kebab" transform="translate(${x + w - 22},${y + 31})">
@@ -125,46 +124,27 @@ function computeChainBottomY(pathId) {
   return lastCardY + CARD_H;
 }
 
-// Mode-driven accent color, matching the normal map's Time/Rework hotspot
-// modes: red=slow/green=fast for duration, orange for the step(s) actually
-// touched by a rework loop in rework mode (forward-only deviations don't
-// count as rework, mirroring the normal map's distinction), plain otherwise.
-function accentColorFor(minutes, allMinutes, isReworkTouchPoint) {
-  if (state.mode === 'duration') {
-    const scale = d3.scaleSequential(d3.interpolateRdYlGn).domain([d3.max(allMinutes) * 1.1, 0]);
-    return scale(minutes);
-  }
-  if (state.mode === 'rework') {
-    return isReworkTouchPoint ? '#d17d2c' : '#9fa3ba';
-  }
-  return null;
-}
-
 function buildExpandedChain(pathId) {
   const data = PATH_STEPS[pathId];
   const x = COLUMN_X[pathId];
   const cx = x + CARD_W / 2;
   const chipBottom = CHIP_BOTTOM[pathId];
   const firstCardY = chipBottom + GAP;
-  const allMinutes = data.steps.map((s) => s.minutes);
   const cardY = (i) => firstCardY + i * (CARD_H + GAP);
 
   const visible = (data.variants || []).filter((v) => v.pct >= state.threshold);
   const forwardByIndex = new Map(visible.filter((v) => v.type === 'forward').map((v) => [v.afterIndex, v]));
   const reworkVariants = visible.filter((v) => v.type === 'rework');
-  const reworkTouchIndices = new Set();
-  reworkVariants.forEach((v) => { reworkTouchIndices.add(v.fromIndex); reworkTouchIndices.add(v.toIndex); });
 
   let html = arrowSvg(cx, chipBottom, cx, firstCardY);
   data.steps.forEach((step, i) => {
     const y = cardY(i);
-    const accent = accentColorFor(step.minutes, allMinutes, reworkTouchIndices.has(i));
-    html += taskCardSvg(x, y, step.name, `${step.minutes}m · ${pluralCases(data.cases)}`, CARD_W, accent);
+    html += taskCardSvg(x, y, step.name, `${step.minutes}m · ${pluralCases(data.cases)}`, CARD_W);
 
     if (i < data.steps.length - 1) {
       html += arrowSvg(cx, y + CARD_H, cx, cardY(i + 1));
       const fwd = forwardByIndex.get(i);
-      if (fwd) html += buildDeviationBranchSvg(fwd, x, y, cardY(i + 1), allMinutes);
+      if (fwd) html += buildDeviationBranchSvg(fwd, x, y, cardY(i + 1));
     }
   });
 
@@ -182,7 +162,7 @@ function buildExpandedChain(pathId) {
 // A minority of cases detour through an extra step before rejoining the main
 // chain — rendered beside the column (left for the rightmost path, right for
 // the leftmost) so it never collides with the other paths' static cards.
-function buildDeviationBranchSvg(deviation, mainX, afterCardY, nextCardY, allMinutes) {
+function buildDeviationBranchSvg(deviation, mainX, afterCardY, nextCardY) {
   const branchW = 260;
   const branchX = deviation.side === 'right' ? mainX + CARD_W + 60 : mainX - 60 - branchW;
   const branchMidY = afterCardY + CARD_H / 2;
@@ -191,9 +171,8 @@ function buildDeviationBranchSvg(deviation, mainX, afterCardY, nextCardY, allMin
   const branchNearEdgeX = deviation.side === 'right' ? branchX : branchX + branchW;
   const branchCenterX = branchX + branchW / 2;
 
-  const accent = accentColorFor(deviation.step.minutes, allMinutes, false);
   let html = arrowSvg(mainEdgeX, branchMidY, branchNearEdgeX, branchMidY, true);
-  html += taskCardSvg(branchX, afterCardY, deviation.step.name, `${deviation.step.minutes}m · ~${deviation.pct}% of cases`, branchW, accent);
+  html += taskCardSvg(branchX, afterCardY, deviation.step.name, `${deviation.step.minutes}m · ~${deviation.pct}% of cases`, branchW);
   html += `<path d="M${branchCenterX},${afterCardY + CARD_H} L${branchCenterX},${nextMidY} L${mainEdgeX},${nextMidY}" stroke="#9a9fb5" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#dm-arrow-grey)" fill="none" />`;
 
   const labelX = (mainEdgeX + branchNearEdgeX) / 2;
@@ -354,24 +333,37 @@ document.querySelectorAll('#dm-path-list .metric-item').forEach((item) => {
   item.addEventListener('click', () => focusOnPath(item.getAttribute('data-path')));
 });
 
-// ---- Controls: view mode + path filter, matching the normal process map ----
-function updateThresholdHeadline(value) {
-  document.getElementById('dm-threshold-headline').textContent =
-    value == 0 ? 'Showing all task variants' : `Showing variants above ${value}% frequency`;
+// ---- Path Filter: slider runs "Popular path" (0, fewest variants) to "All
+// paths" (100, everything) — the inverse of the raw filter threshold, which
+// hides a variant once its frequency % drops below (100 - slider value). ----
+function getAllVariants() {
+  return Object.values(PATH_STEPS).flatMap((p) => p.variants || []);
 }
 
-document.querySelectorAll('input[name="dm-mode"]').forEach((radio) => {
-  radio.addEventListener('change', function () {
-    state.mode = this.value;
-    refreshOpenChain();
-  });
-});
+function updatePathFilterUI() {
+  const slider = document.getElementById('dm-pf-slider');
+  const value = Number(slider.value);
+  state.threshold = 100 - value;
 
-document.getElementById('dm-threshold').addEventListener('input', function () {
-  state.threshold = Number(this.value);
-  updateThresholdHeadline(this.value);
+  const all = getAllVariants();
+  const visibleCount = all.filter((v) => v.pct >= state.threshold).length;
+  document.getElementById('dm-pf-value').textContent = `${value}%`;
+  document.getElementById('dm-pf-subtext').textContent = `Showing ${visibleCount} of ${all.length} process variants`;
+  slider.style.background = `linear-gradient(to right, #1f9d5c 0%, #1f9d5c ${value}%, #e6e7f0 ${value}%, #e6e7f0 100%)`;
+}
+
+document.getElementById('dm-pf-slider').addEventListener('input', function () {
+  updatePathFilterUI();
   refreshOpenChain();
 });
+
+function stepPathFilter(delta) {
+  const slider = document.getElementById('dm-pf-slider');
+  slider.value = Math.min(100, Math.max(0, Number(slider.value) + delta));
+  slider.dispatchEvent(new Event('input'));
+}
+document.getElementById('dm-pf-minus').addEventListener('click', () => stepPathFilter(-10));
+document.getElementById('dm-pf-plus').addEventListener('click', () => stepPathFilter(10));
 
 // ---- collapsible sidebar panels (same accordion pattern as index.html) ----
 document.querySelectorAll('.panel-header').forEach((header) => {
@@ -439,4 +431,5 @@ document.getElementById('ai-summary-btn').addEventListener('click', () => {
 });
 document.getElementById('ai-summary-close').addEventListener('click', closeAISummary);
 
+updatePathFilterUI();
 relayout();

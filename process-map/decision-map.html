@@ -69,34 +69,33 @@
 
       <div class="panel">
         <button class="panel-header" type="button" aria-expanded="true">
-          <h2>Controls</h2>
+          <h2>Path Filter</h2>
           <svg class="panel-chevron" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
             <path d="M3 5 L7 9 L11 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
         </button>
         <div class="panel-body">
-          <label class="control-label">View mode</label>
-          <div class="mode-toggle">
-            <label><input type="radio" name="dm-mode" value="frequency" checked /> Frequency &amp; deviation</label>
-            <label><input type="radio" name="dm-mode" value="duration" /> Time hotspots</label>
-            <label><input type="radio" name="dm-mode" value="rework" /> Rework hotspots</label>
+          <div class="pf-row">
+            <span class="pf-label">Process Variants</span>
+            <span class="pf-value" id="dm-pf-value">100%</span>
+          </div>
+          <p class="pf-subtext" id="dm-pf-subtext">Showing 5 of 5 process variants</p>
+
+          <div class="pf-slider-row">
+            <button class="pf-step-btn" id="dm-pf-minus" type="button" aria-label="Show fewer variants">&minus;</button>
+            <input type="range" id="dm-pf-slider" class="pf-slider" min="0" max="100" value="100" />
+            <button class="pf-step-btn" id="dm-pf-plus" type="button" aria-label="Show more variants">+</button>
+          </div>
+          <div class="pf-slider-labels">
+            <span>Popular path</span>
+            <span>All paths</span>
           </div>
 
-          <div class="path-filter">
-            <div class="path-filter-eyebrow">Path filter</div>
-            <div class="path-filter-headline" id="dm-threshold-headline">Showing all task variants</div>
-            <input type="range" id="dm-threshold" class="path-filter-slider" min="0" max="90" value="0" />
-            <div class="path-filter-labels">
-              <span>All variants</span>
-              <span>Most common only</span>
-            </div>
-            <div class="path-filter-hint">
-              <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
-                <circle cx="7" cy="7" r="6" fill="none" stroke="currentColor" stroke-width="1.3" />
-                <path d="M7 6.3 V10 M7 4.3 V4.7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" />
-              </svg>
-              <span>Drag right to hide low-frequency variants within an expanded process.</span>
-            </div>
+          <div class="legend">
+            <h3>Legend</h3>
+            <div class="legend-row"><span class="swatch happy"></span> Most common path</div>
+            <div class="legend-row"><span class="swatch deviation"></span> Deviation, moving forward</div>
+            <div class="legend-row"><span class="swatch rework"></span> Deviation that loops back (rework)</div>
           </div>
         </div>
       </div>
