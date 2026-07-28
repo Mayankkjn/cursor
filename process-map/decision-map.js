@@ -337,13 +337,6 @@ function refreshOpenChain() {
   relayout();
 }
 
-document.querySelectorAll('.dm-watch-btn').forEach((btn) => {
-  btn.addEventListener('click', (evt) => {
-    showTooltip(evt, btn.getAttribute('data-tip') || 'Session playback is not available in this demo example.');
-    setTimeout(hideTooltip, 2200);
-  });
-});
-
 document.querySelectorAll('.dm-icon-kebab').forEach((kebab) => {
   kebab.style.cursor = 'pointer';
   kebab.addEventListener('click', (evt) => {
