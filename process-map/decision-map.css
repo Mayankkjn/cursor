@@ -76,6 +76,7 @@
 /* ---- expanded task-level map: real task cards inserted inline below a
    chip, using the same .dm-task-card look as "Process authorisation" ---- */
 .dm-subtask-icon { fill: none; stroke: var(--text-tertiary); stroke-width: 1.4px; }
+.dm-deviation-label { fill: var(--text-secondary); font-size: 13px; font-weight: 700; }
 
 /* ---- tooltip (extends the shared .tooltip look) ---- */
 .dm-tooltip {
