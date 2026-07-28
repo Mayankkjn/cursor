@@ -2,43 +2,46 @@
 // decision point near the start ("Cost") fans out into three structurally
 // distinct downstream processes. This mirrors the normal process map's UX
 // (sidebar insights, AI summary, pan/zoom) even though the top-level shape
-// here is fixed/hand-authored rather than dagre-computed.
+// here is fixed/hand-authored rather than dagre-computed. Expanding a path's
+// "N tasks" chip inserts that process's real task-level map inline — the
+// same task-card visual language used everywhere else in the app — and
+// grows the canvas + reroutes the merge lines/End pill to make room.
 
 const PATH_STEPS = {
   1: {
+    cases: 6,
     steps: [
-      { name: 'Create Request', seconds: 45, icon: 'F', color: '#ff9800' },
-      { name: 'Manager Approval', seconds: 95, icon: 'M', color: '#e5484d' },
-      { name: 'Finance Review', seconds: 55, icon: '$', color: '#1f9d5c' },
-      { name: 'Budget Check', seconds: 65, icon: '$', color: '#1f9d5c' },
-      { name: 'Legal Review', seconds: 120, icon: 'L', color: '#5b5e78' },
-      { name: 'Vendor Selection', seconds: 50, icon: 'V', color: '#2563eb' },
-      { name: 'PO Creation', seconds: 40, icon: 'P', color: '#7c3aed' },
-      { name: 'Goods Receipt', seconds: 110, icon: 'G', color: '#0d9488' },
-      { name: 'Invoice Match', seconds: 35, icon: 'I', color: '#d97706' },
-      { name: 'Payment', seconds: 55, icon: '$', color: '#1f9d5c' },
+      { name: 'Create Request', minutes: 1 },
+      { name: 'Manager Approval', minutes: 2 },
+      { name: 'Finance Review', minutes: 1 },
+      { name: 'Budget Check', minutes: 2 },
+      { name: 'Legal Review', minutes: 2 },
+      { name: 'Vendor Selection', minutes: 1 },
+      { name: 'PO Creation', minutes: 1 },
+      { name: 'Goods Receipt', minutes: 2 },
+      { name: 'Invoice Match', minutes: 1 },
+      { name: 'Payment', minutes: 1 },
     ],
-    deviations: { 1: 5, 2: 11, 4: 6, 6: 8 },
   },
   2: {
+    cases: 18,
     steps: [
-      { name: 'Create Request', seconds: 90, icon: 'F', color: '#ff9800' },
-      { name: 'Auto-Approval', seconds: 320, icon: 'A', color: '#6366f1' },
-      { name: 'Payment', seconds: 180, icon: '$', color: '#1f9d5c' },
+      { name: 'Create Request', minutes: 2 },
+      { name: 'Auto-Approval', minutes: 5 },
+      { name: 'Payment', minutes: 3 },
     ],
-    deviations: {},
   },
   3: {
+    cases: 36,
     steps: [
-      { name: 'Create Request', seconds: 50, icon: 'F', color: '#ff9800' },
-      { name: 'Manager Approval', seconds: 90, icon: 'M', color: '#e5484d' },
-      { name: 'Finance Review', seconds: 70, icon: '$', color: '#1f9d5c' },
-      { name: 'Executive Approval', seconds: 240, icon: 'M', color: '#e5484d' },
-      { name: 'Vendor Selection', seconds: 90, icon: 'V', color: '#2563eb' },
-      { name: 'PO Creation', seconds: 45, icon: 'P', color: '#7c3aed' },
-      { name: 'Payment', seconds: 147, icon: '$', color: '#1f9d5c' },
+      { name: 'Create Request', minutes: 1 },
+      { name: 'Manager Approval', minutes: 2 },
+      { name: 'Finance Review', minutes: 1 },
+      { name: 'Executive Approval', minutes: 4 },
+      { name: 'Vendor Selection', minutes: 2 },
+      { name: 'PO Creation', minutes: 1 },
+      { name: 'Payment', minutes: 2 },
     ],
-    deviations: { 3: 9, 4: 4 },
   },
 };
 
@@ -48,55 +51,95 @@ const PATH_META = {
   3: { label: 'Path 3', condition: 'Cost>$50k', pct: 0.60, avgLabel: '12m 12s', cases: 36 },
 };
 
+// Fixed geometry of the top-level diagram (matches decision-map.html) — used
+// both to know where each column's chip sits and to reroute things below it.
+const COLUMN_X = { 1: 110, 2: 770, 3: 1430 };
+const CHIP_BOTTOM = { 1: 870, 2: 964, 3: 870 };
+const BASE_END_Y = 1076;
+const CARD_W = 360;
+const CARD_H = 62;
+const GAP = 40;
+
 function escapeHtml(str) {
   const div = document.createElement('div');
   div.textContent = str;
   return div.innerHTML;
 }
 
-function formatSeconds(totalSeconds) {
-  const m = Math.floor(totalSeconds / 60);
-  const s = totalSeconds % 60;
-  if (m === 0) return `${s}s`;
-  return `${m}m ${String(s).padStart(2, '0')}s`;
+function pluralCases(n) {
+  return `${n} case${n === 1 ? '' : 's'}`;
 }
 
-const CLOCK_SVG = '<svg width="11" height="11" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5.25" stroke="currentColor" stroke-width="1.2"/><path d="M6,3 L6,6 L8.3,7.3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-const KEBAB_SVG = '<svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><circle cx="6" cy="2" r="1.1"/><circle cx="6" cy="6" r="1.1"/><circle cx="6" cy="10" r="1.1"/></svg>';
-const SWAP_SVG = '<svg width="10" height="10" viewBox="0 0 11 12" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M0,3 L9,3 M6,0 L9,3 L6,6"/><path d="M9,9 L0,9 M3,6 L0,9 L3,12"/></svg>';
+// ---- builds one path's task-level map as real SVG task cards (same visual
+// language as the "Process authorisation" card) connected by plain arrows ----
+function taskCardSvg(x, y, title, meta) {
+  return `
+    <g class="dm-task-card">
+      <rect x="${x}" y="${y}" width="${CARD_W}" height="${CARD_H}" rx="12" />
+      <rect x="${x}" y="${y}" width="4" height="${CARD_H}" rx="2" class="dm-task-accent" />
+      <rect x="${x + 22}" y="${y + 16}" width="18" height="14" rx="3" class="dm-subtask-icon" />
+      <text x="${x + 54}" y="${y + 30}" class="dm-task-title" style="font-size:15px;">${escapeHtml(title)}</text>
+      <g class="dm-icon-kebab" transform="translate(${x + 338},${y + 31})">
+        <circle cx="0" cy="-5" r="1.3" /><circle cx="0" cy="0" r="1.3" /><circle cx="0" cy="5" r="1.3" />
+      </g>
+      <g class="dm-icon-clock" transform="translate(${x + 22},${y + 42})">
+        <circle cx="6" cy="6" r="6.25" fill="none" />
+        <path d="M6,2.5 L6,6 L9,8" fill="none" />
+      </g>
+      <text x="${x + 47}" y="${y + 48}" class="dm-task-meta" style="font-size:13px;">${escapeHtml(meta)}</text>
+    </g>`;
+}
 
-// Builds a task-card-styled chain (icon, title, kebab, duration) for one
-// path — the same visual language as the top-level map's task cards — with
-// small deviation badges on the edges where some cases branch off.
-function buildChainHtml(pathId) {
+function arrowSvg(x1, y1, x2, y2) {
+  return `<path d="M${x1},${y1} L${x2},${y2}" stroke="#1f9d5c" stroke-width="2" marker-end="url(#dm-arrow-green)" fill="none" />`;
+}
+
+function computeChainBottomY(pathId) {
   const data = PATH_STEPS[pathId];
-  if (!data) return '';
-  const parts = [`<p class="dm-task-map-heading">Path ${pathId} — task-level map</p><div class="dm-chain">`];
+  const firstCardY = CHIP_BOTTOM[pathId] + GAP;
+  const lastCardY = firstCardY + (data.steps.length - 1) * (CARD_H + GAP);
+  return lastCardY + CARD_H;
+}
+
+function buildExpandedChain(pathId) {
+  const data = PATH_STEPS[pathId];
+  const x = COLUMN_X[pathId];
+  const cx = x + CARD_W / 2;
+  const chipBottom = CHIP_BOTTOM[pathId];
+  const firstCardY = chipBottom + GAP;
+
+  let html = arrowSvg(cx, chipBottom, cx, firstCardY);
   data.steps.forEach((step, i) => {
-    parts.push(`
-      <div class="dm-chain-node">
-        <div class="dm-chain-icon" style="background:${step.color}">${escapeHtml(step.icon)}</div>
-        <div class="dm-chain-node-body">
-          <div class="dm-chain-node-title">${escapeHtml(step.name)}</div>
-          <div class="dm-chain-node-meta">${CLOCK_SVG} ${formatSeconds(step.seconds)}</div>
-        </div>
-        <div class="dm-chain-kebab">${KEBAB_SVG}</div>
-      </div>`);
+    const y = firstCardY + i * (CARD_H + GAP);
+    html += taskCardSvg(x, y, step.name, `${step.minutes}m · ${pluralCases(data.cases)}`);
     if (i < data.steps.length - 1) {
-      const devPct = data.deviations[i];
-      if (devPct) {
-        parts.push(`
-          <div class="dm-chain-connector">
-            <div class="dm-chain-connector-line"></div>
-            <div class="dm-chain-badge" data-tip="${devPct}% of cases deviated at this step">${SWAP_SVG} ${devPct}%</div>
-          </div>`);
-      } else {
-        parts.push('<div class="dm-chain-connector dm-chain-connector-plain"><div class="dm-chain-connector-line"></div></div>');
-      }
+      html += arrowSvg(cx, y + CARD_H, cx, y + CARD_H + GAP);
     }
   });
-  parts.push('</div>');
-  return parts.join('');
+
+  const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  g.setAttribute('class', 'dm-expanded-chain');
+  g.setAttribute('data-path', pathId);
+  g.innerHTML = html;
+  return g;
+}
+
+// ---- dynamic layout: reroutes the merge lines + End pill to sit below
+// whichever column (expanded or not) currently extends the furthest down ----
+const chainBottoms = { 1: CHIP_BOTTOM[1], 2: CHIP_BOTTOM[2], 3: CHIP_BOTTOM[3] };
+
+function relayout() {
+  const mergeY = Math.max(chainBottoms[1], chainBottoms[2], chainBottoms[3]) + 56;
+  const jogY = mergeY - 20;
+  const endY = mergeY + 56;
+  const viewBoxHeight = endY + 184;
+
+  document.getElementById('decision-graph').setAttribute('viewBox', `0 0 1900 ${viewBoxHeight}`);
+  document.getElementById('dm-merge-line-1').setAttribute('d', `M290,${chainBottoms[1]} L290,${jogY} Q290,${jogY + 10} 300,${jogY + 10} L940,${jogY + 10} Q950,${jogY + 10} 950,${mergeY}`);
+  document.getElementById('dm-merge-line-2').setAttribute('d', `M950,${chainBottoms[2]} L950,${mergeY}`);
+  document.getElementById('dm-merge-line-3').setAttribute('d', `M1610,${chainBottoms[3]} L1610,${jogY} Q1610,${jogY + 10} 1600,${jogY + 10} L960,${jogY + 10} Q950,${jogY + 10} 950,${mergeY}`);
+  document.getElementById('dm-merge-to-end').setAttribute('d', `M950,${mergeY} L950,${endY}`);
+  document.getElementById('dm-end-group').setAttribute('transform', `translate(0, ${endY - BASE_END_Y})`);
 }
 
 // ---- tooltip ----
@@ -122,7 +165,6 @@ const zoomBehavior = d3.zoom()
 svg.call(zoomBehavior);
 
 function focusOnPath(pathId) {
-  const svgEl = document.getElementById('decision-graph');
   if (!pathId) {
     svg.transition().duration(400).call(zoomBehavior.transform, d3.zoomIdentity);
     return;
@@ -132,6 +174,7 @@ function focusOnPath(pathId) {
   target.classList.add('dm-flash');
   setTimeout(() => target.classList.remove('dm-flash'), 1300);
 
+  const svgEl = document.getElementById('decision-graph');
   const bbox = target.getBBox();
   const vb = svgEl.viewBox.baseVal;
   const k = 1.3;
@@ -142,27 +185,27 @@ function focusOnPath(pathId) {
   svg.transition().duration(500).call(zoomBehavior.transform, d3.zoomIdentity.translate(tx, ty).scale(k));
 }
 
-// ---- task-count chips: expand into a task-level mini map ----
+// ---- task-count chips: expand into a real task-level process map, inline ----
 document.querySelectorAll('.dm-task-chip').forEach((chip) => {
   const pathId = chip.getAttribute('data-path');
-  const panel = document.querySelector(`.dm-task-list-fo[data-path="${pathId}"]`);
-  const mapDiv = panel ? panel.querySelector('.dm-task-map') : null;
 
   chip.addEventListener('click', () => {
     const isOpen = chip.classList.toggle('open');
-    if (!panel) return;
-    if (isOpen && mapDiv && !mapDiv.dataset.built) {
-      mapDiv.innerHTML = buildChainHtml(pathId);
-      mapDiv.dataset.built = '1';
-      mapDiv.querySelectorAll('.dm-chain-badge').forEach((badge) => {
-        badge.addEventListener('click', (evt) => {
-          evt.stopPropagation();
-          showTooltip(evt, badge.getAttribute('data-tip'));
-          setTimeout(hideTooltip, 2200);
-        });
-      });
+    let chainG = document.querySelector(`.dm-expanded-chain[data-path="${pathId}"]`);
+
+    if (isOpen) {
+      if (!chainG) {
+        chainG = buildExpandedChain(pathId);
+        document.querySelector('#decision-graph .viewport').appendChild(chainG);
+      } else {
+        chainG.style.display = '';
+      }
+      chainBottoms[pathId] = computeChainBottomY(pathId);
+    } else if (chainG) {
+      chainG.style.display = 'none';
+      chainBottoms[pathId] = CHIP_BOTTOM[pathId];
     }
-    panel.style.display = isOpen ? 'block' : 'none';
+    relayout();
   });
 });
 
@@ -200,6 +243,12 @@ document.querySelectorAll('.panel-header').forEach((header) => {
 });
 
 // ---- AI summary panel ----
+function parseDuration(label) {
+  const m = label.match(/(\d+)m\s*(\d+)s/);
+  if (!m) return 0;
+  return Number(m[1]) + Number(m[2]) / 60;
+}
+
 function buildDecisionAISummaryHtml() {
   const paths = [1, 2, 3].map((id) => ({ id, ...PATH_META[id] }));
   const dominant = paths.reduce((a, b) => (b.pct > a.pct ? b : a));
@@ -215,12 +264,6 @@ function buildDecisionAISummaryHtml() {
     <p><strong>Where time concentrates:</strong> ${biggestSink.label} contributes the most total time across all cases (${biggestSink.cases} cases × ${biggestSink.avgLabel} avg), making it the best target for automation or simplification.</p>
     <p class="summary-callout">Since the decision variable (Cost) is known up front, routing logic itself is cheap to automate — the bigger opportunity is streamlining ${biggestSink.label}'s task list, which is where most of the process's total time actually goes.</p>
   `;
-}
-
-function parseDuration(label) {
-  const m = label.match(/(\d+)m\s*(\d+)s/);
-  if (!m) return 0;
-  return Number(m[1]) + Number(m[2]) / 60;
 }
 
 function openAISummary() {
@@ -255,3 +298,5 @@ document.getElementById('ai-summary-btn').addEventListener('click', () => {
   else closeAISummary();
 });
 document.getElementById('ai-summary-close').addEventListener('click', closeAISummary);
+
+relayout();

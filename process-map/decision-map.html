@@ -133,12 +133,13 @@
           <path d="M950,854 L950,918" stroke="#1f9d5c" stroke-width="2" marker-end="url(#dm-arrow-green)" />
           <path d="M1610,760 L1610,824" stroke="#1f9d5c" stroke-width="2" marker-end="url(#dm-arrow-green)" />
 
-          <!-- task-count chips -> merge point (dashed) -->
-          <path d="M290,870 L290,1000 Q290,1010 300,1010 L940,1010 Q950,1010 950,1020" stroke="#9a9fb5" stroke-width="1.8" stroke-dasharray="5 4" />
-          <path d="M950,964 L950,1020" stroke="#9a9fb5" stroke-width="1.8" stroke-dasharray="5 4" />
-          <path d="M1610,870 L1610,1000 Q1610,1010 1600,1010 L960,1010 Q950,1010 950,1020" stroke="#9a9fb5" stroke-width="1.8" stroke-dasharray="5 4" />
+          <!-- task-count chips -> merge point (dashed); ids let decision-map.js reroute these
+               when a path's task list is expanded and pushes the merge point further down -->
+          <path id="dm-merge-line-1" d="M290,870 L290,1000 Q290,1010 300,1010 L940,1010 Q950,1010 950,1020" stroke="#9a9fb5" stroke-width="1.8" stroke-dasharray="5 4" />
+          <path id="dm-merge-line-2" d="M950,964 L950,1020" stroke="#9a9fb5" stroke-width="1.8" stroke-dasharray="5 4" />
+          <path id="dm-merge-line-3" d="M1610,870 L1610,1000 Q1610,1010 1600,1010 L960,1010 Q950,1010 950,1020" stroke="#9a9fb5" stroke-width="1.8" stroke-dasharray="5 4" />
           <!-- merge -> end -->
-          <path d="M950,1020 L950,1076" stroke="#9a9fb5" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#dm-arrow-grey)" />
+          <path id="dm-merge-to-end" d="M950,1020 L950,1076" stroke="#9a9fb5" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#dm-arrow-grey)" />
         </g>
 
         <!-- ===== edge condition labels ===== -->
@@ -301,20 +302,10 @@
           </g>
         </g>
 
-        <!-- ===== expandable task-level mini process maps (foreignObject scales with the SVG; drawn
-             before the chips below so the chips always stay on top and clickable, even once
-             an expanded panel visually overlaps the space below its chip) ===== -->
-        <foreignObject class="dm-task-list-fo" data-path="1" x="90" y="880" width="400" height="360" style="display:none">
-          <div xmlns="http://www.w3.org/1999/xhtml" class="dm-task-map"></div>
-        </foreignObject>
-        <foreignObject class="dm-task-list-fo" data-path="2" x="750" y="974" width="400" height="200" style="display:none">
-          <div xmlns="http://www.w3.org/1999/xhtml" class="dm-task-map"></div>
-        </foreignObject>
-        <foreignObject class="dm-task-list-fo" data-path="3" x="1410" y="880" width="400" height="300" style="display:none">
-          <div xmlns="http://www.w3.org/1999/xhtml" class="dm-task-map"></div>
-        </foreignObject>
-
-        <!-- ===== task-count chips (click to expand into a full task-level map) ===== -->
+        <!-- ===== task-count chips (click to expand into a real task-level process map,
+             inserted inline below as full task cards by decision-map.js — see
+             buildExpandedChain()/relayout(), which also reroutes the merge lines above and
+             the End pill below to make room) ===== -->
         <g class="dm-task-chip" data-path="1" transform="translate(290,824)">
           <rect x="-70" y="0" width="140" height="46" rx="10" />
           <text x="-14" y="28">10 tasks</text>
@@ -332,7 +323,7 @@
         </g>
 
         <!-- ===== end pill ===== -->
-        <g class="dm-flow-pill dm-flow-pill-end">
+        <g id="dm-end-group" class="dm-flow-pill dm-flow-pill-end">
           <rect x="850" y="1076" width="200" height="70" rx="35" />
           <svg x="880" y="1096" width="16" height="16" viewBox="0 0 16 16" fill="none" class="dm-icon-flag-end">
             <line x1="3" y1="2" x2="3" y2="14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
