@@ -633,6 +633,8 @@ button:hover { filter: brightness(1.08); }
    chip, using the same .dm-task-card look as "Process authorisation" ---- */
 .dm-subtask-icon { fill: none; stroke: var(--text-tertiary); stroke-width: 1.4px; }
 .dm-deviation-label { fill: var(--text-secondary); font-size: 13px; font-weight: 700; }
+.dm-rework-label-bg { fill: var(--rework-soft); }
+.dm-rework-label { fill: #9a5613; font-size: 11px; font-weight: 700; }
 
 /* ---- tooltip (extends the shared .tooltip look) ---- */
 .dm-tooltip {
@@ -781,6 +783,9 @@ button:hover { filter: brightness(1.08); }
           </marker>
           <marker id="dm-arrow-grey" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
             <path d="M0,0 L10,5 L0,10 z" fill="#9a9fb5" />
+          </marker>
+          <marker id="dm-arrow-rework" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="#d17d2c" />
           </marker>
         </defs>
 
@@ -1064,10 +1069,12 @@ button:hover { filter: brightness(1.08); }
 // grows the canvas + reroutes the merge lines/End pill to make room.
 
 // Each path is mostly one linear task sequence, but "8 deviations" means
-// some cases within that same process take a detour at one point before
-// rejoining — a real (if small) task-level variant, filterable by the
-// Path filter slider exactly like deviation edges in the normal map. Path 2
-// has none, matching the AI summary's "only branch with zero deviations".
+// some cases within that same process take a detour — either a forward
+// branch through an extra step before rejoining, or a genuine rework loop
+// back to an earlier step (re-approval, redo). Both are real task-level
+// variants, filterable by the Path filter slider exactly like deviation
+// edges in the normal map. Path 2 has none, matching the AI summary's
+// "only branch with zero deviations".
 const PATH_STEPS = {
   1: {
     cases: 6,
@@ -1083,7 +1090,11 @@ const PATH_STEPS = {
       { name: 'Invoice Match', minutes: 1 },
       { name: 'Payment', minutes: 1 },
     ],
-    deviation: { afterIndex: 5, pct: 33, side: 'right', step: { name: 'Escalate to Sourcing Team', minutes: 3 } },
+    variants: [
+      { type: 'forward', afterIndex: 5, pct: 33, side: 'right', step: { name: 'Escalate to Sourcing Team', minutes: 3 } },
+      { type: 'rework', fromIndex: 3, toIndex: 1, pct: 17, side: 'left' },
+      { type: 'forward', afterIndex: 8, pct: 17, side: 'right', step: { name: 'Invoice Dispute Resolution', minutes: 2 } },
+    ],
   },
   2: {
     cases: 18,
@@ -1092,6 +1103,7 @@ const PATH_STEPS = {
       { name: 'Auto-Approval', minutes: 5 },
       { name: 'Payment', minutes: 3 },
     ],
+    variants: [],
   },
   3: {
     cases: 36,
@@ -1104,7 +1116,10 @@ const PATH_STEPS = {
       { name: 'PO Creation', minutes: 1 },
       { name: 'Payment', minutes: 2 },
     ],
-    deviation: { afterIndex: 2, pct: 17, side: 'left', step: { name: 'Escalate for Review', minutes: 3 } },
+    variants: [
+      { type: 'forward', afterIndex: 2, pct: 17, side: 'left', step: { name: 'Escalate for Review', minutes: 3 } },
+      { type: 'rework', fromIndex: 3, toIndex: 1, pct: 11, side: 'right' },
+    ],
   },
 };
 
@@ -1172,15 +1187,16 @@ function computeChainBottomY(pathId) {
 }
 
 // Mode-driven accent color, matching the normal map's Time/Rework hotspot
-// modes: red=slow/green=fast for duration, orange for the step(s) touched by
-// a deviation in rework mode, plain green otherwise.
-function accentColorFor(pathId, stepIndex, minutes, allMinutes, isDeviationTouchPoint) {
+// modes: red=slow/green=fast for duration, orange for the step(s) actually
+// touched by a rework loop in rework mode (forward-only deviations don't
+// count as rework, mirroring the normal map's distinction), plain otherwise.
+function accentColorFor(minutes, allMinutes, isReworkTouchPoint) {
   if (state.mode === 'duration') {
     const scale = d3.scaleSequential(d3.interpolateRdYlGn).domain([d3.max(allMinutes) * 1.1, 0]);
     return scale(minutes);
   }
   if (state.mode === 'rework') {
-    return isDeviationTouchPoint ? '#d17d2c' : '#9fa3ba';
+    return isReworkTouchPoint ? '#d17d2c' : '#9fa3ba';
   }
   return null;
 }
@@ -1192,24 +1208,29 @@ function buildExpandedChain(pathId) {
   const chipBottom = CHIP_BOTTOM[pathId];
   const firstCardY = chipBottom + GAP;
   const allMinutes = data.steps.map((s) => s.minutes);
-  const deviation = data.deviation;
-  const deviationVisible = deviation && deviation.pct >= state.threshold;
+  const cardY = (i) => firstCardY + i * (CARD_H + GAP);
+
+  const visible = (data.variants || []).filter((v) => v.pct >= state.threshold);
+  const forwardByIndex = new Map(visible.filter((v) => v.type === 'forward').map((v) => [v.afterIndex, v]));
+  const reworkVariants = visible.filter((v) => v.type === 'rework');
+  const reworkTouchIndices = new Set();
+  reworkVariants.forEach((v) => { reworkTouchIndices.add(v.fromIndex); reworkTouchIndices.add(v.toIndex); });
 
   let html = arrowSvg(cx, chipBottom, cx, firstCardY);
   data.steps.forEach((step, i) => {
-    const y = firstCardY + i * (CARD_H + GAP);
-    const isTouchPoint = deviationVisible && i === deviation.afterIndex;
-    const accent = accentColorFor(pathId, i, step.minutes, allMinutes, isTouchPoint);
+    const y = cardY(i);
+    const accent = accentColorFor(step.minutes, allMinutes, reworkTouchIndices.has(i));
     html += taskCardSvg(x, y, step.name, `${step.minutes}m · ${pluralCases(data.cases)}`, CARD_W, accent);
 
     if (i < data.steps.length - 1) {
-      const nextY = y + CARD_H + GAP;
-      html += arrowSvg(cx, y + CARD_H, cx, nextY);
-
-      if (isTouchPoint) {
-        html += buildDeviationBranchSvg(pathId, deviation, x, y, nextY, allMinutes);
-      }
+      html += arrowSvg(cx, y + CARD_H, cx, cardY(i + 1));
+      const fwd = forwardByIndex.get(i);
+      if (fwd) html += buildDeviationBranchSvg(fwd, x, y, cardY(i + 1), allMinutes);
     }
+  });
+
+  reworkVariants.forEach((v) => {
+    html += buildReworkLoopSvg(v, x, cardY(v.fromIndex), cardY(v.toIndex));
   });
 
   const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
@@ -1222,7 +1243,7 @@ function buildExpandedChain(pathId) {
 // A minority of cases detour through an extra step before rejoining the main
 // chain — rendered beside the column (left for the rightmost path, right for
 // the leftmost) so it never collides with the other paths' static cards.
-function buildDeviationBranchSvg(pathId, deviation, mainX, afterCardY, nextCardY, allMinutes) {
+function buildDeviationBranchSvg(deviation, mainX, afterCardY, nextCardY, allMinutes) {
   const branchW = 260;
   const branchX = deviation.side === 'right' ? mainX + CARD_W + 60 : mainX - 60 - branchW;
   const branchMidY = afterCardY + CARD_H / 2;
@@ -1231,13 +1252,34 @@ function buildDeviationBranchSvg(pathId, deviation, mainX, afterCardY, nextCardY
   const branchNearEdgeX = deviation.side === 'right' ? branchX : branchX + branchW;
   const branchCenterX = branchX + branchW / 2;
 
-  const accent = accentColorFor(pathId, -1, deviation.step.minutes, allMinutes, true);
+  const accent = accentColorFor(deviation.step.minutes, allMinutes, false);
   let html = arrowSvg(mainEdgeX, branchMidY, branchNearEdgeX, branchMidY, true);
   html += taskCardSvg(branchX, afterCardY, deviation.step.name, `${deviation.step.minutes}m · ~${deviation.pct}% of cases`, branchW, accent);
   html += `<path d="M${branchCenterX},${afterCardY + CARD_H} L${branchCenterX},${nextMidY} L${mainEdgeX},${nextMidY}" stroke="#9a9fb5" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#dm-arrow-grey)" fill="none" />`;
 
   const labelX = (mainEdgeX + branchNearEdgeX) / 2;
   html += `<text x="${labelX}" y="${branchMidY - 8}" text-anchor="middle" class="dm-deviation-label">${deviation.pct}%</text>`;
+  return html;
+}
+
+// A minority of cases loop back to redo an earlier step (re-approval, redo)
+// — routed through a thin lane to the side of the column, spanning from the
+// later step down to the earlier one, styled in the rework orange used
+// throughout the app to distinguish "loops back" from forward deviations.
+function buildReworkLoopSvg(variant, mainX, fromCardY, toCardY) {
+  const laneOffset = 40;
+  const side = variant.side || 'left';
+  const laneX = side === 'right' ? mainX + CARD_W + laneOffset : mainX - laneOffset;
+  const entryX = side === 'right' ? mainX + CARD_W : mainX;
+  const fromMidY = fromCardY + CARD_H / 2;
+  const toMidY = toCardY + CARD_H / 2;
+
+  let html = `<path d="M${entryX},${fromMidY} L${laneX},${fromMidY} L${laneX},${toMidY} L${entryX},${toMidY}" stroke="#d17d2c" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#dm-arrow-rework)" fill="none" />`;
+
+  const labelY = (fromMidY + toMidY) / 2;
+  const labelW = 78;
+  html += `<rect x="${laneX - labelW / 2}" y="${labelY - 11}" width="${labelW}" height="22" rx="11" class="dm-rework-label-bg" />`;
+  html += `<text x="${laneX}" y="${labelY + 4}" text-anchor="middle" class="dm-rework-label">${variant.pct}% rework</text>`;
   return html;
 }
 
