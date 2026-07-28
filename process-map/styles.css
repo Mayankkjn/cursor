@@ -473,6 +473,61 @@ button:hover { filter: brightness(1.08); }
 .metric-item.rework .metric-bar-fill { background: var(--rework); }
 .metric-empty { font-size: 0.78rem; color: var(--text-secondary); }
 
+/* ---- AI summary ---- */
+.canvas-toolbar { position: absolute; top: 16px; right: 16px; z-index: 5; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+
+.ai-summary-btn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: #ffffff;
+  color: var(--accent-ui);
+  border: 1px solid var(--accent-ui);
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--shadow-md);
+}
+.ai-summary-btn:hover { background: var(--accent-ui-soft); }
+.ai-summary-btn.active { background: var(--accent-ui); color: #ffffff; }
+
+.ai-summary-panel {
+  width: 340px;
+  max-height: min(560px, calc(100vh - 180px));
+  background: #ffffff;
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-md);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.ai-summary-panel.hidden { display: none; }
+
+.ai-summary-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--panel-border);
+  flex-shrink: 0;
+}
+.ai-summary-panel-title { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; font-weight: 700; color: var(--accent-ui); }
+.ai-summary-close { background: none; border: none; color: var(--text-tertiary); cursor: pointer; padding: 4px; display: flex; border-radius: 5px; }
+.ai-summary-close:hover { background: var(--bg); color: var(--text-primary); }
+
+.ai-summary-body { padding: 12px 14px; overflow-y: auto; font-size: 0.8rem; line-height: 1.55; color: var(--text-primary); }
+.ai-summary-body p { margin: 0 0 10px; }
+.ai-summary-body p:last-child { margin-bottom: 0; }
+.ai-summary-body strong { color: var(--text-primary); }
+.ai-summary-body .summary-callout { background: var(--accent-ui-soft); border-radius: 8px; padding: 8px 10px; color: #8a3d00; font-weight: 600; }
+
+.ai-summary-loading { display: flex; flex-direction: column; gap: 8px; }
+.ai-summary-skeleton-line { height: 10px; border-radius: 5px; background: linear-gradient(90deg, #edeef5 25%, #f6f6fa 37%, #edeef5 63%); background-size: 400% 100%; animation: ai-summary-shimmer 1.2s ease infinite; }
+@keyframes ai-summary-shimmer { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
+
 .tooltip {
   position: fixed;
   display: none;

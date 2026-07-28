@@ -507,6 +507,96 @@ function renderStats(model) {
   d3.select('#stat-rework-pct').text(`${(model.reworkedCasePct * 100).toFixed(0)}%`);
 }
 
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// Builds a plain-language narrative from the same model stats that drive the
+// Key Takeaways cards, so the "AI Summary" panel reads like an analyst's
+// write-up instead of just restating the header numbers.
+function buildAISummaryHtml(model) {
+  const paragraphs = [];
+  const pct = (n) => `${(n * 100).toFixed(0)}%`;
+  const steps = (path) => path.map(escapeHtml).join(' → ');
+
+  paragraphs.push(
+    `<p>This map is mined from <strong>${model.totalCases} case${model.totalCases === 1 ? '' : 's'}</strong>, ` +
+    `which fan out into <strong>${model.variants.length} distinct path${model.variants.length === 1 ? '' : 's'}</strong> ` +
+    `through the process.</p>`
+  );
+
+  if (model.happyPath) {
+    paragraphs.push(
+      `<p><strong>Most common path:</strong> ${pct(model.happyPath.pct)} of cases (${model.happyPath.count}) follow the same ` +
+      `${model.happyPath.path.length}-step route, taking about ${formatDuration(model.happyPath.avgDuration)} on average: ` +
+      `${steps(model.happyPath.path)}.</p>`
+    );
+  }
+
+  if (model.fastestPath && model.fastestPath !== model.happyPath) {
+    paragraphs.push(
+      `<p><strong>Fastest observed path:</strong> ${steps(model.fastestPath.path)}, finishing in about ` +
+      `${formatDuration(model.fastestPath.avgDuration)} — worth comparing against the most common route above.</p>`
+    );
+  }
+
+  const timeSink = model.timeRanking[0];
+  if (timeSink) {
+    paragraphs.push(
+      `<p><strong>Where time goes:</strong> "${escapeHtml(timeSink.label)}" is the biggest time sink, accounting for ` +
+      `${pct(timeSink.timeShare)} of all process time across ${pluralCases(timeSink.caseCount)} ` +
+      `(avg ${formatDuration(timeSink.avgDuration)} per visit).</p>`
+    );
+  }
+
+  const reworkTop = model.reworkRanking[0];
+  if (model.reworkedCasePct > 0 && reworkTop) {
+    paragraphs.push(
+      `<p><strong>Rework:</strong> ${pct(model.reworkedCasePct)} of cases loop back to redo a step at least once, most often at ` +
+      `"${escapeHtml(reworkTop.label)}" (${pluralCases(reworkTop.reworkCaseCount)} re-enter it).</p>`
+    );
+  } else {
+    paragraphs.push(`<p><strong>Rework:</strong> no meaningful rework loops detected — cases mostly move forward without looping back.</p>`);
+  }
+
+  if (timeSink) {
+    const callout = reworkTop
+      ? `Automating or simplifying "${escapeHtml(timeSink.label)}" would have the biggest time impact, while fixing the rework loop at "${escapeHtml(reworkTop.label)}" would cut down repeat work.`
+      : `Automating or simplifying "${escapeHtml(timeSink.label)}" would have the biggest time impact on the overall process.`;
+    paragraphs.push(`<p class="summary-callout">${callout}</p>`);
+  }
+
+  return paragraphs.join('');
+}
+
+function openAISummary() {
+  const btn = document.getElementById('ai-summary-btn');
+  const panel = document.getElementById('ai-summary-panel');
+  const body = document.getElementById('ai-summary-body');
+  btn.classList.add('active');
+  btn.setAttribute('aria-expanded', 'true');
+  panel.classList.remove('hidden');
+  body.innerHTML = `
+    <div class="ai-summary-loading">
+      <div class="ai-summary-skeleton-line" style="width: 92%;"></div>
+      <div class="ai-summary-skeleton-line" style="width: 78%;"></div>
+      <div class="ai-summary-skeleton-line" style="width: 85%;"></div>
+      <div class="ai-summary-skeleton-line" style="width: 60%;"></div>
+    </div>
+  `;
+  setTimeout(() => {
+    body.innerHTML = buildAISummaryHtml(state.model);
+  }, 500);
+}
+
+function closeAISummary() {
+  document.getElementById('ai-summary-btn').classList.remove('active');
+  document.getElementById('ai-summary-btn').setAttribute('aria-expanded', 'false');
+  document.getElementById('ai-summary-panel').classList.add('hidden');
+}
+
 function regenerate(numCases) {
   state.cases = generateEventLog(numCases);
   state.model = buildProcessModel(state.cases);
@@ -559,6 +649,14 @@ function handleUploadFile(file) {
   reader.onerror = () => setUploadStatus(`Couldn't read "${file.name}".`, 'error');
   reader.readAsText(file);
 }
+
+// ---- AI summary panel ----
+d3.select('#ai-summary-btn').on('click', () => {
+  const panel = document.getElementById('ai-summary-panel');
+  if (panel.classList.contains('hidden')) openAISummary();
+  else closeAISummary();
+});
+d3.select('#ai-summary-close').on('click', closeAISummary);
 
 // ---- collapsible sidebar panels ----
 d3.selectAll('.panel-header').on('click', function () {
