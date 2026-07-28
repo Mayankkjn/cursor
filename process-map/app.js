@@ -592,13 +592,8 @@ function regenerate(numCases) {
   state.cases = generateEventLog(numCases);
   state.model = buildProcessModel(state.cases);
   state.highlight = null;
-  setSourceBadge('Sample data');
   setUploadStatus('');
   render(true);
-}
-
-function setSourceBadge(text) {
-  d3.select('#source-badge').text(text);
 }
 
 function setUploadStatus(message, kind) {
@@ -628,7 +623,6 @@ function handleUploadFile(file) {
       state.highlight = null;
       state.threshold = 0;
       d3.select('#pf-slider').property('value', 100);
-      setSourceBadge(file.name);
       setUploadStatus(`Loaded ${cases.length} case${cases.length === 1 ? '' : 's'} from "${file.name}".`, 'success');
       render(true);
       setTimeout(closeImportModal, 700);
@@ -816,7 +810,6 @@ if (selectedProcessDataRaw) {
     state.cases = cases;
     state.model = buildProcessModel(cases);
     state.highlight = null;
-    setSourceBadge(selectedProcessName || 'Example data');
     render(true);
     loadedFromHandoff = true;
   } catch (err) {

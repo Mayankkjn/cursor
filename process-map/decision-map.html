@@ -18,7 +18,6 @@
       </a>
       <h1>Process Map — Purchase Approval by Cost</h1>
       <p class="subtitle">A decision node near the start of the process routes each case into one of three structurally distinct approval processes, based on the request cost.</p>
-      <span class="source-badge">Sample data</span>
     </div>
   </header>
 
@@ -29,6 +28,29 @@
       <div class="stat"><span class="stat-value">1</span><span class="stat-label">decision point</span></div>
       <div class="stat"><span class="stat-value">60%</span><span class="stat-label">follow top process</span></div>
       <div class="stat"><span class="stat-value">15m 27s</span><span class="stat-label">avg cycle time</span></div>
+    </div>
+
+    <div class="canvas-toolbar">
+      <button id="insights-btn" class="ai-summary-btn" type="button" aria-expanded="false">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M8 1.5 C4.9 1.5 2.5 3.8 2.5 6.8 C2.5 8.7 3.4 10.3 4.9 11.3 V13 C4.9 13.6 5.4 14 5.9 14 H10.1 C10.6 14 11.1 13.6 11.1 13 V11.3 C12.6 10.3 13.5 8.7 13.5 6.8 C13.5 3.8 11.1 1.5 8 1.5 Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" />
+          <path d="M6.2 14.9 H9.8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" />
+          <path d="M8 4.3 V8.3 M8 8.3 L6.3 6.9" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        Insights
+      </button>
+      <button id="ai-summary-btn" class="ai-summary-btn" type="button" aria-expanded="false">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+          <path d="M8 1 L9.2 5.6 L13.5 7 L9.2 8.4 L8 13 L6.8 8.4 L2.5 7 L6.8 5.6 Z" />
+          <path d="M13 1.5 L13.5 3 L15 3.5 L13.5 4 L13 5.5 L12.5 4 L11 3.5 L12.5 3 Z" />
+        </svg>
+        AI Summary
+      </button>
+      <button id="fullscreen-btn" class="icon-toolbar-btn" type="button" aria-label="Toggle full screen" aria-pressed="false">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M6 2 H2 V6 M10 2 H14 V6 M6 14 H2 V10 M10 14 H14 V10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </button>
     </div>
   </div>
 
@@ -359,29 +381,6 @@
         </g>
         </g>
       </svg>
-
-      <div class="canvas-toolbar">
-        <button id="insights-btn" class="ai-summary-btn" type="button" aria-expanded="false">
-          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-            <path d="M8 1.5 C4.9 1.5 2.5 3.8 2.5 6.8 C2.5 8.7 3.4 10.3 4.9 11.3 V13 C4.9 13.6 5.4 14 5.9 14 H10.1 C10.6 14 11.1 13.6 11.1 13 V11.3 C12.6 10.3 13.5 8.7 13.5 6.8 C13.5 3.8 11.1 1.5 8 1.5 Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" />
-            <path d="M6.2 14.9 H9.8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" />
-            <path d="M8 4.3 V8.3 M8 8.3 L6.3 6.9" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-          Insights
-        </button>
-        <button id="ai-summary-btn" class="ai-summary-btn" type="button" aria-expanded="false">
-          <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-            <path d="M8 1 L9.2 5.6 L13.5 7 L9.2 8.4 L8 13 L6.8 8.4 L2.5 7 L6.8 5.6 Z" />
-            <path d="M13 1.5 L13.5 3 L15 3.5 L13.5 4 L13 5.5 L12.5 4 L11 3.5 L12.5 3 Z" />
-          </svg>
-          AI Summary
-        </button>
-        <button id="fullscreen-btn" class="icon-toolbar-btn" type="button" aria-label="Toggle full screen" aria-pressed="false">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-            <path d="M6 2 H2 V6 M10 2 H14 V6 M6 14 H2 V10 M10 14 H14 V10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-        </button>
-      </div>
 
       <div id="ai-summary-panel" class="ai-summary-panel hidden">
         <div class="ai-summary-panel-header">
