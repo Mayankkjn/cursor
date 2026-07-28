@@ -820,6 +820,21 @@ const PURCHASE_ORDER_TEMPLATE = {
   users: 340,
 };
 
+// A process whose very first step is a decision node: the amount on the
+// request splits cases into three structurally distinct downstream
+// processes (not just a deviation of the same path). Opens a dedicated
+// decision-map view instead of the standard directly-follows graph.
+const DECISION_MAP_TEMPLATE = {
+  title: 'Purchase Approval by Cost',
+  description: 'Authorisation routes into one of three distinct approval processes based on the request cost',
+  role: 'Manager',
+  businessUnit: 'Finance',
+  medianDurationSeconds: 927,
+  processCount: 60,
+  users: 44,
+  targetPage: 'decision-map.html',
+};
+
 const PLACEHOLDER_TEMPLATES = [
   { title: 'Care transition', description: 'Changing the hospitals for a patient based on request', role: 'Support', businessUnit: 'Support', medianDurationSeconds: 792, processCount: 165, users: 235 },
   { title: 'Pharmacy selection', description: 'Selecting the pharmacy based on medical records', role: 'Coordinator', businessUnit: 'Finance', medianDurationSeconds: 724, processCount: 176, users: 432 },
@@ -827,7 +842,6 @@ const PLACEHOLDER_TEMPLATES = [
   { title: 'Claim approval', description: 'Analysing claim denial reasons and suggesting next steps', role: 'Manager', businessUnit: 'Finance', medianDurationSeconds: 604, processCount: 132, users: 654 },
   { title: 'Monitoring existing cases', description: 'Reviewing the progress of existing cases', role: 'Coordinator', businessUnit: 'Support', medianDurationSeconds: 661, processCount: 145, users: 767 },
   { title: 'Provider network review', description: 'Verifying provider eligibility against the current network', role: 'Analyst', businessUnit: 'Operations', medianDurationSeconds: 670, processCount: 106, users: 372 },
-  { title: 'Appeals processing', description: 'Handling member appeals against a prior decision', role: 'Specialist', businessUnit: 'Operations', medianDurationSeconds: 707, processCount: 159, users: 503 },
 ];
 
 function formatMedianDuration(rawSeconds) {
@@ -887,7 +901,10 @@ function buildRealExampleRow(example, index) {
 }
 
 function generateProcessCatalog() {
-  const rows = [{ id: 'PROC-1000', ...PURCHASE_ORDER_TEMPLATE }];
+  const rows = [
+    { id: 'PROC-1000', ...PURCHASE_ORDER_TEMPLATE },
+    { id: 'PROC-1001', ...DECISION_MAP_TEMPLATE },
+  ];
   (typeof EXTRA_PROCESS_EXAMPLES !== 'undefined' ? EXTRA_PROCESS_EXAMPLES : []).forEach((example, i) => {
     rows.push(buildRealExampleRow(example, i + 1));
   });
@@ -941,6 +958,10 @@ function renderFilterOptions() {
 }
 
 function openProcess(row) {
+  if (row.targetPage) {
+    window.location.href = row.targetPage;
+    return;
+  }
   sessionStorage.setItem('selectedProcessName', row.title);
   if (row.datasetRaw) {
     sessionStorage.setItem('selectedProcessData', JSON.stringify(row.datasetRaw));

@@ -35,7 +35,7 @@ def inline(html_path: Path) -> str:
 
 def main():
     OUT_DIR.mkdir(exist_ok=True)
-    for name in ("home.html", "index.html"):
+    for name in ("home.html", "index.html", "decision-map.html"):
         out = inline(SRC_DIR / name)
         (OUT_DIR / name).write_text(out)
         print(f"built {OUT_DIR / name} ({len(out)} bytes)")

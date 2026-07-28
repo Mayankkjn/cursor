@@ -40,6 +40,10 @@ function renderFilterOptions() {
 }
 
 function openProcess(row) {
+  if (row.targetPage) {
+    window.location.href = row.targetPage;
+    return;
+  }
   sessionStorage.setItem('selectedProcessName', row.title);
   if (row.datasetRaw) {
     sessionStorage.setItem('selectedProcessData', JSON.stringify(row.datasetRaw));
