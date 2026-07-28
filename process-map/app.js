@@ -233,6 +233,7 @@ function estimateEdgeDuration(e, model) {
 function render(fit = false) {
   const model = state.model;
   applyThreshold(model, state.threshold);
+  updatePathFilterUI(model);
   const renderGraph = buildRenderGraph(model);
   const { nodePos, edgePos } = layout(renderGraph);
 
@@ -636,8 +637,7 @@ function handleUploadFile(file) {
       state.model = buildProcessModel(cases);
       state.highlight = null;
       state.threshold = 0;
-      d3.select('#threshold').property('value', 0);
-      updateThresholdHeadline(0);
+      d3.select('#pf-slider').property('value', 100);
       setSourceBadge(file.name);
       setUploadStatus(`Loaded ${cases.length} case${cases.length === 1 ? '' : 's'} from "${file.name}".`, 'success');
       render(true);
@@ -761,17 +761,34 @@ d3.select('#insight-rework').on('click', () => {
 });
 
 // ---- controls ----
-function updateThresholdHeadline(value) {
-  d3.select('#threshold-headline').text(
-    value == 0 ? 'Showing all paths' : `Showing paths above ${value}% frequency`
-  );
+// The slider runs "Popular path" (0, fewest deviation edges shown) to "All
+// paths" (100, everything) — the inverse of the raw filter threshold, which
+// hides a deviation edge once its frequency drops below (100 - value)%.
+function updatePathFilterUI(model) {
+  const slider = document.getElementById('pf-slider');
+  const value = Number(slider.value);
+  const deviations = model.edges.filter((e) => !e.onHappyPath);
+  const visibleCount = deviations.filter((e) => !e.hidden).length;
+
+  document.getElementById('pf-value').textContent = `${value}%`;
+  document.getElementById('pf-subtext').textContent = deviations.length
+    ? `Showing ${visibleCount} of ${deviations.length} process variants`
+    : 'No deviations recorded for this process';
+  slider.style.background = `linear-gradient(to right, #1f9d5c 0%, #1f9d5c ${value}%, #e6e7f0 ${value}%, #e6e7f0 100%)`;
 }
 
-d3.select('#threshold').on('input', function () {
-  state.threshold = +this.value / 100;
-  updateThresholdHeadline(this.value);
+d3.select('#pf-slider').on('input', function () {
+  state.threshold = ((100 - Number(this.value)) / 100) * 0.9;
   render(true);
 });
+
+function stepPathFilter(delta) {
+  const slider = document.getElementById('pf-slider');
+  slider.value = Math.min(100, Math.max(0, Number(slider.value) + delta));
+  slider.dispatchEvent(new Event('input'));
+}
+d3.select('#pf-minus').on('click', () => stepPathFilter(-10));
+d3.select('#pf-plus').on('click', () => stepPathFilter(10));
 
 d3.selectAll('input[name="mode"]').on('change', function () {
   state.mode = this.value;
