@@ -50,12 +50,7 @@ function formatMedianDuration(rawSeconds) {
   return `${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`;
 }
 
-function median(numbers) {
-  if (!numbers.length) return 0;
-  const sorted = numbers.slice().sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
-}
+// median() is defined in data.js, loaded before this file on home.html.
 
 // Turns one embedded real dataset into a catalog row by actually running it
 // through the same normalizeCaseLog/buildProcessModel pipeline the Import

@@ -423,6 +423,16 @@ function randomDuration(task) {
 }
 
 function generateEventLog(numCases = 500) {
+  // Synthesize a plausible unique-user pool (68% of case volume, e.g. 340
+  // for the default 500 cases) and shuffle case->user assignment so every
+  // pool member is guaranteed to appear at least once.
+  const userPoolSize = Math.max(1, Math.min(numCases, Math.round(numCases * 0.68)));
+  const userIds = Array.from({ length: numCases }, (_, i) => `U-${1 + (i % userPoolSize)}`);
+  for (let i = userIds.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [userIds[i], userIds[j]] = [userIds[j], userIds[i]];
+  }
+
   const cases = [];
   for (let i = 0; i < numCases; i++) {
     const variant = pickVariant();
@@ -437,10 +447,18 @@ function generateEventLog(numCases = 500) {
       caseId: `PO-${1000 + i}`,
       variantId: variant.id,
       totalDuration: cursor,
+      users: [userIds[i]],
       steps,
     });
   }
   return cases;
+}
+
+function median(numbers) {
+  if (!numbers.length) return 0;
+  const sorted = numbers.slice().sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
 // A small, hand-written example a user can download to see the expected
@@ -506,7 +524,7 @@ function extractRawCases(raw) {
       const caseId = session.user_id
         ? `${String(session.user_id).slice(0, 8)}-${session.session_date || i + 1}`
         : `SESSION-${i + 1}`;
-      return { caseId, steps };
+      return { caseId, steps, users: session.user_id ? [session.user_id] : [] };
     });
   }
 
@@ -534,8 +552,13 @@ function extractRawCases(raw) {
       });
       const baseId = (ep.metadata && ep.metadata.support_ticket_id) || ep.id || `PATH-${i + 1}`;
       const repeat = Math.min(5000, Math.max(1, Math.round(Number(ep.count)) || 1));
+      const epUsers = ep.users || [];
       for (let k = 0; k < repeat; k++) {
-        cases.push({ caseId: repeat > 1 ? `${baseId}-${k + 1}` : String(baseId), steps });
+        cases.push({
+          caseId: repeat > 1 ? `${baseId}-${k + 1}` : String(baseId),
+          steps,
+          users: epUsers.length ? [epUsers[k % epUsers.length]] : [],
+        });
       }
     });
     return cases;
@@ -615,7 +638,8 @@ function normalizeCaseLog(raw) {
         return step;
       });
 
-      return { caseId: String(caseId), totalDuration: cursor, steps };
+      const users = rawCase && !Array.isArray(rawCase) && Array.isArray(rawCase.users) ? rawCase.users : [];
+      return { caseId: String(caseId), totalDuration: cursor, steps, users };
     })
     .filter(Boolean);
 
@@ -856,12 +880,7 @@ function formatMedianDuration(rawSeconds) {
   return `${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`;
 }
 
-function median(numbers) {
-  if (!numbers.length) return 0;
-  const sorted = numbers.slice().sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
-}
+// median() is defined in data.js, loaded before this file on home.html.
 
 // Turns one embedded real dataset into a catalog row by actually running it
 // through the same normalizeCaseLog/buildProcessModel pipeline the Import

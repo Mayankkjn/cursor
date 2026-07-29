@@ -1,4 +1,4 @@
-/* global d3, dagre, generateEventLog, buildProcessModel, normalizeCaseLog, SAMPLE_JSON_TEMPLATE, START, END */
+/* global d3, dagre, generateEventLog, buildProcessModel, normalizeCaseLog, median, SAMPLE_JSON_TEMPLATE, START, END */
 
 const TASK_W = 220;
 const TASK_H = 62;
@@ -477,11 +477,12 @@ function renderVariantList(model) {
 
 function renderStats(model) {
   d3.select('#stat-cases').text(model.totalCases);
-  d3.select('#stat-variants').text(model.variants.length);
-  const avgTotal = model.variants.reduce((s, v) => s + v.avgDuration * v.count, 0) / model.totalCases;
-  d3.select('#stat-avg-duration').text(formatDuration(avgTotal));
-  d3.select('#stat-happy-pct').text(`${(model.happyPath.pct * 100).toFixed(0)}%`);
-  d3.select('#stat-rework-pct').text(`${(model.reworkedCasePct * 100).toFixed(0)}%`);
+
+  const uniqueUsers = new Set(state.cases.flatMap((c) => c.users || []));
+  d3.select('#stat-users').text(uniqueUsers.size > 0 ? uniqueUsers.size : '–');
+
+  const medianTotal = median(state.cases.map((c) => c.totalDuration));
+  d3.select('#stat-avg-duration').text(formatDuration(medianTotal));
 }
 
 function escapeHtml(str) {
