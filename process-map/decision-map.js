@@ -132,7 +132,8 @@ function buildExpandedChain(pathId) {
   const firstCardY = chipBottom + GAP;
   const cardY = (i) => firstCardY + i * (CARD_H + GAP);
 
-  const visible = (data.variants || []).filter((v) => v.pct >= state.threshold);
+  const visibleSet = getVisibleVariantSet();
+  const visible = (data.variants || []).filter((v) => visibleSet.has(v));
   const forwardByIndex = new Map(visible.filter((v) => v.type === 'forward').map((v) => [v.afterIndex, v]));
   const reworkVariants = visible.filter((v) => v.type === 'rework');
 
@@ -334,19 +335,28 @@ document.querySelectorAll('#dm-path-list .metric-item').forEach((item) => {
 });
 
 // ---- Path Filter: slider runs "Popular path" (0, fewest variants) to "All
-// paths" (100, everything) — the inverse of the raw filter threshold, which
-// hides a variant once its frequency % drops below (100 - slider value). ----
+// paths" (100, everything). Variants are revealed by rank (most-frequent
+// first) rather than by a frequency-percentage cutoff — a cutoff can jump
+// from showing 2 variants to 20 in a single slider step whenever there's a
+// gap in the frequency distribution; ranking guarantees each step in the
+// slider value reveals a proportional, incremental slice instead. ----
 function getAllVariants() {
   return Object.values(PATH_STEPS).flatMap((p) => p.variants || []);
+}
+
+function getVisibleVariantSet() {
+  const sorted = getAllVariants().sort((a, b) => b.pct - a.pct);
+  const visibleCount = Math.round((state.threshold / 100) * sorted.length);
+  return new Set(sorted.slice(0, visibleCount));
 }
 
 function updatePathFilterUI() {
   const slider = document.getElementById('dm-pf-slider');
   const value = Number(slider.value);
-  state.threshold = 100 - value;
+  state.threshold = value;
 
   const all = getAllVariants();
-  const visibleCount = all.filter((v) => v.pct >= state.threshold).length;
+  const visibleCount = getVisibleVariantSet().size;
   document.getElementById('dm-pf-value').textContent = `${value}%`;
   document.getElementById('dm-pf-subtext').textContent = `Showing ${visibleCount} of ${all.length} process variants`;
   slider.style.background = `linear-gradient(to right, #1f9d5c 0%, #1f9d5c ${value}%, #e6e7f0 ${value}%, #e6e7f0 100%)`;

@@ -9,7 +9,7 @@ const DIAMOND_SIZE = 84;
 const state = {
   cases: [],
   model: null,
-  threshold: 0, // hide edges below this % of the busiest edge
+  threshold: 100, // Path Filter slider value 0-100 (0 = fewest deviations, 100 = all)
   highlight: null, // null | { kind: 'variant', value: variant } | { kind: 'node', value: nodeId }
 };
 
@@ -85,10 +85,18 @@ function setHighlight(kind, value) {
   render();
 }
 
-function applyThreshold(model, thresholdPct) {
-  const maxEdgeCount = Math.max(...model.edges.map((e) => e.count));
+// Reveals deviation edges by rank (most-frequent first) rather than by a
+// relative-frequency cutoff — a frequency threshold can jump from showing 2
+// edges to 20 in a single slider step whenever there's a gap in the
+// frequency distribution; ranking guarantees each step in sliderValue
+// reveals a proportional, incremental slice of the edges instead.
+function applyThreshold(model, sliderValue) {
+  const deviations = model.edges.filter((e) => !e.onHappyPath);
+  const sorted = deviations.slice().sort((a, b) => b.count - a.count);
+  const visibleCount = Math.round((sliderValue / 100) * sorted.length);
+  const visible = new Set(sorted.slice(0, visibleCount));
   model.edges.forEach((e) => {
-    e.hidden = e.count < maxEdgeCount * thresholdPct && !e.onHappyPath;
+    e.hidden = !e.onHappyPath && !visible.has(e);
   });
 }
 
@@ -622,7 +630,7 @@ function handleUploadFile(file) {
       state.cases = cases;
       state.model = buildProcessModel(cases);
       state.highlight = null;
-      state.threshold = 0;
+      state.threshold = 100;
       d3.select('#pf-slider').property('value', 100);
       setUploadStatus(`Loaded ${cases.length} process${cases.length === 1 ? '' : 'es'} from "${file.name}".`, 'success');
       render(true);
@@ -778,7 +786,7 @@ function updatePathFilterUI(model) {
 }
 
 d3.select('#pf-slider').on('input', function () {
-  state.threshold = ((100 - Number(this.value)) / 100) * 0.9;
+  state.threshold = Number(this.value);
   render(true);
 });
 
