@@ -7,6 +7,7 @@ const PILL_H = 42;
 const DIAMOND_SIZE = 84;
 const BUBBLE_W = 172;
 const BUBBLE_H = 54;
+const COMPARE_BADGE_H = 22; // extra card height reserved for a fast-vs-typical badge
 
 // Semantic zoom: a fork's deviation branches are "minor" once they drop
 // below this share of the fork's total volume — bundled into one "+N minor
@@ -25,6 +26,7 @@ const state = {
   taskThreshold: 100, // Task filter slider value 0-100 (0 = highest-frequency tasks only, 100 = all)
   highlight: null, // null | { kind: 'variant', value: variant } | { kind: 'node', value: nodeId }
   expandedBubbles: new Set(), // source node ids whose "N variants" bubble is currently expanded
+  comparison: null, // null | result of computeFastVsTypical() when "Compare to typical" is active
 };
 
 const svg = d3.select('#graph');
@@ -136,6 +138,83 @@ function applyTaskFilter(model, sliderValue) {
     n.variantFreqCount = variantCounts.get(n.id) || 0;
     n.taskHidden = !n.virtual && !visible.has(n);
   });
+}
+
+const FAST_COHORT_SHARE = 0.05; // bottom 5% of cases by total duration
+const COMPARE_MIN_DELTA_SHARE = 0.1; // ignore per-task time deltas under 10% of the typical duration
+const COMPARE_PRESENCE_HIGH = 0.5; // "normally part of" this cohort's path
+const COMPARE_PRESENCE_LOW = 0.2; // "rare in / absent from" this cohort's path
+
+// Compares the fastest-finishing cases against the happy path to surface
+// concrete automation/guidance candidates: steps the fast cohort skips
+// entirely, and steps it completes meaningfully faster than typical. Uses a
+// cohort (the fastest 5% of cases) rather than a single "fastest variant" so
+// one lucky case can't be the whole basis for a recommendation.
+function computeFastVsTypical(model, cases) {
+  if (!model.happyPath || cases.length < 10) return null;
+
+  const fastCohortSize = Math.max(3, Math.round(cases.length * FAST_COHORT_SHARE));
+  const sorted = cases.slice().sort((a, b) => a.totalDuration - b.totalDuration);
+  const fastCohort = sorted.slice(0, fastCohortSize);
+
+  const happyCaseIds = new Set(model.happyPath.caseIds);
+  const happyCases = cases.filter((c) => happyCaseIds.has(c.caseId));
+  if (!happyCases.length) return null;
+
+  const taskStats = (caseList) => {
+    const stats = new Map();
+    caseList.forEach((c) => {
+      const seenInCase = new Set();
+      c.steps.forEach((s) => {
+        const st = stats.get(s.task) || { totalDuration: 0, visits: 0, caseCount: 0 };
+        st.totalDuration += s.duration;
+        st.visits += 1;
+        if (!seenInCase.has(s.task)) { st.caseCount += 1; seenInCase.add(s.task); }
+        stats.set(s.task, st);
+      });
+    });
+    return stats;
+  };
+
+  const happyStats = taskStats(happyCases);
+  const fastStats = taskStats(fastCohort);
+  const allTasks = new Set([...happyStats.keys(), ...fastStats.keys()]);
+
+  const items = [];
+  allTasks.forEach((task) => {
+    const h = happyStats.get(task);
+    const f = fastStats.get(task);
+    const hPresence = h ? h.caseCount / happyCases.length : 0;
+    const fPresence = f ? f.caseCount / fastCohort.length : 0;
+    if (hPresence < COMPARE_PRESENCE_HIGH) return; // only compare against steps typical of the happy path
+    const hAvg = h.totalDuration / h.visits;
+
+    if (fPresence <= COMPARE_PRESENCE_LOW) {
+      items.push({ task, kind: 'skipped', timeSaved: hAvg, hAvg, fAvg: null });
+      return;
+    }
+    if (fPresence >= COMPARE_PRESENCE_HIGH) {
+      const fAvg = f.totalDuration / f.visits;
+      const delta = hAvg - fAvg;
+      if (delta > 0 && delta / hAvg >= COMPARE_MIN_DELTA_SHARE) {
+        items.push({ task, kind: 'faster', timeSaved: delta, hAvg, fAvg });
+      }
+    }
+  });
+
+  items.sort((a, b) => b.timeSaved - a.timeSaved);
+
+  const happyAvgTotal = happyCases.reduce((s, c) => s + c.totalDuration, 0) / happyCases.length;
+  const fastAvgTotal = fastCohort.reduce((s, c) => s + c.totalDuration, 0) / fastCohort.length;
+
+  return {
+    fastCohortSize: fastCohort.length,
+    fastCohortPct: fastCohort.length / cases.length,
+    happyAvgTotal,
+    fastAvgTotal,
+    totalGap: happyAvgTotal - fastAvgTotal,
+    items,
+  };
 }
 
 // Turns the raw directly-follows graph into what actually gets drawn: the
@@ -283,6 +362,7 @@ function layout(renderGraph) {
     if (n.kind === 'start' || n.kind === 'end') { width = PILL_W; height = PILL_H; }
     if (n.kind === 'diamond') { width = DIAMOND_SIZE; height = DIAMOND_SIZE; }
     if (n.kind === 'bubble') { width = BUBBLE_W; height = BUBBLE_H; }
+    if (n.kind === 'task' && n.compareInfo) height += COMPARE_BADGE_H;
     g.setNode(n.id, { width, height });
   });
   renderGraph.edges.forEach((e) => {
@@ -332,10 +412,32 @@ function buildTaskCard(g, n, p) {
   if (n.reworkCaseCount > 0) {
     g.append('circle').attr('class', 'node-badge').attr('cx', p.width - 34).attr('cy', 14).attr('r', 5);
   }
-  appendKebab(g, p.width - 16, p.height / 2 - 11);
-  appendClockIcon(g, 16, p.height - 24);
-  g.append('text').attr('class', 'node-meta').attr('x', 40).attr('y', p.height - 14)
+  // Fixed to the card's base height (not p.height) so a fast-vs-typical
+  // badge — which grows the card — adds a new row below rather than
+  // shifting these positions around.
+  appendKebab(g, p.width - 16, TASK_H / 2 - 11);
+  appendClockIcon(g, 16, TASK_H - 24);
+  g.append('text').attr('class', 'node-meta').attr('x', 40).attr('y', TASK_H - 14)
     .text(`${pluralCases(n.caseCount)} · ${formatDuration(n.avgDuration)}`);
+  if (n.compareInfo) buildCompareBadge(g, n, p);
+}
+
+// A small pill in the extra space a compared task's card grows to hold,
+// reading either "Skipped in fastest processes" or "N faster in fastest
+// processes" depending on which signal the comparison found for this task.
+function buildCompareBadge(g, n, p) {
+  const info = n.compareInfo;
+  const isSkipped = info.kind === 'skipped';
+  const y = TASK_H + 4;
+  const h = p.height - TASK_H - 8;
+  g.append('rect').attr('class', `compare-badge-bg ${isSkipped ? 'skipped' : 'faster'}`)
+    .attr('x', 10).attr('y', y).attr('width', p.width - 20).attr('height', h).attr('rx', h / 2);
+  const label = isSkipped
+    ? 'Skipped in fastest processes'
+    : `${formatDuration(info.timeSaved)} faster in fastest processes`;
+  g.append('text').attr('class', `compare-badge-text ${isSkipped ? 'skipped' : 'faster'}`)
+    .attr('x', p.width / 2).attr('y', y + h / 2 + 3).attr('text-anchor', 'middle')
+    .text(label);
 }
 
 function buildPill(g, n, p) {
@@ -380,6 +482,18 @@ function render(fit = false) {
   applyTaskFilter(model, state.taskThreshold);
   updateTaskFilterUI(model);
   const renderGraph = buildRenderGraph(model);
+
+  // Fast-vs-typical comparison annotates whichever of its tasks are
+  // currently on the canvas — a task hidden by a filter or folded into a
+  // semantic-zoom bubble just doesn't get a badge, same as any other
+  // per-node decoration.
+  if (state.comparison) {
+    const compareByTask = new Map(state.comparison.items.map((it) => [it.task, it]));
+    renderGraph.nodes.forEach((n) => {
+      if (n.kind === 'task') n.compareInfo = compareByTask.get(n.id) || null;
+    });
+  }
+
   const { nodePos, edgePos } = layout(renderGraph);
 
   // A deviation edge is "rework" when the transition's target was already
@@ -507,6 +621,7 @@ function render(fit = false) {
   renderReworkList(model);
   renderVariantList(model);
   renderStats(model);
+  renderFastCompare();
   if (fit) fitToView();
 }
 
@@ -657,6 +772,56 @@ function renderStats(model) {
   d3.select('#stat-avg-duration').text(formatDuration(medianTotal));
 }
 
+function renderFastCompare() {
+  const panel = document.getElementById('fast-compare-panel');
+  const comparison = state.comparison;
+  if (!comparison) { panel.hidden = true; return; }
+  panel.hidden = false;
+
+  d3.select('#fast-compare-summary').html(
+    `Fastest ${(comparison.fastCohortPct * 100).toFixed(0)}% of processes (${comparison.fastCohortSize}) finish ` +
+    `<strong>${formatDuration(comparison.totalGap)} faster</strong> than the most common path ` +
+    `(${formatDuration(comparison.fastAvgTotal)} vs ${formatDuration(comparison.happyAvgTotal)} avg).`
+  );
+
+  const list = d3.select('#fast-compare-list');
+  if (!comparison.items.length) {
+    list.html('<li class="metric-empty">No clear differences found beyond normal variation.</li>');
+    return;
+  }
+
+  const items = list.selectAll('li.metric-item').data(comparison.items, (d) => d.task);
+  items.exit().remove();
+  const enter = items.enter().append('li');
+  enter.append('div').attr('class', 'metric-item-top');
+  enter.append('div').attr('class', 'metric-item-sub');
+
+  const merged = enter.merge(items);
+  merged.attr('class', (d) => `metric-item compare-${d.kind}`);
+  merged.select('.metric-item-top').html((d) => d.kind === 'skipped'
+    ? `<span>Skipped: ${escapeHtml(d.task)}</span><span>${formatDuration(d.timeSaved)}</span>`
+    : `<span>${escapeHtml(d.task)}</span><span>${formatDuration(d.timeSaved)} faster</span>`);
+  merged.select('.metric-item-sub').text((d) => d.kind === 'skipped'
+    ? "Not part of the fastest processes' path"
+    : `${formatDuration(d.fAvg)} vs ${formatDuration(d.hAvg)} typical`);
+}
+
+function toggleFastCompare() {
+  if (state.comparison) {
+    state.comparison = null;
+  } else {
+    const comparison = computeFastVsTypical(state.model, state.cases);
+    if (!comparison) {
+      d3.select('#fast-compare-summary').text('');
+      window.alert("There isn't enough data in this process to compute a meaningful fast-vs-typical comparison.");
+      return;
+    }
+    state.comparison = comparison;
+  }
+  d3.select('#insight-compare-btn').classed('active', !!state.comparison);
+  render();
+}
+
 function escapeHtml(str) {
   const div = document.createElement('div');
   div.textContent = str;
@@ -797,6 +962,8 @@ function handleUploadFile(file) {
       state.threshold = 100;
       state.taskThreshold = 100;
       state.expandedBubbles = new Set();
+      state.comparison = null;
+      d3.select('#insight-compare-btn').classed('active', false);
       d3.select('#pf-slider').property('value', 100);
       d3.select('#tf-slider').property('value', 100);
       setUploadStatus(`Loaded ${cases.length} process${cases.length === 1 ? '' : 'es'} from "${file.name}".`, 'success');
@@ -933,6 +1100,15 @@ d3.select('#insight-timesink').on('click', () => {
 });
 d3.select('#insight-rework').on('click', () => {
   if (state.model.reworkRanking[0]) setHighlight('node', state.model.reworkRanking[0].id);
+});
+d3.select('#insight-compare-btn').on('click', (event) => {
+  event.stopPropagation();
+  toggleFastCompare();
+});
+d3.select('#fast-compare-close').on('click', () => {
+  state.comparison = null;
+  d3.select('#insight-compare-btn').classed('active', false);
+  render();
 });
 
 // ---- controls ----

@@ -411,6 +411,13 @@ button:hover { filter: brightness(1.08); }
 .node-meta { fill: var(--text-secondary); font-size: 11px; pointer-events: none; }
 .node-badge { fill: var(--rework); }
 .node-badge-label { fill: white; font-size: 8.5px; font-weight: 700; text-anchor: middle; pointer-events: none; }
+
+/* ---- fast-vs-typical comparison badge ---- */
+.compare-badge-bg.faster { fill: var(--path-main-soft); }
+.compare-badge-bg.skipped { fill: var(--path-deviation-soft); }
+.compare-badge-text { font-size: 9.5px; font-weight: 700; pointer-events: none; }
+.compare-badge-text.faster { fill: #157a45; }
+.compare-badge-text.skipped { fill: var(--text-secondary); }
 .icon-task-body { fill: #5B5E78; }
 .icon-task-inset { fill: #ffffff; }
 .icon-task-dot { fill: #5B5E78; }
@@ -476,7 +483,22 @@ button:hover { filter: brightness(1.08); }
 .insight-value { font-size: 1.05rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 .insight-detail { font-size: 0.7rem; color: var(--text-secondary); line-height: 1.35; }
 
-/* ---- ranked metric lists (time / rework) ---- */
+.insight-card-wrap { display: flex; flex-direction: column; gap: 5px; }
+.insight-card-wrap .insight-card { flex: 1; }
+.insight-compare-btn {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--accent-ui);
+  cursor: pointer;
+}
+.insight-compare-btn:hover { text-decoration: underline; }
+.insight-compare-btn.active { color: var(--path-main); }
+
+/* ---- ranked metric lists (time / rework / fast-vs-typical) ---- */
 .metric-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .metric-item {
   border: 1px solid var(--panel-border);
@@ -493,6 +515,17 @@ button:hover { filter: brightness(1.08); }
 .metric-bar-fill { height: 100%; border-radius: 3px; background: var(--accent-ui); }
 .metric-item.rework .metric-bar-fill { background: var(--rework); }
 .metric-empty { font-size: 0.78rem; color: var(--text-secondary); }
+
+.metric-item.compare-faster,
+.metric-item.compare-skipped { cursor: default; }
+.metric-item.compare-faster:hover,
+.metric-item.compare-skipped:hover { border-color: var(--panel-border); }
+.metric-item.compare-faster { border-left: 3px solid var(--path-main); }
+.metric-item.compare-skipped { border-left: 3px solid var(--path-deviation); }
+
+.fast-compare-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.fast-compare-header h2 { margin: 0; }
+#fast-compare-summary { margin: 0 0 10px; }
 
 /* ---- floating widgets over the canvas ---- */
 .floating-filters {
