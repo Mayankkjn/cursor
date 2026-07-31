@@ -5213,7 +5213,7 @@ const state = {
   threshold: 100, // Path Filter slider value 0-100 (0 = fewest deviations, 100 = all)
   taskThreshold: 100, // Task filter slider value 0-100 (0 = highest-frequency tasks only, 100 = all)
   highlight: null, // null | { kind: 'variant', value: variant } | { kind: 'node', value: nodeId }
-  expandedBubbles: new Set(), // source node ids whose "+N minor variants" bubble is currently expanded
+  expandedBubbles: new Set(), // source node ids whose "N variants" bubble is currently expanded
 };
 
 const svg = d3.select('#graph');
@@ -5333,7 +5333,7 @@ function applyTaskFilter(model, sliderValue) {
 // diamond "N cases branch here" waypoint so the source node isn't fanned
 // out with a tangle of individual connectors. Semantic zoom then goes one
 // step further: a fork's low-frequency branches collapse into a single
-// "+N minor variants" bubble instead of each getting its own permanent
+// "N variants" bubble instead of each getting its own permanent
 // branch, so the map stays complete (nothing is discarded — click the
 // bubble to expand it) without every rare fork being drawn at once.
 function buildRenderGraph(model) {
@@ -5341,12 +5341,7 @@ function buildRenderGraph(model) {
   const edgeSurvives = (e) => !e.hidden && !taskHiddenIds.has(e.from) && !taskHiddenIds.has(e.to);
   const survivingEdges = model.edges.filter(edgeSurvives);
 
-  // How many surviving edges touch each node. A minor branch is only safe
-  // to collapse behind a bubble if hiding its destination can't orphan some
-  // other edge that relies on that node still being drawn — either the
-  // destination is a pure dead end (this is its only connection), or it's a
-  // one-step detour that terminates the case (its only other edge goes to
-  // END, which stays visible regardless via other paths).
+  // How many surviving edges touch each node.
   const touchCount = new Map();
   survivingEdges.forEach((e) => {
     touchCount.set(e.from, (touchCount.get(e.from) || 0) + 1);
@@ -5360,16 +5355,46 @@ function buildRenderGraph(model) {
     deviationsByFrom.get(e.from).push(e);
   });
 
-  // Decide, per fork, which of its edges bundle into a bubble.
-  const bundleSourceOf = new Map(); // edge -> the fork (from) whose bubble it belongs to
-  const bubblesByFrom = new Map(); // from -> { minorEdges, expanded }
+  // Pass 1: classify candidate-minor edges by relative share alone, per fork
+  // (ignoring, for now, whether collapsing them is structurally safe).
+  const candidatesByFork = new Map(); // from -> [edges below MINOR_SHARE]
+  const allCandidates = new Set();
   deviationsByFrom.forEach((group, from) => {
     if (group.length < 3) return;
     const total = group.reduce((s, e) => s + e.caseCount, 0);
+    const candidates = group.filter((e) => e.caseCount / total < MINOR_SHARE);
+    if (candidates.length < MIN_MINOR_BRANCHES) return;
+    candidatesByFork.set(from, candidates);
+    candidates.forEach((e) => allCandidates.add(e));
+  });
+
+  // A destination stays "guaranteed visible" if some OTHER, non-candidate
+  // edge already brings it into the picture (real workflows are richly
+  // connected — a task rarely reached from THIS fork is often a common step
+  // reached mainly from elsewhere). Folding a rare edge into a bubble is
+  // always safe in that case: the node is drawn regardless via its bigger
+  // connection, this fork just stops drawing its own low-frequency line
+  // into it. Only an INCOMING edge counts here — a node's own outgoing
+  // edge doesn't make it independently reachable, it would just orphan
+  // that edge too (that's what the dead-end/terminates-at-END checks below
+  // exist to catch instead).
+  const guaranteedVisible = new Set([START, END]);
+  survivingEdges.forEach((e) => {
+    if (allCandidates.has(e)) return;
+    guaranteedVisible.add(e.to);
+  });
+
+  // Decide, per fork, which of its candidate edges are actually safe to
+  // bundle: destination already guaranteed visible elsewhere, a pure dead
+  // end (this is its only connection), or a one-step detour that
+  // terminates the case (its only other edge goes to END).
+  const bundleSourceOf = new Map(); // edge -> the fork (from) whose bubble it belongs to
+  const bubblesByFrom = new Map(); // from -> { minorEdges, expanded }
+  candidatesByFork.forEach((candidates, from) => {
     const minor = [];
     const absorbed = []; // a bundled destination's own trailing edge to END, dropped along with it
-    group.forEach((e) => {
-      if (e.caseCount / total >= MINOR_SHARE) return;
+    candidates.forEach((e) => {
+      if (guaranteedVisible.has(e.to)) { minor.push(e); return; }
       const destTouch = touchCount.get(e.to);
       if (destTouch === 1) { minor.push(e); return; }
       if (destTouch === 2) {
@@ -5521,14 +5546,14 @@ function buildDiamond(g, n, p) {
     .text(n.label === '1' ? 'process' : 'processes');
 }
 
-// Semantic zoom's collapsed/expanded waypoint. Collapsed, it reads "+N
-// minor variants — click to expand"; once expanded it flips to a
-// "− Collapse" toggle in the exact same spot, so the affordance to put the
-// clutter away again is always right where the bubble was.
+// Semantic zoom's collapsed/expanded waypoint. Collapsed, it reads "N
+// variants — click to expand"; once expanded it flips to a "− Collapse"
+// toggle in the exact same spot, so the affordance to put the clutter away
+// again is always right where the bubble was.
 function buildBubble(g, n, p) {
   const label = n.expanded
     ? `− Collapse ${n.count} variant${n.count === 1 ? '' : 's'}`
-    : `+${n.count} minor variant${n.count === 1 ? '' : 's'}`;
+    : `${n.count} variant${n.count === 1 ? '' : 's'}`;
   g.append('rect').attr('class', `bubble-bg${n.expanded ? ' expanded' : ''}`)
     .attr('width', p.width).attr('height', p.height).attr('rx', p.height / 2);
   g.append('text').attr('class', 'bubble-label').attr('x', p.width / 2).attr('y', p.height / 2 - 3)
@@ -5682,7 +5707,7 @@ function nodeTooltipHtml(n, model) {
   }
   if (n.kind === 'bubble') {
     const rows = n.minorEdges.map((e) => `<div>→ ${labelForNode(e.to)}: ${pluralCases(e.caseCount)}</div>`).join('');
-    return `<strong>${n.count} minor variant${n.count === 1 ? '' : 's'}</strong>${rows}<div>${n.expanded ? 'Click to collapse' : 'Click to expand'}</div>`;
+    return `<strong>${n.count} variant${n.count === 1 ? '' : 's'}</strong>${rows}<div>${n.expanded ? 'Click to collapse' : 'Click to expand'}</div>`;
   }
   const reworkLine = n.reworkCaseCount > 0
     ? `<div>${(n.reworkRate * 100).toFixed(0)}% of processes looped back to redo this step</div>`
@@ -5704,7 +5729,7 @@ function edgeTooltipHtml(e) {
     return `<strong>${e.sourceEdges.length} deviation paths from ${labelForNode(e.from)}</strong><div>${pluralCases(Number(e.label))} total</div>`;
   }
   if (e.isBubbleEdge) {
-    return `<strong>${e.sourceEdges.length} minor variants from ${labelForNode(e.from)}</strong><div>${pluralCases(Number(e.label))} total</div>`;
+    return `<strong>${e.sourceEdges.length} variants from ${labelForNode(e.from)}</strong><div>${pluralCases(Number(e.label))} total</div>`;
   }
   const orig = e.sourceEdges[0];
   return `
