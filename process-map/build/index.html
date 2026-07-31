@@ -436,6 +436,14 @@ button:hover { filter: brightness(1.08); }
 .diamond-label { fill: var(--path-main); font-size: 13px; font-weight: 700; text-anchor: middle; pointer-events: none; }
 .diamond-sub { fill: var(--text-secondary); font-size: 9.5px; text-anchor: middle; pointer-events: none; text-transform: uppercase; letter-spacing: 0.03em; }
 
+/* ---- semantic zoom: collapsed/expanded minor-variant bubble ---- */
+.node.bubble { cursor: pointer; }
+.bubble-bg { fill: var(--path-deviation-soft); stroke: var(--path-deviation); stroke-width: 1.4px; stroke-dasharray: 4 3; transition: stroke 0.15s, fill 0.15s; }
+.node.bubble:hover .bubble-bg { stroke: var(--accent-ui); fill: var(--accent-ui-soft); }
+.bubble-bg.expanded { stroke-dasharray: none; stroke: var(--accent-ui); fill: var(--accent-ui-soft); }
+.bubble-label { fill: var(--text-primary); font-size: 12px; font-weight: 700; pointer-events: none; }
+.bubble-sub { fill: var(--text-secondary); font-size: 9.5px; pointer-events: none; }
+
 .node.dimmed { opacity: 0.28; }
 
 /* ---- edges ---- */
@@ -4738,6 +4746,29 @@ const VARIANT_DEFS = [
       'Invoice Match', 'Payment',
     ],
   },
+  // v6-v8: a handful of rare one-off exception paths that all fork from the
+  // same approval step. Individually each is a tiny sliver of cases — this
+  // is exactly the shape semantic zoom collapses into a single "+N minor
+  // variants" bubble rather than drawing four separate low-frequency
+  // branches off "Manager Approval" permanently.
+  {
+    id: 'v6',
+    label: 'Escalated to finance review',
+    weight: 2,
+    path: ['Create Request', 'Manager Approval', 'Escalated to Finance Review'],
+  },
+  {
+    id: 'v7',
+    label: 'Escalated to legal review',
+    weight: 1.5,
+    path: ['Create Request', 'Manager Approval', 'Escalated to Legal Review'],
+  },
+  {
+    id: 'v8',
+    label: 'Flagged as duplicate request',
+    weight: 1,
+    path: ['Create Request', 'Manager Approval', 'Flagged as Duplicate Request'],
+  },
 ];
 
 // [min, max] minutes a task typically takes. Used to synthesize durations.
@@ -4752,6 +4783,9 @@ const STEP_DURATION_MINUTES = {
   'Invoice Mismatch': [40, 180],
   'Payment': [15, 60],
   'Rejected': [5, 20],
+  'Escalated to Finance Review': [10, 45],
+  'Escalated to Legal Review': [15, 60],
+  'Flagged as Duplicate Request': [2, 10],
 };
 
 function pickVariant() {
@@ -5160,6 +5194,18 @@ const TASK_H = 62;
 const PILL_W = 108;
 const PILL_H = 42;
 const DIAMOND_SIZE = 84;
+const BUBBLE_W = 172;
+const BUBBLE_H = 54;
+
+// Semantic zoom: a fork's deviation branches are "minor" once they drop
+// below this share of the fork's total volume — bundled into one "+N minor
+// variants" bubble instead of drawing every low-frequency destination
+// permanently. Only bundled when there are at least this many minor
+// branches (bundling a single one saves no clutter) and only when the
+// destination is otherwise unconnected, so collapsing it can never orphan
+// one of its own outgoing edges elsewhere in the graph.
+const MINOR_SHARE = 0.2;
+const MIN_MINOR_BRANCHES = 2;
 
 const state = {
   cases: [],
@@ -5167,6 +5213,7 @@ const state = {
   threshold: 100, // Path Filter slider value 0-100 (0 = fewest deviations, 100 = all)
   taskThreshold: 100, // Task filter slider value 0-100 (0 = highest-frequency tasks only, 100 = all)
   highlight: null, // null | { kind: 'variant', value: variant } | { kind: 'node', value: nodeId }
+  expandedBubbles: new Set(), // source node ids whose "+N minor variants" bubble is currently expanded
 };
 
 const svg = d3.select('#graph');
@@ -5284,43 +5331,105 @@ function applyTaskFilter(model, sliderValue) {
 // happy path stays as plain node-to-node edges, but when a node has more
 // than one deviating destination those edges are bundled through a small
 // diamond "N cases branch here" waypoint so the source node isn't fanned
-// out with a tangle of individual connectors.
+// out with a tangle of individual connectors. Semantic zoom then goes one
+// step further: a fork's low-frequency branches collapse into a single
+// "+N minor variants" bubble instead of each getting its own permanent
+// branch, so the map stays complete (nothing is discarded — click the
+// bubble to expand it) without every rare fork being drawn at once.
 function buildRenderGraph(model) {
   const taskHiddenIds = new Set(model.nodes.filter((n) => n.taskHidden).map((n) => n.id));
   const edgeSurvives = (e) => !e.hidden && !taskHiddenIds.has(e.from) && !taskHiddenIds.has(e.to);
+  const survivingEdges = model.edges.filter(edgeSurvives);
+
+  // How many surviving edges touch each node. A minor branch is only safe
+  // to collapse behind a bubble if hiding its destination can't orphan some
+  // other edge that relies on that node still being drawn — either the
+  // destination is a pure dead end (this is its only connection), or it's a
+  // one-step detour that terminates the case (its only other edge goes to
+  // END, which stays visible regardless via other paths).
+  const touchCount = new Map();
+  survivingEdges.forEach((e) => {
+    touchCount.set(e.from, (touchCount.get(e.from) || 0) + 1);
+    touchCount.set(e.to, (touchCount.get(e.to) || 0) + 1);
+  });
+
+  const deviationsByFrom = new Map();
+  survivingEdges.forEach((e) => {
+    if (e.onHappyPath) return;
+    if (!deviationsByFrom.has(e.from)) deviationsByFrom.set(e.from, []);
+    deviationsByFrom.get(e.from).push(e);
+  });
+
+  // Decide, per fork, which of its edges bundle into a bubble.
+  const bundleSourceOf = new Map(); // edge -> the fork (from) whose bubble it belongs to
+  const bubblesByFrom = new Map(); // from -> { minorEdges, expanded }
+  deviationsByFrom.forEach((group, from) => {
+    if (group.length < 3) return;
+    const total = group.reduce((s, e) => s + e.caseCount, 0);
+    const minor = [];
+    const absorbed = []; // a bundled destination's own trailing edge to END, dropped along with it
+    group.forEach((e) => {
+      if (e.caseCount / total >= MINOR_SHARE) return;
+      const destTouch = touchCount.get(e.to);
+      if (destTouch === 1) { minor.push(e); return; }
+      if (destTouch === 2) {
+        const trailing = survivingEdges.find((oe) => oe.from === e.to && oe.to === END);
+        if (trailing) { minor.push(e); absorbed.push(trailing); }
+      }
+    });
+    if (minor.length < MIN_MINOR_BRANCHES) return;
+    bubblesByFrom.set(from, { minorEdges: minor, expanded: state.expandedBubbles.has(from) });
+    minor.forEach((e) => bundleSourceOf.set(e, from));
+    absorbed.forEach((e) => bundleSourceOf.set(e, from));
+  });
 
   const keepNodeIds = new Set([START, END]);
-  model.edges.forEach((e) => {
-    if (!edgeSurvives(e)) return;
+  survivingEdges.forEach((e) => {
+    const bundleFrom = bundleSourceOf.get(e);
+    if (bundleFrom && !bubblesByFrom.get(bundleFrom).expanded) return; // hidden behind a collapsed bubble
     keepNodeIds.add(e.from);
     keepNodeIds.add(e.to);
   });
+  bubblesByFrom.forEach((b, from) => keepNodeIds.add(`bubble::${from}`));
 
   const nodes = model.nodes
     .filter((n) => keepNodeIds.has(n.id))
     .map((n) => ({ ...n, kind: n.virtual ? (n.id === START ? 'start' : 'end') : 'task' }));
+  bubblesByFrom.forEach((b, from) => {
+    nodes.push({ id: `bubble::${from}`, kind: 'bubble', count: b.minorEdges.length, minorEdges: b.minorEdges, fromNode: from, expanded: b.expanded });
+  });
 
   const edges = [];
   const deviationByFrom = new Map();
-  model.edges.forEach((e) => {
-    if (!edgeSurvives(e)) return;
+  survivingEdges.forEach((e) => {
     if (e.onHappyPath) { edges.push({ from: e.from, to: e.to, kind: 'happy', sourceEdges: [e] }); return; }
+    const bundleFrom = bundleSourceOf.get(e);
+    if (bundleFrom && !bubblesByFrom.get(bundleFrom).expanded) return; // represented by the bubble's own edge below
     if (!deviationByFrom.has(e.from)) deviationByFrom.set(e.from, []);
     deviationByFrom.get(e.from).push(e);
+  });
+  // The bubble always gets its own edge from the fork — a single collapsed
+  // waypoint when hidden, or (once expanded) a "− Collapse" toggle sitting
+  // alongside its now individually-drawn minor branches.
+  bubblesByFrom.forEach((b, from) => {
+    const total = b.minorEdges.reduce((s, e) => s + e.caseCount, 0);
+    if (!deviationByFrom.has(from)) deviationByFrom.set(from, []);
+    deviationByFrom.get(from).push({ from, to: `bubble::${from}`, caseCount: total, isBubbleEdge: true, sourceEdges: b.minorEdges });
   });
 
   deviationByFrom.forEach((group, from) => {
     if (group.length === 1) {
       const e = group[0];
-      edges.push({ from: e.from, to: e.to, kind: 'deviation', label: `${e.caseCount}`, sourceEdges: [e] });
+      edges.push({ from: e.from, to: e.to, kind: 'deviation', label: `${e.caseCount}`, sourceEdges: e.sourceEdges || [e], isBubbleEdge: e.isBubbleEdge });
       return;
     }
     const total = group.reduce((s, e) => s + e.caseCount, 0);
     const diamondId = `diamond::${from}`;
-    nodes.push({ id: diamondId, kind: 'diamond', label: `${total}`, sourceEdges: group });
-    edges.push({ from, to: diamondId, kind: 'deviation-bundle', label: `${total}`, sourceEdges: group });
+    const allSourceEdges = group.flatMap((e) => e.sourceEdges || [e]);
+    nodes.push({ id: diamondId, kind: 'diamond', label: `${total}`, sourceEdges: allSourceEdges });
+    edges.push({ from, to: diamondId, kind: 'deviation-bundle', label: `${total}`, sourceEdges: allSourceEdges });
     group.forEach((e) => {
-      edges.push({ from: diamondId, to: e.to, kind: 'deviation', label: `${e.caseCount}`, sourceEdges: [e] });
+      edges.push({ from: diamondId, to: e.to, kind: 'deviation', label: `${e.caseCount}`, sourceEdges: e.sourceEdges || [e], isBubbleEdge: e.isBubbleEdge });
     });
   });
 
@@ -5337,6 +5446,7 @@ function layout(renderGraph) {
     let height = TASK_H;
     if (n.kind === 'start' || n.kind === 'end') { width = PILL_W; height = PILL_H; }
     if (n.kind === 'diamond') { width = DIAMOND_SIZE; height = DIAMOND_SIZE; }
+    if (n.kind === 'bubble') { width = BUBBLE_W; height = BUBBLE_H; }
     g.setNode(n.id, { width, height });
   });
   renderGraph.edges.forEach((e) => {
@@ -5411,6 +5521,22 @@ function buildDiamond(g, n, p) {
     .text(n.label === '1' ? 'process' : 'processes');
 }
 
+// Semantic zoom's collapsed/expanded waypoint. Collapsed, it reads "+N
+// minor variants — click to expand"; once expanded it flips to a
+// "− Collapse" toggle in the exact same spot, so the affordance to put the
+// clutter away again is always right where the bubble was.
+function buildBubble(g, n, p) {
+  const label = n.expanded
+    ? `− Collapse ${n.count} variant${n.count === 1 ? '' : 's'}`
+    : `+${n.count} minor variant${n.count === 1 ? '' : 's'}`;
+  g.append('rect').attr('class', `bubble-bg${n.expanded ? ' expanded' : ''}`)
+    .attr('width', p.width).attr('height', p.height).attr('rx', p.height / 2);
+  g.append('text').attr('class', 'bubble-label').attr('x', p.width / 2).attr('y', p.height / 2 - 3)
+    .attr('text-anchor', 'middle').text(label);
+  g.append('text').attr('class', 'bubble-sub').attr('x', p.width / 2).attr('y', p.height / 2 + 14)
+    .attr('text-anchor', 'middle').text(n.expanded ? 'Click to collapse' : 'Click to expand');
+}
+
 function render(fit = false) {
   const model = state.model;
   applyThreshold(model, state.threshold);
@@ -5422,9 +5548,11 @@ function render(fit = false) {
 
   // A deviation edge is "rework" when the transition's target was already
   // visited earlier in the same case (graph.js flags this at the source),
-  // as opposed to a variant that simply orders steps differently.
+  // as opposed to a variant that simply orders steps differently. A bubble
+  // edge bundles multiple minor edges that may not agree on this, so it
+  // never gets styled as rework — just a plain grey deviation connector.
   renderGraph.edges.forEach((e) => {
-    e.isRework = e.kind === 'deviation' && e.sourceEdges[0].reworkCaseCount > 0;
+    e.isRework = e.kind === 'deviation' && !e.isBubbleEdge && e.sourceEdges[0].reworkCaseCount > 0;
   });
 
   const highlight = state.highlight;
@@ -5454,6 +5582,7 @@ function render(fit = false) {
   const nodeIsActive = (n) => {
     if (activeSeq) {
       if (n.kind === 'diamond') return n.sourceEdges.some((se) => activeEdgeKeys.has(`${se.from}||${se.to}`));
+      if (n.kind === 'bubble') return n.minorEdges.some((se) => activeEdgeKeys.has(`${se.from}||${se.to}`));
       return activeSeq.includes(n.id);
     }
     if (focusNodeId) return focusNeighborIds.has(n.id);
@@ -5527,7 +5656,14 @@ function render(fit = false) {
     const p = nodePos.get(n.id);
     if (n.kind === 'task') buildTaskCard(g, n, p);
     else if (n.kind === 'diamond') buildDiamond(g, n, p);
+    else if (n.kind === 'bubble') buildBubble(g, n, p);
     else buildPill(g, n, p);
+  });
+
+  mergedNodes.filter((n) => n.kind === 'bubble').on('click', (event, n) => {
+    if (n.expanded) state.expandedBubbles.delete(n.fromNode);
+    else state.expandedBubbles.add(n.fromNode);
+    render(true);
   });
 
   renderInsights(model);
@@ -5543,6 +5679,10 @@ function nodeTooltipHtml(n, model) {
   if (n.kind === 'diamond') {
     const rows = n.sourceEdges.map((e) => `<div>→ ${labelForNode(e.to)}: ${pluralCases(e.caseCount)}</div>`).join('');
     return `<strong>${pluralCases(Number(n.label))} branch here</strong>${rows}`;
+  }
+  if (n.kind === 'bubble') {
+    const rows = n.minorEdges.map((e) => `<div>→ ${labelForNode(e.to)}: ${pluralCases(e.caseCount)}</div>`).join('');
+    return `<strong>${n.count} minor variant${n.count === 1 ? '' : 's'}</strong>${rows}<div>${n.expanded ? 'Click to collapse' : 'Click to expand'}</div>`;
   }
   const reworkLine = n.reworkCaseCount > 0
     ? `<div>${(n.reworkRate * 100).toFixed(0)}% of processes looped back to redo this step</div>`
@@ -5562,6 +5702,9 @@ function edgeTooltipHtml(e) {
   }
   if (e.kind === 'deviation-bundle') {
     return `<strong>${e.sourceEdges.length} deviation paths from ${labelForNode(e.from)}</strong><div>${pluralCases(Number(e.label))} total</div>`;
+  }
+  if (e.isBubbleEdge) {
+    return `<strong>${e.sourceEdges.length} minor variants from ${labelForNode(e.from)}</strong><div>${pluralCases(Number(e.label))} total</div>`;
   }
   const orig = e.sourceEdges[0];
   return `
@@ -5817,6 +5960,7 @@ function handleUploadFile(file) {
       state.highlight = null;
       state.threshold = 100;
       state.taskThreshold = 100;
+      state.expandedBubbles = new Set();
       d3.select('#pf-slider').property('value', 100);
       d3.select('#tf-slider').property('value', 100);
       setUploadStatus(`Loaded ${cases.length} process${cases.length === 1 ? '' : 'es'} from "${file.name}".`, 'success');

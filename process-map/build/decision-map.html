@@ -436,6 +436,14 @@ button:hover { filter: brightness(1.08); }
 .diamond-label { fill: var(--path-main); font-size: 13px; font-weight: 700; text-anchor: middle; pointer-events: none; }
 .diamond-sub { fill: var(--text-secondary); font-size: 9.5px; text-anchor: middle; pointer-events: none; text-transform: uppercase; letter-spacing: 0.03em; }
 
+/* ---- semantic zoom: collapsed/expanded minor-variant bubble ---- */
+.node.bubble { cursor: pointer; }
+.bubble-bg { fill: var(--path-deviation-soft); stroke: var(--path-deviation); stroke-width: 1.4px; stroke-dasharray: 4 3; transition: stroke 0.15s, fill 0.15s; }
+.node.bubble:hover .bubble-bg { stroke: var(--accent-ui); fill: var(--accent-ui-soft); }
+.bubble-bg.expanded { stroke-dasharray: none; stroke: var(--accent-ui); fill: var(--accent-ui-soft); }
+.bubble-label { fill: var(--text-primary); font-size: 12px; font-weight: 700; pointer-events: none; }
+.bubble-sub { fill: var(--text-secondary); font-size: 9.5px; pointer-events: none; }
+
 .node.dimmed { opacity: 0.28; }
 
 /* ---- edges ---- */

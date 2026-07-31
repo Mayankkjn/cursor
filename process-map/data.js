@@ -55,6 +55,29 @@ const VARIANT_DEFS = [
       'Invoice Match', 'Payment',
     ],
   },
+  // v6-v8: a handful of rare one-off exception paths that all fork from the
+  // same approval step. Individually each is a tiny sliver of cases — this
+  // is exactly the shape semantic zoom collapses into a single "+N minor
+  // variants" bubble rather than drawing four separate low-frequency
+  // branches off "Manager Approval" permanently.
+  {
+    id: 'v6',
+    label: 'Escalated to finance review',
+    weight: 2,
+    path: ['Create Request', 'Manager Approval', 'Escalated to Finance Review'],
+  },
+  {
+    id: 'v7',
+    label: 'Escalated to legal review',
+    weight: 1.5,
+    path: ['Create Request', 'Manager Approval', 'Escalated to Legal Review'],
+  },
+  {
+    id: 'v8',
+    label: 'Flagged as duplicate request',
+    weight: 1,
+    path: ['Create Request', 'Manager Approval', 'Flagged as Duplicate Request'],
+  },
 ];
 
 // [min, max] minutes a task typically takes. Used to synthesize durations.
@@ -69,6 +92,9 @@ const STEP_DURATION_MINUTES = {
   'Invoice Mismatch': [40, 180],
   'Payment': [15, 60],
   'Rejected': [5, 20],
+  'Escalated to Finance Review': [10, 45],
+  'Escalated to Legal Review': [15, 60],
+  'Flagged as Duplicate Request': [2, 10],
 };
 
 function pickVariant() {
