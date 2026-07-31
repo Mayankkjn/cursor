@@ -200,21 +200,41 @@
       </div>
     </div>
 
-    <div class="floating-path-filter" id="floating-path-filter">
-      <div class="pf-row">
-        <span class="pf-label">Process Variants</span>
-        <span class="pf-value" id="pf-value">100%</span>
-      </div>
-      <p class="pf-subtext" id="pf-subtext">Showing all process variants</p>
+    <div class="floating-filters" id="floating-filters">
+      <div class="floating-task-filter" id="floating-task-filter">
+        <div class="pf-row">
+          <span class="pf-label">Task filter</span>
+          <span class="pf-value" id="tf-value">100%</span>
+        </div>
+        <p class="pf-subtext" id="tf-subtext">Showing all tasks</p>
 
-      <div class="pf-slider-row">
-        <button class="pf-step-btn" id="pf-minus" type="button" aria-label="Show fewer variants">&minus;</button>
-        <input type="range" id="pf-slider" class="pf-slider" min="0" max="100" value="100" />
-        <button class="pf-step-btn" id="pf-plus" type="button" aria-label="Show more variants">+</button>
+        <div class="pf-slider-row">
+          <button class="pf-step-btn" id="tf-minus" type="button" aria-label="Show fewer tasks">&minus;</button>
+          <input type="range" id="tf-slider" class="pf-slider" min="0" max="100" value="100" />
+          <button class="pf-step-btn" id="tf-plus" type="button" aria-label="Show more tasks">+</button>
+        </div>
+        <div class="pf-slider-labels">
+          <span>High frequency</span>
+          <span>Low frequency</span>
+        </div>
       </div>
-      <div class="pf-slider-labels">
-        <span>Popular path</span>
-        <span>All paths</span>
+
+      <div class="floating-path-filter" id="floating-path-filter">
+        <div class="pf-row">
+          <span class="pf-label">Process Variants</span>
+          <span class="pf-value" id="pf-value">100%</span>
+        </div>
+        <p class="pf-subtext" id="pf-subtext">Showing all process variants</p>
+
+        <div class="pf-slider-row">
+          <button class="pf-step-btn" id="pf-minus" type="button" aria-label="Show fewer variants">&minus;</button>
+          <input type="range" id="pf-slider" class="pf-slider" min="0" max="100" value="100" />
+          <button class="pf-step-btn" id="pf-plus" type="button" aria-label="Show more variants">+</button>
+        </div>
+        <div class="pf-slider-labels">
+          <span>Popular path</span>
+          <span>All paths</span>
+        </div>
       </div>
     </div>
 

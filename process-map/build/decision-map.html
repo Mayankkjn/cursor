@@ -494,10 +494,18 @@ button:hover { filter: brightness(1.08); }
 .metric-empty { font-size: 0.78rem; color: var(--text-secondary); }
 
 /* ---- floating widgets over the canvas ---- */
-.floating-path-filter {
+.floating-filters {
   position: absolute;
   left: 16px;
   bottom: 16px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.floating-task-filter,
+.floating-path-filter {
   width: 300px;
   max-width: calc(100vw - 32px);
   background: var(--card-bg);
@@ -505,7 +513,6 @@ button:hover { filter: brightness(1.08); }
   border-radius: 12px;
   padding: 16px;
   box-shadow: var(--shadow-md);
-  z-index: 5;
 }
 
 .floating-legend {
