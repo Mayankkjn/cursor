@@ -387,9 +387,12 @@ function appendTaskIcon(g, x, y) {
   k.append('circle').attr('class', 'icon-task-dot').attr('cx', x + 5.6).attr('cy', y + 5.4).attr('r', 1.9);
   k.append('circle').attr('class', 'icon-task-dot').attr('cx', x + 7.6).attr('cy', y + 5.4).attr('r', 1.9);
 }
-function appendKebab(g, x, y) {
-  const k = g.append('g').attr('class', 'icon-kebab');
+function appendKebab(g, x, y, onClick) {
+  const hit = g.append('g').attr('class', 'icon-kebab-hit');
+  hit.append('rect').attr('x', x - 11).attr('y', y - 13).attr('width', 22).attr('height', 26).attr('fill', 'transparent');
+  const k = hit.append('g').attr('class', 'icon-kebab');
   [-5, 0, 5].forEach((dy) => k.append('circle').attr('cx', x).attr('cy', y + dy).attr('r', 1.3));
+  if (onClick) hit.on('click', onClick);
 }
 function appendClockIcon(g, x, y) {
   const k = g.append('g').attr('class', 'icon-clock');
@@ -415,7 +418,10 @@ function buildTaskCard(g, n, p) {
   // Fixed to the card's base height (not p.height) so a fast-vs-typical
   // badge — which grows the card — adds a new row below rather than
   // shifting these positions around.
-  appendKebab(g, p.width - 16, TASK_H / 2 - 11);
+  appendKebab(g, p.width - 16, TASK_H / 2 - 11, (event) => {
+    event.stopPropagation();
+    openTaskMenu(event, n.id);
+  });
   appendClockIcon(g, 16, TASK_H - 24);
   g.append('text').attr('class', 'node-meta').attr('x', 40).attr('y', TASK_H - 14)
     .text(`${pluralCases(n.caseCount)} · ${formatDuration(n.avgDuration)}`);
@@ -966,6 +972,8 @@ function handleUploadFile(file) {
       d3.select('#insight-compare-btn').classed('active', false);
       d3.select('#pf-slider').property('value', 100);
       d3.select('#tf-slider').property('value', 100);
+      closeTaskMenu();
+      closeSessionReplay();
       setUploadStatus(`Loaded ${cases.length} instance${cases.length === 1 ? '' : 's'} from "${file.name}".`, 'success');
       render(true);
       setTimeout(closeImportModal, 700);
@@ -1018,6 +1026,206 @@ d3.select('#import-modal').on('click', function (event) {
 });
 d3.select(document).on('keydown', (event) => {
   if (event.key === 'Escape' && !d3.select('#import-modal').classed('hidden')) closeImportModal();
+});
+d3.select(document).on('keydown.sessionReplay', (event) => {
+  if (event.key !== 'Escape') return;
+  if (!d3.select('#session-replay-modal').classed('hidden')) closeSessionReplay();
+  else if (!d3.select('#task-menu').classed('hidden')) closeTaskMenu();
+});
+
+// ---- task "..." menu ----
+let taskMenuTargetId = null;
+
+function openTaskMenu(event, taskId) {
+  taskMenuTargetId = taskId;
+  hideTooltip();
+  const menu = document.getElementById('task-menu');
+  menu.classList.remove('hidden');
+  // Clamp so the menu never renders off the right/bottom edge of the viewport.
+  const menuWidth = 180;
+  const menuHeight = 44;
+  const left = Math.min(event.clientX, window.innerWidth - menuWidth - 8);
+  const top = Math.min(event.clientY, window.innerHeight - menuHeight - 8);
+  menu.style.left = `${left}px`;
+  menu.style.top = `${top}px`;
+}
+function closeTaskMenu() {
+  taskMenuTargetId = null;
+  d3.select('#task-menu').classed('hidden', true);
+}
+d3.select('#task-menu-watch').on('click', () => {
+  const taskId = taskMenuTargetId;
+  closeTaskMenu();
+  if (taskId) openSessionReplay(taskId);
+});
+d3.select(document).on('click.taskMenu', (event) => {
+  const menu = document.getElementById('task-menu');
+  if (!menu.classList.contains('hidden') && !menu.contains(event.target)) closeTaskMenu();
+});
+
+// ---- Session Replay ----
+// There's no real screen-recording data behind this app's synthetic event
+// logs, so the "recording" is an honest placeholder (a static player frame,
+// non-functional play button) while everything else — who performed the
+// task, how many instances/paths it appears in, and the step timeline — is
+// either real (derived from the case log) or a clearly-templated stand-in
+// for a per-click breakdown the data doesn't contain.
+const srState = { taskId: null, taskLabel: '', sessions: [], activeIndex: 0, steps: [], totalSeconds: 0, currentStepIndex: 0 };
+
+function hashStr(str) {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
+  return h;
+}
+function formatClock(totalSeconds) {
+  const m = Math.floor(totalSeconds / 60);
+  const s = Math.round(totalSeconds % 60);
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+function buildTaskSessions(cases, taskId) {
+  const sessions = [];
+  cases.forEach((c) => {
+    const occurrences = c.steps.filter((s) => s.task === taskId);
+    if (!occurrences.length) return;
+    sessions.push({ caseId: c.caseId, user: (c.users && c.users[0]) || 'Unknown user', isRework: occurrences.length > 1 });
+  });
+  return sessions;
+}
+
+// Synthesizes a plausible step-by-step breakdown scaled to a short (2-6.5min)
+// "recording length" — a stand-in for click-level detail the event log
+// doesn't capture, deterministic per case so the same session always shows
+// the same steps.
+function buildSessionSteps(taskLabel, isRework, seed) {
+  const totalSeconds = 150 + (seed % 240);
+  const marks = isRework ? [0, 0.18, 0.42, 0.64, 0.86, 1] : [0, 0.22, 0.5, 0.8, 1];
+  const labels = isRework
+    ? [`Opened ${taskLabel}`, 'Reviewed related information', 'Entered required details', 'Reopened previous entry', 'Confirmed changes', `Completed ${taskLabel}`]
+    : [`Opened ${taskLabel}`, 'Reviewed related information', 'Entered required details', 'Confirmed changes', `Completed ${taskLabel}`];
+  const steps = marks.map((frac, i) => ({ t: Math.round(frac * totalSeconds), label: labels[i], loop: isRework && i === 3 }));
+  return { totalSeconds, steps };
+}
+
+function userInitials(user) {
+  const cleaned = String(user).replace(/^U-/, '');
+  return cleaned.slice(0, 2).toUpperCase();
+}
+
+function openSessionReplay(taskId) {
+  const model = state.model;
+  const node = model.nodes.find((n) => n.id === taskId);
+  const sessions = buildTaskSessions(state.cases, taskId);
+  if (!node || !sessions.length) return;
+
+  srState.taskId = taskId;
+  srState.taskLabel = node.label;
+  srState.sessions = sessions;
+  const reworkIndex = sessions.findIndex((s) => s.isRework);
+  srState.activeIndex = reworkIndex >= 0 ? reworkIndex : 0;
+
+  const uniqueUsers = new Set(sessions.map((s) => s.user)).size;
+  const paths = model.variants.filter((v) => v.path.includes(taskId));
+  const pathList = paths.slice(0, 4).map((v) => `#${v.rank}`).join(', ');
+  srState.contextHtml = `
+    <div><b>${sessions.length}</b> instance${sessions.length === 1 ? '' : 's'}</div>
+    <div class="sr-context-divider"></div>
+    <div><b>${uniqueUsers}</b> unique user${uniqueUsers === 1 ? '' : 's'}</div>
+    <div class="sr-context-divider"></div>
+    <div>Appears in ${paths.length} path${paths.length === 1 ? '' : 's'}${pathList ? ` · ${pathList}` : ''}</div>
+  `;
+
+  switchSRTab('steps');
+  renderSessionReplay();
+  d3.select('#session-replay-modal').classed('hidden', false);
+}
+function closeSessionReplay() {
+  d3.select('#session-replay-modal').classed('hidden', true);
+}
+
+function renderSessionReplay() {
+  const session = srState.sessions[srState.activeIndex];
+  const { totalSeconds, steps } = buildSessionSteps(srState.taskLabel, session.isRework, hashStr(session.caseId));
+  srState.steps = steps;
+  srState.totalSeconds = totalSeconds;
+  srState.currentStepIndex = 0;
+
+  d3.select('#sr-task-name').text(`${srState.taskLabel} — Session Replay`);
+  d3.select('#sr-task-sub').text(`Case ${session.caseId} · ${session.user}`);
+  d3.select('#sr-context-band').html(srState.contextHtml);
+
+  const stepsPanel = d3.select('#sr-steps-panel');
+  stepsPanel.selectAll('*').remove();
+  steps.forEach((step, i) => {
+    const row = stepsPanel.append('div')
+      .attr('class', `sr-step-row${step.loop ? ' loop' : ''}${i === 0 ? ' current' : ''}`)
+      .on('click', () => seekToStep(i));
+    row.append('span').attr('class', 'sr-step-time').text(formatClock(step.t));
+    row.append('span').attr('class', 'sr-step-desc').text(step.label);
+  });
+
+  const usersPanel = d3.select('#sr-users-panel');
+  usersPanel.selectAll('*').remove();
+  srState.sessions.forEach((s, i) => {
+    const row = usersPanel.append('div')
+      .attr('class', `sr-user-row${i === srState.activeIndex ? ' active' : ''}`)
+      .on('click', () => { srState.activeIndex = i; renderSessionReplay(); });
+    row.append('span').attr('class', 'sr-user-avatar').text(userInitials(s.user));
+    const info = row.append('span').attr('class', 'sr-user-info');
+    info.append('span').attr('class', 'sr-user-name').text(s.user);
+    info.append('span').attr('class', 'sr-user-meta').text(`Case ${s.caseId}${s.isRework ? ' · rework' : ''}`);
+  });
+
+  renderScrubber();
+}
+
+function renderScrubber() {
+  const track = d3.select('#sr-scrubber-track');
+  track.selectAll('.sr-scrubber-tick').remove();
+  srState.steps.forEach((step) => {
+    track.append('div')
+      .attr('class', `sr-scrubber-tick${step.loop ? ' loop' : ''}`)
+      .style('left', `${(step.t / srState.totalSeconds) * 100}%`);
+  });
+  updateScrubberPosition();
+}
+function updateScrubberPosition() {
+  const step = srState.steps[srState.currentStepIndex];
+  const pct = srState.totalSeconds ? (step.t / srState.totalSeconds) * 100 : 0;
+  d3.select('#sr-scrubber-fill').style('width', `${pct}%`);
+  d3.select('#sr-scrubber-thumb').style('left', `${pct}%`);
+  d3.select('#sr-time-current').text(formatClock(step.t));
+  d3.select('#sr-time-total').text(formatClock(srState.totalSeconds));
+}
+function seekToStep(i) {
+  srState.currentStepIndex = i;
+  document.querySelectorAll('#sr-steps-panel .sr-step-row').forEach((el, idx) => el.classList.toggle('current', idx === i));
+  updateScrubberPosition();
+}
+function switchSRTab(tab) {
+  d3.select('#sr-tab-steps').classed('active', tab === 'steps');
+  d3.select('#sr-tab-users').classed('active', tab === 'users');
+  d3.select('#sr-steps-panel').classed('hidden', tab !== 'steps');
+  d3.select('#sr-users-panel').classed('hidden', tab !== 'users');
+}
+
+d3.select('#sr-tab-steps').on('click', () => switchSRTab('steps'));
+d3.select('#sr-tab-users').on('click', () => switchSRTab('users'));
+d3.select('#sr-close').on('click', closeSessionReplay);
+d3.select('#session-replay-modal').on('click', function (event) {
+  if (event.target === this) closeSessionReplay();
+});
+d3.select('#sr-scrubber-track').on('click', function (event) {
+  const rect = this.getBoundingClientRect();
+  const frac = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
+  const targetT = frac * srState.totalSeconds;
+  let nearest = 0;
+  let nearestDist = Infinity;
+  srState.steps.forEach((s, i) => {
+    const d = Math.abs(s.t - targetT);
+    if (d < nearestDist) { nearestDist = d; nearest = i; }
+  });
+  seekToStep(nearest);
 });
 
 // ---- upload ----

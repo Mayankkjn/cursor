@@ -260,7 +260,56 @@
       <div class="legend-row"><span class="swatch deviation"></span> Deviation, moving forward</div>
       <div class="legend-row"><span class="swatch rework"></span> Deviation that loops back (rework)</div>
     </div>
+
+    <div id="task-menu" class="task-menu hidden">
+      <button class="task-menu-item" id="task-menu-watch" type="button">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M2.5 1.5 L10 6 L2.5 10.5 Z" /></svg>
+        Watch session
+      </button>
+    </div>
   </main>
+
+  <div id="session-replay-modal" class="modal-overlay hidden">
+    <div class="modal-panel session-replay-panel">
+      <div class="sr-header">
+        <div class="sr-header-title">
+          <span class="sr-task-name" id="sr-task-name">Session Replay</span>
+          <span class="sr-task-sub" id="sr-task-sub"></span>
+        </div>
+        <button class="modal-close" id="sr-close" type="button" aria-label="Close session replay">
+          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M3 3 L13 13 M13 3 L3 13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+          </svg>
+        </button>
+      </div>
+      <div class="sr-context-band" id="sr-context-band"></div>
+      <div class="sr-body">
+        <div class="sr-player-col">
+          <span class="sr-label">Session recording</span>
+          <div class="sr-player">
+            <div class="sr-ghost" style="top:14%; left:6%; width:30%; height:10%;"></div>
+            <div class="sr-ghost" style="top:30%; left:6%; width:88%; height:46%;"></div>
+            <button class="sr-play-btn" id="sr-play-btn" type="button" aria-label="Play (preview only)"></button>
+          </div>
+          <div class="sr-scrubber">
+            <div class="sr-scrubber-track" id="sr-scrubber-track">
+              <div class="sr-scrubber-fill" id="sr-scrubber-fill"></div>
+              <div class="sr-scrubber-thumb" id="sr-scrubber-thumb"></div>
+            </div>
+            <div class="sr-scrubber-time"><span id="sr-time-current">0:00</span><span id="sr-time-total">0:00</span></div>
+          </div>
+        </div>
+        <div class="sr-side-col">
+          <div class="sr-tabs">
+            <button class="sr-tab active" id="sr-tab-steps" type="button">Steps</button>
+            <button class="sr-tab" id="sr-tab-users" type="button">Users</button>
+          </div>
+          <div class="sr-tab-panel" id="sr-steps-panel"></div>
+          <div class="sr-tab-panel hidden" id="sr-users-panel"></div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <script src="vendor/d3.min.js"></script>
   <script src="vendor/dagre.min.js"></script>
