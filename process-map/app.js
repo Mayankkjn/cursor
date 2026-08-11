@@ -1067,10 +1067,11 @@ d3.select(document).on('click.taskMenu', (event) => {
 // There's no real screen-recording data behind this app's synthetic event
 // logs, so the "recording" is an honest placeholder (a static player frame,
 // non-functional play button) while everything else — who performed the
-// task, how many instances/paths it appears in, and the step timeline — is
-// either real (derived from the case log) or a clearly-templated stand-in
-// for a per-click breakdown the data doesn't contain.
-const srState = { taskId: null, taskLabel: '', sessions: [], activeIndex: 0, steps: [], totalSeconds: 0, currentStepIndex: 0 };
+// task, how many instances/paths it appears in, real total time per user,
+// and the step timeline — is either real (derived from the case log) or a
+// clearly-templated stand-in for a per-click breakdown the data doesn't
+// contain.
+const srState = { taskId: null, taskLabel: '', sessions: [], userSummary: [], activeIndex: 0, steps: [], totalSeconds: 0, currentStepIndex: 0 };
 
 function hashStr(str) {
   let h = 0;
@@ -1080,7 +1081,10 @@ function hashStr(str) {
 function formatClock(totalSeconds) {
   const m = Math.floor(totalSeconds / 60);
   const s = Math.round(totalSeconds % 60);
-  return `${m}:${String(s).padStart(2, '0')}`;
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+function formatUserId(user) {
+  return `ID:${String(user).replace(/^U-/, '')}`;
 }
 
 function buildTaskSessions(cases, taskId) {
@@ -1088,9 +1092,25 @@ function buildTaskSessions(cases, taskId) {
   cases.forEach((c) => {
     const occurrences = c.steps.filter((s) => s.task === taskId);
     if (!occurrences.length) return;
-    sessions.push({ caseId: c.caseId, user: (c.users && c.users[0]) || 'Unknown user', isRework: occurrences.length > 1 });
+    const caseDuration = occurrences.reduce((sum, s) => sum + s.duration, 0);
+    sessions.push({ caseId: c.caseId, user: (c.users && c.users[0]) || 'Unknown user', isRework: occurrences.length > 1, caseDuration });
   });
   return sessions;
+}
+
+// One row per user (not per instance) — real aggregates from the case log:
+// total time this user spent on the task, and how many times they did it.
+// Each user's first session index is kept so clicking the row can jump
+// straight to a representative session.
+function buildUserSummary(sessions) {
+  const byUser = new Map();
+  sessions.forEach((s, i) => {
+    const entry = byUser.get(s.user) || { user: s.user, totalMinutes: 0, count: 0, sessionIndex: i };
+    entry.totalMinutes += s.caseDuration;
+    entry.count += 1;
+    byUser.set(s.user, entry);
+  });
+  return Array.from(byUser.values()).sort((a, b) => b.count - a.count);
 }
 
 // Synthesizes a plausible step-by-step breakdown scaled to a short (2-6.5min)
@@ -1107,11 +1127,6 @@ function buildSessionSteps(taskLabel, isRework, seed) {
   return { totalSeconds, steps };
 }
 
-function userInitials(user) {
-  const cleaned = String(user).replace(/^U-/, '');
-  return cleaned.slice(0, 2).toUpperCase();
-}
-
 function openSessionReplay(taskId) {
   const model = state.model;
   const node = model.nodes.find((n) => n.id === taskId);
@@ -1121,19 +1136,12 @@ function openSessionReplay(taskId) {
   srState.taskId = taskId;
   srState.taskLabel = node.label;
   srState.sessions = sessions;
+  srState.userSummary = buildUserSummary(sessions);
   const reworkIndex = sessions.findIndex((s) => s.isRework);
   srState.activeIndex = reworkIndex >= 0 ? reworkIndex : 0;
 
-  const uniqueUsers = new Set(sessions.map((s) => s.user)).size;
   const paths = model.variants.filter((v) => v.path.includes(taskId));
-  const pathList = paths.slice(0, 4).map((v) => `#${v.rank}`).join(', ');
-  srState.contextHtml = `
-    <div><b>${sessions.length}</b> instance${sessions.length === 1 ? '' : 's'}</div>
-    <div class="sr-context-divider"></div>
-    <div><b>${uniqueUsers}</b> unique user${uniqueUsers === 1 ? '' : 's'}</div>
-    <div class="sr-context-divider"></div>
-    <div>Appears in ${paths.length} path${paths.length === 1 ? '' : 's'}${pathList ? ` · ${pathList}` : ''}</div>
-  `;
+  srState.metaText = `${sessions.length} instance${sessions.length === 1 ? '' : 's'} · ${srState.userSummary.length} unique user${srState.userSummary.length === 1 ? '' : 's'} · ${paths.length} path${paths.length === 1 ? '' : 's'}`;
 
   switchSRTab('steps');
   renderSessionReplay();
@@ -1141,6 +1149,7 @@ function openSessionReplay(taskId) {
 }
 function closeSessionReplay() {
   d3.select('#session-replay-modal').classed('hidden', true);
+  d3.select('#sr-panel').classed('sr-panel-expanded', false);
 }
 
 function renderSessionReplay() {
@@ -1150,9 +1159,8 @@ function renderSessionReplay() {
   srState.totalSeconds = totalSeconds;
   srState.currentStepIndex = 0;
 
-  d3.select('#sr-task-name').text(`${srState.taskLabel} — Session Replay`);
-  d3.select('#sr-task-sub').text(`Case ${session.caseId} · ${session.user}`);
-  d3.select('#sr-context-band').html(srState.contextHtml);
+  d3.select('#sr-task-name').text(srState.taskLabel);
+  d3.select('#sr-task-sub').text(srState.metaText);
 
   const stepsPanel = d3.select('#sr-steps-panel');
   stepsPanel.selectAll('*').remove();
@@ -1166,14 +1174,14 @@ function renderSessionReplay() {
 
   const usersPanel = d3.select('#sr-users-panel');
   usersPanel.selectAll('*').remove();
-  srState.sessions.forEach((s, i) => {
+  srState.userSummary.forEach((u) => {
     const row = usersPanel.append('div')
-      .attr('class', `sr-user-row${i === srState.activeIndex ? ' active' : ''}`)
-      .on('click', () => { srState.activeIndex = i; renderSessionReplay(); });
-    row.append('span').attr('class', 'sr-user-avatar').text(userInitials(s.user));
+      .attr('class', `sr-user-row${u.sessionIndex === srState.activeIndex ? ' active' : ''}`)
+      .on('click', () => { srState.activeIndex = u.sessionIndex; renderSessionReplay(); });
+    row.append('span').attr('class', 'sr-user-avatar').html('<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="5.4" r="2.7" stroke="currentColor" stroke-width="1.4"/><path d="M2.8 14 C2.8 10.6 5 9 8 9 C11 9 13.2 10.6 13.2 14" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>');
     const info = row.append('span').attr('class', 'sr-user-info');
-    info.append('span').attr('class', 'sr-user-name').text(s.user);
-    info.append('span').attr('class', 'sr-user-meta').text(`Case ${s.caseId}${s.isRework ? ' · rework' : ''}`);
+    info.append('span').attr('class', 'sr-user-name').text(formatUserId(u.user));
+    info.append('span').attr('class', 'sr-user-meta').text(`${formatDuration(u.totalMinutes)} · ${u.count} time${u.count === 1 ? '' : 's'}`);
   });
 
   renderScrubber();
@@ -1226,6 +1234,25 @@ d3.select('#sr-scrubber-track').on('click', function (event) {
     if (d < nearestDist) { nearestDist = d; nearest = i; }
   });
   seekToStep(nearest);
+});
+
+// Restart affordances (header + control-bar icon) — there's no real
+// playback to pause/resume, so both just reset the scrubber to the start.
+d3.select('#sr-header-play').on('click', () => seekToStep(0));
+d3.select('#sr-pause-btn').on('click', () => seekToStep(0));
+
+// Speed and "skip inactive" are cosmetic toggles — honest about there being
+// no real video whose rate or dead-time they could actually affect.
+d3.selectAll('.sr-speed').on('click', function () {
+  d3.selectAll('.sr-speed').classed('active', false);
+  d3.select(this).classed('active', true);
+});
+d3.select('#sr-skip-toggle').on('click', function () {
+  d3.select(this).classed('active', !this.classList.contains('active'));
+});
+
+d3.select('#sr-expand').on('click', () => {
+  d3.select('#sr-panel').classed('sr-panel-expanded', !document.getElementById('sr-panel').classList.contains('sr-panel-expanded'));
 });
 
 // ---- upload ----

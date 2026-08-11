@@ -270,42 +270,79 @@
   </main>
 
   <div id="session-replay-modal" class="modal-overlay hidden">
-    <div class="modal-panel session-replay-panel">
+    <div class="modal-panel session-replay-panel" id="sr-panel">
       <div class="sr-header">
+        <button class="sr-header-play" id="sr-header-play" type="button" aria-label="Restart preview">
+          <svg width="13" height="13" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M2.5 1.5 L10 6 L2.5 10.5 Z" /></svg>
+        </button>
         <div class="sr-header-title">
           <span class="sr-task-name" id="sr-task-name">Session Replay</span>
           <span class="sr-task-sub" id="sr-task-sub"></span>
         </div>
-        <button class="modal-close" id="sr-close" type="button" aria-label="Close session replay">
-          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
-            <path d="M3 3 L13 13 M13 3 L3 13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
-          </svg>
-        </button>
+        <div class="sr-header-actions">
+          <button class="sr-icon-btn" id="sr-edit" type="button" aria-label="Rename session" title="Rename session">
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M11.5 2.5 L13.5 4.5 L5 13 L2.5 13.5 L3 11 Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round" />
+            </svg>
+          </button>
+          <button class="sr-icon-btn" id="sr-close" type="button" aria-label="Close session replay">
+            <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M3 3 L13 13 M13 3 L3 13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+            </svg>
+          </button>
+        </div>
       </div>
-      <div class="sr-context-band" id="sr-context-band"></div>
       <div class="sr-body">
+        <div class="sr-side-col">
+          <div class="sr-tabs">
+            <button class="sr-tab active" id="sr-tab-steps" type="button">
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2 13 H5 V10 H9 V7 H13 V3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg>
+              Steps
+            </button>
+            <button class="sr-tab" id="sr-tab-users" type="button">
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="5" r="2.6" stroke="currentColor" stroke-width="1.4" /><path d="M2.8 14 C2.8 10.8 5 9.2 8 9.2 C11 9.2 13.2 10.8 13.2 14" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" /></svg>
+              Users
+            </button>
+          </div>
+          <div class="sr-tab-panel" id="sr-steps-panel"></div>
+          <div class="sr-tab-panel hidden" id="sr-users-panel"></div>
+        </div>
         <div class="sr-player-col">
-          <span class="sr-label">Session recording</span>
           <div class="sr-player">
             <div class="sr-ghost" style="top:14%; left:6%; width:30%; height:10%;"></div>
             <div class="sr-ghost" style="top:30%; left:6%; width:88%; height:46%;"></div>
             <button class="sr-play-btn" id="sr-play-btn" type="button" aria-label="Play (preview only)"></button>
           </div>
           <div class="sr-scrubber">
-            <div class="sr-scrubber-track" id="sr-scrubber-track">
-              <div class="sr-scrubber-fill" id="sr-scrubber-fill"></div>
-              <div class="sr-scrubber-thumb" id="sr-scrubber-thumb"></div>
+            <div class="sr-scrubber-row">
+              <span class="sr-time" id="sr-time-current">00:00</span>
+              <div class="sr-scrubber-track" id="sr-scrubber-track">
+                <div class="sr-scrubber-fill" id="sr-scrubber-fill"></div>
+                <div class="sr-scrubber-thumb" id="sr-scrubber-thumb"></div>
+              </div>
+              <span class="sr-time" id="sr-time-total">00:00</span>
             </div>
-            <div class="sr-scrubber-time"><span id="sr-time-current">0:00</span><span id="sr-time-total">0:00</span></div>
+            <div class="sr-controls-row">
+              <button class="sr-ctrl-icon" id="sr-pause-btn" type="button" aria-label="Restart preview">
+                <svg width="13" height="13" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><rect x="2.5" y="1.5" width="2.3" height="9" rx="0.6" /><rect x="7.2" y="1.5" width="2.3" height="9" rx="0.6" /></svg>
+              </button>
+              <div class="sr-speed-group" id="sr-speed-group">
+                <button class="sr-speed active" data-speed="1" type="button">1x</button>
+                <button class="sr-speed" data-speed="2" type="button">2x</button>
+                <button class="sr-speed" data-speed="4" type="button">4x</button>
+                <button class="sr-speed" data-speed="8" type="button">8x</button>
+              </div>
+              <button class="sr-skip-toggle active" id="sr-skip-toggle" type="button">
+                <span class="sr-toggle-track"><span class="sr-toggle-thumb"></span></span>
+                skip inactive
+              </button>
+              <button class="sr-icon-btn sr-expand" id="sr-expand" type="button" aria-label="Expand player">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <path d="M6 2 H2 V6 M10 2 H14 V6 M6 14 H2 V10 M10 14 H14 V10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </button>
+            </div>
           </div>
-        </div>
-        <div class="sr-side-col">
-          <div class="sr-tabs">
-            <button class="sr-tab active" id="sr-tab-steps" type="button">Steps</button>
-            <button class="sr-tab" id="sr-tab-users" type="button">Users</button>
-          </div>
-          <div class="sr-tab-panel" id="sr-steps-panel"></div>
-          <div class="sr-tab-panel hidden" id="sr-users-panel"></div>
         </div>
       </div>
     </div>

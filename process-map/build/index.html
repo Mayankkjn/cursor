@@ -692,58 +692,106 @@ button:hover { filter: brightness(1.08); }
 .task-menu-item:hover { background: var(--accent-ui-soft); color: #9c3a00; }
 .task-menu-item svg { color: var(--accent-ui); flex-shrink: 0; }
 
-/* ---- Session Replay modal ---- */
+/* ---- Session Replay modal ----
+   Fixed overall size so switching tabs/sessions never reflows the modal —
+   only the Steps/Users list scrolls internally. */
 .session-replay-panel {
-  width: 900px;
+  width: 980px;
+  height: 620px;
   max-width: calc(100vw - 48px);
   max-height: calc(100vh - 64px);
   padding: 0;
   display: flex;
   flex-direction: column;
+  transition: width 0.18s ease, height 0.18s ease;
+}
+.session-replay-panel.sr-panel-expanded {
+  width: calc(100vw - 48px);
+  height: calc(100vh - 48px);
 }
 .sr-header {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
   padding: 16px 18px;
   border-bottom: 1px solid var(--panel-border);
   flex-shrink: 0;
 }
-.sr-header-title { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.sr-task-name { font-size: 0.98rem; font-weight: 700; color: var(--text-primary); }
-.sr-task-sub { font-size: 0.72rem; color: var(--text-secondary); }
-
-.sr-context-band {
+.sr-header-play {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #f5f6fb;
+  border: 1px solid var(--panel-border);
+  color: var(--text-secondary);
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 10px 18px;
-  background: #fafafd;
-  border-bottom: 1px solid var(--panel-border);
-  flex-wrap: wrap;
-  font-size: 0.8rem;
-  color: #5f6480;
+  justify-content: center;
+  cursor: pointer;
   flex-shrink: 0;
+  padding: 0;
 }
-.sr-context-band b { font-size: 0.92rem; color: var(--text-primary); font-variant-numeric: tabular-nums; font-weight: 700; }
-.sr-context-divider { width: 1px; height: 13px; background: var(--panel-border); }
+.sr-header-play:hover { color: var(--accent-ui); border-color: var(--accent-ui); }
+.sr-header-title { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; padding-top: 2px; }
+.sr-task-name { font-size: 1.02rem; font-weight: 700; color: var(--text-primary); }
+.sr-task-sub { font-size: 0.78rem; color: var(--text-secondary); }
+.sr-header-actions { display: flex; gap: 4px; flex-shrink: 0; }
+.sr-icon-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  border: none;
+  background: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0;
+}
+.sr-icon-btn:hover { background: #f5f6fb; color: var(--text-primary); }
 
-.sr-body { display: grid; grid-template-columns: 1.7fr 1fr; overflow: hidden; flex: 1; min-height: 0; }
-@media (max-width: 720px) { .sr-body { grid-template-columns: 1fr; } }
+.sr-body { display: flex; overflow: hidden; flex: 1; min-height: 0; }
+@media (max-width: 720px) { .sr-body { flex-direction: column; } }
 
-.sr-player-col { padding: 16px; border-right: 1px solid var(--panel-border); overflow-y: auto; }
-.sr-label { font-size: 0.66rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; display: block; margin-bottom: 8px; }
+.sr-side-col { width: 320px; flex-shrink: 0; border-right: 1px solid var(--panel-border); display: flex; flex-direction: column; min-height: 0; }
+@media (max-width: 720px) { .sr-side-col { width: auto; border-right: none; border-bottom: 1px solid var(--panel-border); } }
+.sr-tabs { display: flex; gap: 20px; padding: 14px 16px 0; border-bottom: 1px solid var(--panel-border); flex-shrink: 0; }
+.sr-tab { display: flex; align-items: center; gap: 6px; background: none; border: none; font-size: 0.82rem; font-weight: 700; padding: 0 2px 12px; color: var(--text-secondary); border-bottom: 2px solid transparent; cursor: pointer; }
+.sr-tab.active { color: var(--accent-ui); border-color: var(--accent-ui); }
+.sr-tab-panel { padding: 8px 10px 16px 16px; overflow-y: auto; flex: 1; min-height: 0; }
+.sr-tab-panel.hidden { display: none; }
 
+.sr-step-row { display: flex; gap: 10px; padding: 7px 6px; border-radius: 8px; align-items: baseline; cursor: pointer; }
+.sr-step-row:hover { background: #f5f6fb; }
+.sr-step-row.current { background: var(--accent-ui-soft); }
+.sr-step-time { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.72rem; color: var(--accent-ui); font-weight: 700; flex-shrink: 0; width: 44px; }
+.sr-step-desc { font-size: 0.82rem; color: var(--text-primary); }
+.sr-step-row.loop .sr-step-desc { color: #9a5613; }
+.sr-step-row.loop .sr-step-desc::after { content: ' \21ba loop'; font-size: 0.68rem; color: var(--rework); font-weight: 600; }
+
+.sr-user-row { display: flex; align-items: center; gap: 12px; padding: 9px 8px; border-radius: 8px; cursor: pointer; }
+.sr-user-row:hover { background: #f5f6fb; }
+.sr-user-row.active { background: var(--accent-ui-soft); }
+.sr-user-avatar { width: 34px; height: 34px; border-radius: 50%; background: #eef0f6; color: #8b8fa6; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.sr-user-row.active .sr-user-avatar { background: var(--accent-ui); color: #fff; }
+.sr-user-info { display: flex; flex-direction: column; }
+.sr-user-name { font-size: 0.88rem; font-weight: 600; color: var(--text-primary); }
+.sr-user-meta { font-size: 0.75rem; color: var(--text-secondary); margin-top: 1px; }
+
+.sr-player-col { flex: 1; min-width: 0; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; }
 .sr-player {
   position: relative;
   background: linear-gradient(135deg, #2a2e45 0%, #3d3c52 55%, #2a2e45 100%);
   border-radius: 10px;
   overflow: hidden;
-  aspect-ratio: 16 / 9;
+  flex: 1;
+  min-height: 180px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
+.sr-panel-expanded .sr-player { min-height: 320px; }
 .sr-ghost { position: absolute; opacity: 0.28; border: 1.4px solid rgba(255, 255, 255, 0.55); border-radius: 6px; }
 .sr-play-btn {
   width: 46px;
@@ -767,16 +815,18 @@ button:hover { filter: brightness(1.08); }
   display: block;
 }
 
-.sr-scrubber { padding-top: 10px; }
-.sr-scrubber-track { position: relative; height: 4px; border-radius: 2px; background: #eef0f6; margin-bottom: 8px; cursor: pointer; }
+.sr-scrubber { padding-top: 12px; flex-shrink: 0; }
+.sr-scrubber-row { display: flex; align-items: center; gap: 10px; }
+.sr-time { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.72rem; color: var(--text-secondary); flex-shrink: 0; }
+.sr-scrubber-track { position: relative; flex: 1; height: 4px; border-radius: 2px; background: #eef0f6; cursor: pointer; }
 .sr-scrubber-fill { position: absolute; top: 0; left: 0; height: 100%; border-radius: 2px; background: var(--accent-ui); pointer-events: none; }
 .sr-scrubber-tick { position: absolute; top: -2px; width: 2px; height: 8px; background: #c9ccdb; border-radius: 1px; pointer-events: none; }
 .sr-scrubber-tick.loop { background: var(--rework); }
 .sr-scrubber-thumb {
   position: absolute;
-  top: -4px;
-  width: 12px;
-  height: 12px;
+  top: -5px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
   background: #ffffff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
@@ -784,31 +834,19 @@ button:hover { filter: brightness(1.08); }
   transform: translateX(-50%);
   pointer-events: none;
 }
-.sr-scrubber-time { display: flex; justify-content: space-between; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.7rem; color: var(--text-secondary); }
 
-.sr-side-col { display: flex; flex-direction: column; min-height: 0; }
-.sr-tabs { display: flex; gap: 16px; padding: 12px 16px 0; border-bottom: 1px solid var(--panel-border); flex-shrink: 0; }
-.sr-tab { background: none; border: none; font-size: 0.76rem; font-weight: 700; padding: 0 2px 9px; color: var(--text-secondary); border-bottom: 2px solid transparent; cursor: pointer; }
-.sr-tab.active { color: var(--accent-ui); border-color: var(--accent-ui); }
-.sr-tab-panel { padding: 8px 10px 16px 16px; overflow-y: auto; flex: 1; min-height: 0; }
-.sr-tab-panel.hidden { display: none; }
-
-.sr-step-row { display: flex; gap: 10px; padding: 7px 6px; border-radius: 8px; align-items: baseline; cursor: pointer; }
-.sr-step-row:hover { background: #f5f6fb; }
-.sr-step-row.current { background: var(--accent-ui-soft); }
-.sr-step-time { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.72rem; color: var(--accent-ui); font-weight: 700; flex-shrink: 0; width: 40px; }
-.sr-step-desc { font-size: 0.82rem; color: var(--text-primary); }
-.sr-step-row.loop .sr-step-desc { color: #9a5613; }
-.sr-step-row.loop .sr-step-desc::after { content: ' \21ba loop'; font-size: 0.68rem; color: var(--rework); font-weight: 600; }
-
-.sr-user-row { display: flex; align-items: center; gap: 9px; padding: 7px 8px; border-radius: 8px; cursor: pointer; }
-.sr-user-row:hover { background: #f5f6fb; }
-.sr-user-row.active { background: var(--accent-ui-soft); }
-.sr-user-avatar { width: 26px; height: 26px; border-radius: 50%; background: #eef0f6; color: #5f6480; font-size: 0.66rem; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.sr-user-row.active .sr-user-avatar { background: var(--accent-ui); color: #fff; }
-.sr-user-info { display: flex; flex-direction: column; }
-.sr-user-name { font-size: 0.82rem; font-weight: 600; color: var(--text-primary); }
-.sr-user-meta { font-size: 0.68rem; color: var(--text-secondary); }
+.sr-controls-row { display: flex; align-items: center; gap: 14px; margin-top: 12px; flex-wrap: wrap; }
+.sr-ctrl-icon { width: 30px; height: 30px; border-radius: 7px; border: none; background: none; display: flex; align-items: center; justify-content: center; color: var(--text-secondary); cursor: pointer; flex-shrink: 0; padding: 0; }
+.sr-ctrl-icon:hover { background: #f5f6fb; color: var(--text-primary); }
+.sr-speed-group { display: flex; align-items: center; gap: 2px; background: #f5f6fb; border-radius: 100px; padding: 3px; flex-shrink: 0; }
+.sr-speed { border: none; background: none; padding: 4px 10px; border-radius: 100px; font-size: 0.72rem; font-weight: 700; color: var(--text-secondary); cursor: pointer; }
+.sr-speed.active { background: var(--accent-ui); color: #fff; }
+.sr-skip-toggle { display: flex; align-items: center; gap: 7px; border: none; background: none; font-size: 0.78rem; color: var(--text-secondary); cursor: pointer; padding: 0; flex-shrink: 0; white-space: nowrap; }
+.sr-toggle-track { width: 30px; height: 17px; border-radius: 100px; background: #dcdfea; position: relative; transition: background 0.15s; flex-shrink: 0; }
+.sr-toggle-thumb { position: absolute; top: 2px; left: 2px; width: 13px; height: 13px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2); transition: left 0.15s; }
+.sr-skip-toggle.active .sr-toggle-track { background: var(--accent-ui); }
+.sr-skip-toggle.active .sr-toggle-thumb { left: 15px; }
+.sr-expand { margin-left: auto; }
 
 </style>
 </head>
@@ -1076,42 +1114,79 @@ button:hover { filter: brightness(1.08); }
   </main>
 
   <div id="session-replay-modal" class="modal-overlay hidden">
-    <div class="modal-panel session-replay-panel">
+    <div class="modal-panel session-replay-panel" id="sr-panel">
       <div class="sr-header">
+        <button class="sr-header-play" id="sr-header-play" type="button" aria-label="Restart preview">
+          <svg width="13" height="13" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M2.5 1.5 L10 6 L2.5 10.5 Z" /></svg>
+        </button>
         <div class="sr-header-title">
           <span class="sr-task-name" id="sr-task-name">Session Replay</span>
           <span class="sr-task-sub" id="sr-task-sub"></span>
         </div>
-        <button class="modal-close" id="sr-close" type="button" aria-label="Close session replay">
-          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
-            <path d="M3 3 L13 13 M13 3 L3 13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
-          </svg>
-        </button>
+        <div class="sr-header-actions">
+          <button class="sr-icon-btn" id="sr-edit" type="button" aria-label="Rename session" title="Rename session">
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M11.5 2.5 L13.5 4.5 L5 13 L2.5 13.5 L3 11 Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round" />
+            </svg>
+          </button>
+          <button class="sr-icon-btn" id="sr-close" type="button" aria-label="Close session replay">
+            <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M3 3 L13 13 M13 3 L3 13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+            </svg>
+          </button>
+        </div>
       </div>
-      <div class="sr-context-band" id="sr-context-band"></div>
       <div class="sr-body">
+        <div class="sr-side-col">
+          <div class="sr-tabs">
+            <button class="sr-tab active" id="sr-tab-steps" type="button">
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2 13 H5 V10 H9 V7 H13 V3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg>
+              Steps
+            </button>
+            <button class="sr-tab" id="sr-tab-users" type="button">
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="5" r="2.6" stroke="currentColor" stroke-width="1.4" /><path d="M2.8 14 C2.8 10.8 5 9.2 8 9.2 C11 9.2 13.2 10.8 13.2 14" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" /></svg>
+              Users
+            </button>
+          </div>
+          <div class="sr-tab-panel" id="sr-steps-panel"></div>
+          <div class="sr-tab-panel hidden" id="sr-users-panel"></div>
+        </div>
         <div class="sr-player-col">
-          <span class="sr-label">Session recording</span>
           <div class="sr-player">
             <div class="sr-ghost" style="top:14%; left:6%; width:30%; height:10%;"></div>
             <div class="sr-ghost" style="top:30%; left:6%; width:88%; height:46%;"></div>
             <button class="sr-play-btn" id="sr-play-btn" type="button" aria-label="Play (preview only)"></button>
           </div>
           <div class="sr-scrubber">
-            <div class="sr-scrubber-track" id="sr-scrubber-track">
-              <div class="sr-scrubber-fill" id="sr-scrubber-fill"></div>
-              <div class="sr-scrubber-thumb" id="sr-scrubber-thumb"></div>
+            <div class="sr-scrubber-row">
+              <span class="sr-time" id="sr-time-current">00:00</span>
+              <div class="sr-scrubber-track" id="sr-scrubber-track">
+                <div class="sr-scrubber-fill" id="sr-scrubber-fill"></div>
+                <div class="sr-scrubber-thumb" id="sr-scrubber-thumb"></div>
+              </div>
+              <span class="sr-time" id="sr-time-total">00:00</span>
             </div>
-            <div class="sr-scrubber-time"><span id="sr-time-current">0:00</span><span id="sr-time-total">0:00</span></div>
+            <div class="sr-controls-row">
+              <button class="sr-ctrl-icon" id="sr-pause-btn" type="button" aria-label="Restart preview">
+                <svg width="13" height="13" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><rect x="2.5" y="1.5" width="2.3" height="9" rx="0.6" /><rect x="7.2" y="1.5" width="2.3" height="9" rx="0.6" /></svg>
+              </button>
+              <div class="sr-speed-group" id="sr-speed-group">
+                <button class="sr-speed active" data-speed="1" type="button">1x</button>
+                <button class="sr-speed" data-speed="2" type="button">2x</button>
+                <button class="sr-speed" data-speed="4" type="button">4x</button>
+                <button class="sr-speed" data-speed="8" type="button">8x</button>
+              </div>
+              <button class="sr-skip-toggle active" id="sr-skip-toggle" type="button">
+                <span class="sr-toggle-track"><span class="sr-toggle-thumb"></span></span>
+                skip inactive
+              </button>
+              <button class="sr-icon-btn sr-expand" id="sr-expand" type="button" aria-label="Expand player">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <path d="M6 2 H2 V6 M10 2 H14 V6 M6 14 H2 V10 M10 14 H14 V10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </button>
+            </div>
           </div>
-        </div>
-        <div class="sr-side-col">
-          <div class="sr-tabs">
-            <button class="sr-tab active" id="sr-tab-steps" type="button">Steps</button>
-            <button class="sr-tab" id="sr-tab-users" type="button">Users</button>
-          </div>
-          <div class="sr-tab-panel" id="sr-steps-panel"></div>
-          <div class="sr-tab-panel hidden" id="sr-users-panel"></div>
         </div>
       </div>
     </div>
@@ -6502,10 +6577,11 @@ d3.select(document).on('click.taskMenu', (event) => {
 // There's no real screen-recording data behind this app's synthetic event
 // logs, so the "recording" is an honest placeholder (a static player frame,
 // non-functional play button) while everything else — who performed the
-// task, how many instances/paths it appears in, and the step timeline — is
-// either real (derived from the case log) or a clearly-templated stand-in
-// for a per-click breakdown the data doesn't contain.
-const srState = { taskId: null, taskLabel: '', sessions: [], activeIndex: 0, steps: [], totalSeconds: 0, currentStepIndex: 0 };
+// task, how many instances/paths it appears in, real total time per user,
+// and the step timeline — is either real (derived from the case log) or a
+// clearly-templated stand-in for a per-click breakdown the data doesn't
+// contain.
+const srState = { taskId: null, taskLabel: '', sessions: [], userSummary: [], activeIndex: 0, steps: [], totalSeconds: 0, currentStepIndex: 0 };
 
 function hashStr(str) {
   let h = 0;
@@ -6515,7 +6591,10 @@ function hashStr(str) {
 function formatClock(totalSeconds) {
   const m = Math.floor(totalSeconds / 60);
   const s = Math.round(totalSeconds % 60);
-  return `${m}:${String(s).padStart(2, '0')}`;
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+function formatUserId(user) {
+  return `ID:${String(user).replace(/^U-/, '')}`;
 }
 
 function buildTaskSessions(cases, taskId) {
@@ -6523,9 +6602,25 @@ function buildTaskSessions(cases, taskId) {
   cases.forEach((c) => {
     const occurrences = c.steps.filter((s) => s.task === taskId);
     if (!occurrences.length) return;
-    sessions.push({ caseId: c.caseId, user: (c.users && c.users[0]) || 'Unknown user', isRework: occurrences.length > 1 });
+    const caseDuration = occurrences.reduce((sum, s) => sum + s.duration, 0);
+    sessions.push({ caseId: c.caseId, user: (c.users && c.users[0]) || 'Unknown user', isRework: occurrences.length > 1, caseDuration });
   });
   return sessions;
+}
+
+// One row per user (not per instance) — real aggregates from the case log:
+// total time this user spent on the task, and how many times they did it.
+// Each user's first session index is kept so clicking the row can jump
+// straight to a representative session.
+function buildUserSummary(sessions) {
+  const byUser = new Map();
+  sessions.forEach((s, i) => {
+    const entry = byUser.get(s.user) || { user: s.user, totalMinutes: 0, count: 0, sessionIndex: i };
+    entry.totalMinutes += s.caseDuration;
+    entry.count += 1;
+    byUser.set(s.user, entry);
+  });
+  return Array.from(byUser.values()).sort((a, b) => b.count - a.count);
 }
 
 // Synthesizes a plausible step-by-step breakdown scaled to a short (2-6.5min)
@@ -6542,11 +6637,6 @@ function buildSessionSteps(taskLabel, isRework, seed) {
   return { totalSeconds, steps };
 }
 
-function userInitials(user) {
-  const cleaned = String(user).replace(/^U-/, '');
-  return cleaned.slice(0, 2).toUpperCase();
-}
-
 function openSessionReplay(taskId) {
   const model = state.model;
   const node = model.nodes.find((n) => n.id === taskId);
@@ -6556,19 +6646,12 @@ function openSessionReplay(taskId) {
   srState.taskId = taskId;
   srState.taskLabel = node.label;
   srState.sessions = sessions;
+  srState.userSummary = buildUserSummary(sessions);
   const reworkIndex = sessions.findIndex((s) => s.isRework);
   srState.activeIndex = reworkIndex >= 0 ? reworkIndex : 0;
 
-  const uniqueUsers = new Set(sessions.map((s) => s.user)).size;
   const paths = model.variants.filter((v) => v.path.includes(taskId));
-  const pathList = paths.slice(0, 4).map((v) => `#${v.rank}`).join(', ');
-  srState.contextHtml = `
-    <div><b>${sessions.length}</b> instance${sessions.length === 1 ? '' : 's'}</div>
-    <div class="sr-context-divider"></div>
-    <div><b>${uniqueUsers}</b> unique user${uniqueUsers === 1 ? '' : 's'}</div>
-    <div class="sr-context-divider"></div>
-    <div>Appears in ${paths.length} path${paths.length === 1 ? '' : 's'}${pathList ? ` · ${pathList}` : ''}</div>
-  `;
+  srState.metaText = `${sessions.length} instance${sessions.length === 1 ? '' : 's'} · ${srState.userSummary.length} unique user${srState.userSummary.length === 1 ? '' : 's'} · ${paths.length} path${paths.length === 1 ? '' : 's'}`;
 
   switchSRTab('steps');
   renderSessionReplay();
@@ -6576,6 +6659,7 @@ function openSessionReplay(taskId) {
 }
 function closeSessionReplay() {
   d3.select('#session-replay-modal').classed('hidden', true);
+  d3.select('#sr-panel').classed('sr-panel-expanded', false);
 }
 
 function renderSessionReplay() {
@@ -6585,9 +6669,8 @@ function renderSessionReplay() {
   srState.totalSeconds = totalSeconds;
   srState.currentStepIndex = 0;
 
-  d3.select('#sr-task-name').text(`${srState.taskLabel} — Session Replay`);
-  d3.select('#sr-task-sub').text(`Case ${session.caseId} · ${session.user}`);
-  d3.select('#sr-context-band').html(srState.contextHtml);
+  d3.select('#sr-task-name').text(srState.taskLabel);
+  d3.select('#sr-task-sub').text(srState.metaText);
 
   const stepsPanel = d3.select('#sr-steps-panel');
   stepsPanel.selectAll('*').remove();
@@ -6601,14 +6684,14 @@ function renderSessionReplay() {
 
   const usersPanel = d3.select('#sr-users-panel');
   usersPanel.selectAll('*').remove();
-  srState.sessions.forEach((s, i) => {
+  srState.userSummary.forEach((u) => {
     const row = usersPanel.append('div')
-      .attr('class', `sr-user-row${i === srState.activeIndex ? ' active' : ''}`)
-      .on('click', () => { srState.activeIndex = i; renderSessionReplay(); });
-    row.append('span').attr('class', 'sr-user-avatar').text(userInitials(s.user));
+      .attr('class', `sr-user-row${u.sessionIndex === srState.activeIndex ? ' active' : ''}`)
+      .on('click', () => { srState.activeIndex = u.sessionIndex; renderSessionReplay(); });
+    row.append('span').attr('class', 'sr-user-avatar').html('<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="5.4" r="2.7" stroke="currentColor" stroke-width="1.4"/><path d="M2.8 14 C2.8 10.6 5 9 8 9 C11 9 13.2 10.6 13.2 14" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>');
     const info = row.append('span').attr('class', 'sr-user-info');
-    info.append('span').attr('class', 'sr-user-name').text(s.user);
-    info.append('span').attr('class', 'sr-user-meta').text(`Case ${s.caseId}${s.isRework ? ' · rework' : ''}`);
+    info.append('span').attr('class', 'sr-user-name').text(formatUserId(u.user));
+    info.append('span').attr('class', 'sr-user-meta').text(`${formatDuration(u.totalMinutes)} · ${u.count} time${u.count === 1 ? '' : 's'}`);
   });
 
   renderScrubber();
@@ -6661,6 +6744,25 @@ d3.select('#sr-scrubber-track').on('click', function (event) {
     if (d < nearestDist) { nearestDist = d; nearest = i; }
   });
   seekToStep(nearest);
+});
+
+// Restart affordances (header + control-bar icon) — there's no real
+// playback to pause/resume, so both just reset the scrubber to the start.
+d3.select('#sr-header-play').on('click', () => seekToStep(0));
+d3.select('#sr-pause-btn').on('click', () => seekToStep(0));
+
+// Speed and "skip inactive" are cosmetic toggles — honest about there being
+// no real video whose rate or dead-time they could actually affect.
+d3.selectAll('.sr-speed').on('click', function () {
+  d3.selectAll('.sr-speed').classed('active', false);
+  d3.select(this).classed('active', true);
+});
+d3.select('#sr-skip-toggle').on('click', function () {
+  d3.select(this).classed('active', !this.classList.contains('active'));
+});
+
+d3.select('#sr-expand').on('click', () => {
+  d3.select('#sr-panel').classed('sr-panel-expanded', !document.getElementById('sr-panel').classList.contains('sr-panel-expanded'));
 });
 
 // ---- upload ----
