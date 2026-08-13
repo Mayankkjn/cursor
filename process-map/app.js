@@ -1066,15 +1066,15 @@ d3.select(document).on('click.taskMenu', (event) => {
 // ---- Session Replay ----
 // There's no real screen-recording data behind this app's synthetic event
 // logs, so the "recording" is an honest placeholder (a static player frame,
-// non-functional play button) while everything else — who performed the
-// task, how many instances/paths it appears in, real total time per user,
-// and the step timeline — is either real (derived from the case log) or a
-// clearly-templated stand-in for a per-click breakdown the data doesn't
-// contain, including the per-step calendar timestamps, which the log has
-// no equivalent of at all.
+// non-functional play button) while everything else — who performed each
+// session, which path it took, every task in it and how long it really
+// took — is real, derived straight from the case log. Only the click-level
+// step breakdown inside a task is a clearly-templated stand-in for detail
+// the log doesn't capture.
 const srState = {
-  taskId: null, taskLabel: '', sessions: [], userSummary: [], metaSuffix: '',
-  expandedUser: null, activeIndex: 0, steps: [], totalSeconds: 0, currentStepIndex: 0,
+  taskId: null, taskLabel: '', sessions: [], metaSuffix: '',
+  expandedSessionIndex: null, activeIndex: 0, focusedStepGroupIndex: 0,
+  steps: [], totalSeconds: 0, currentStepIndex: 0,
 };
 
 const PERSON_ICON_SVG = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="5.4" r="2.7" stroke="currentColor" stroke-width="1.4"/><path d="M2.8 14 C2.8 10.6 5 9 8 9 C11 9 13.2 10.6 13.2 14" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>';
@@ -1092,57 +1092,37 @@ function formatClock(totalSeconds) {
 function formatUserId(user) {
   return `ID:${String(user).replace(/^U-/, '')}`;
 }
-function ordinal(n) {
-  const suffixes = ['th', 'st', 'nd', 'rd'];
-  const v = n % 100;
-  return `${n}${suffixes[(v - 20) % 10] || suffixes[v] || suffixes[0]}`;
-}
-const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-// A per-session calendar anchor (day/month/start time), synthesized from the
-// case id so it's stable across re-renders — the event log carries no real
-// wall-clock date, only relative step durations.
-function sessionBaseDateTime(caseId) {
-  const seed = hashStr(caseId);
-  return { day: 1 + (seed % 28), month: MONTHS[Math.floor(seed / 28) % 12], startMinutes: (8 * 60) + (seed % 540) };
-}
-function formatStepDateTime(base, elapsedSeconds) {
-  const totalMinutes = base.startMinutes + Math.floor(elapsedSeconds / 60);
-  const hour24 = Math.floor(totalMinutes / 60) % 24;
-  const minute = totalMinutes % 60;
-  const hour12 = ((hour24 + 11) % 12) + 1;
-  return `${ordinal(base.day)} ${base.month} · ${String(hour12).padStart(2, '0')}:${String(minute).padStart(2, '0')} ${hour24 >= 12 ? 'PM' : 'AM'}`;
-}
 
-function buildTaskSessions(cases, taskId) {
+// One row per instance that touched the target task — real data throughout:
+// who ran it, which variant/path it followed, and its full ordered list of
+// tasks (with real per-task durations from the case log).
+function buildTaskSessions(cases, taskId, model) {
   const sessions = [];
   cases.forEach((c) => {
     const occurrences = c.steps.filter((s) => s.task === taskId);
     if (!occurrences.length) return;
     const caseDuration = occurrences.reduce((sum, s) => sum + s.duration, 0);
-    sessions.push({ caseId: c.caseId, user: (c.users && c.users[0]) || 'Unknown user', isRework: occurrences.length > 1, caseDuration });
+    const variant = model.variants.find((v) => v.caseIds.includes(c.caseId));
+    sessions.push({
+      caseId: c.caseId,
+      user: (c.users && c.users[0]) || 'Unknown user',
+      isRework: occurrences.length > 1,
+      caseDuration,
+      variantRank: variant ? variant.rank : null,
+      path: c.steps,
+    });
   });
   return sessions;
 }
 
-// One row per user (not per instance) — real aggregates from the case log:
-// total time this user spent on the task, and every session index of
-// theirs, so expanding the row can list each session's own step timeline.
-function buildUserSummary(sessions) {
-  const byUser = new Map();
-  sessions.forEach((s, i) => {
-    const entry = byUser.get(s.user) || { user: s.user, totalMinutes: 0, count: 0, sessionIndices: [] };
-    entry.totalMinutes += s.caseDuration;
-    entry.count += 1;
-    entry.sessionIndices.push(i);
-    byUser.set(s.user, entry);
-  });
-  return Array.from(byUser.values()).sort((a, b) => b.count - a.count);
+function isTaskRepeated(session, taskName) {
+  return session.path.filter((s) => s.task === taskName).length > 1;
 }
 
 // Synthesizes a plausible step-by-step breakdown scaled to a short (2-6.5min)
 // "recording length" — a stand-in for click-level detail the event log
-// doesn't capture, deterministic per case so the same session always shows
-// the same steps.
+// doesn't capture, deterministic per task-occurrence so the same one always
+// shows the same steps.
 function buildSessionSteps(taskLabel, isRework, seed) {
   const totalSeconds = 150 + (seed % 240);
   const marks = isRework ? [0, 0.18, 0.42, 0.64, 0.86, 1] : [0, 0.22, 0.5, 0.8, 1];
@@ -1156,22 +1136,22 @@ function buildSessionSteps(taskLabel, isRework, seed) {
 function openSessionReplay(taskId) {
   const model = state.model;
   const node = model.nodes.find((n) => n.id === taskId);
-  const sessions = buildTaskSessions(state.cases, taskId);
+  const sessions = buildTaskSessions(state.cases, taskId, model);
   if (!node || !sessions.length) return;
 
   srState.taskId = taskId;
   srState.taskLabel = node.label;
   srState.sessions = sessions;
-  srState.userSummary = buildUserSummary(sessions);
-  srState.expandedUser = null;
+  srState.expandedSessionIndex = null;
   const reworkIndex = sessions.findIndex((s) => s.isRework);
   srState.activeIndex = reworkIndex >= 0 ? reworkIndex : 0;
 
   const paths = model.variants.filter((v) => v.path.includes(taskId));
-  srState.metaSuffix = `${sessions.length} instance${sessions.length === 1 ? '' : 's'} · ${srState.userSummary.length} unique user${srState.userSummary.length === 1 ? '' : 's'} · ${paths.length} path${paths.length === 1 ? '' : 's'}`;
+  const uniqueUserCount = new Set(sessions.map((s) => s.user)).size;
+  srState.metaSuffix = `${sessions.length} instance${sessions.length === 1 ? '' : 's'} · ${uniqueUserCount} unique user${uniqueUserCount === 1 ? '' : 's'} · ${paths.length} path${paths.length === 1 ? '' : 's'}`;
 
   loadActiveSession();
-  renderUsersAccordion();
+  renderSessionsList();
   renderScrubber();
   d3.select('#session-replay-modal').classed('hidden', false);
 }
@@ -1180,71 +1160,100 @@ function closeSessionReplay() {
   d3.select('#sr-panel').classed('sr-panel-expanded', false);
 }
 
-// (Re)builds the step timeline for whichever session is currently active
-// and updates the header — called on open and whenever the active session
-// changes, but not on every step click within the same session.
+// Seeds the player with the target task's own occurrence in the default
+// active session, and sets the header — called once on open, and again
+// whenever a different session becomes active (but not on every step or
+// same-session task click).
 function loadActiveSession() {
   const session = srState.sessions[srState.activeIndex];
-  const { totalSeconds, steps } = buildSessionSteps(srState.taskLabel, session.isRework, hashStr(session.caseId));
-  srState.steps = steps;
-  srState.totalSeconds = totalSeconds;
+  const targetIndex = session.path.findIndex((s) => s.task === srState.taskId);
+  srState.focusedStepGroupIndex = targetIndex >= 0 ? targetIndex : 0;
+  const built = buildSessionSteps(srState.taskLabel, session.isRework, hashStr(`${session.caseId}:${srState.focusedStepGroupIndex}`));
+  srState.steps = built.steps;
+  srState.totalSeconds = built.totalSeconds;
   srState.currentStepIndex = 0;
 
   d3.select('#sr-task-name').text(srState.taskLabel);
-  d3.select('#sr-task-sub').text(`${steps.length} steps · ${srState.metaSuffix}`);
+  d3.select('#sr-task-sub').text(`${built.steps.length} steps · ${srState.metaSuffix}`);
 }
 
-function selectStep(sessionIndex, stepIndex) {
-  if (sessionIndex !== srState.activeIndex) {
-    srState.activeIndex = sessionIndex;
-    loadActiveSession();
+function expandSession(sessionIndex) {
+  srState.expandedSessionIndex = sessionIndex;
+  const session = srState.sessions[sessionIndex];
+  const targetIndex = session.path.findIndex((s) => s.task === srState.taskId);
+  focusTask(sessionIndex, targetIndex >= 0 ? targetIndex : 0);
+}
+
+// Switches the player to a specific task within a session — the target
+// task by default when a session first expands, or whichever other task
+// in that same path the user clicks to peek at its own step breakdown.
+function focusTask(sessionIndex, stepGroupIndex) {
+  const sessionChanged = sessionIndex !== srState.activeIndex;
+  srState.activeIndex = sessionIndex;
+  srState.focusedStepGroupIndex = stepGroupIndex;
+
+  const session = srState.sessions[sessionIndex];
+  const taskEntry = session.path[stepGroupIndex];
+  const built = buildSessionSteps(taskEntry.task, isTaskRepeated(session, taskEntry.task), hashStr(`${session.caseId}:${stepGroupIndex}`));
+  srState.steps = built.steps;
+  srState.totalSeconds = built.totalSeconds;
+  srState.currentStepIndex = 0;
+
+  if (sessionChanged) {
+    const targetIndex = session.path.findIndex((s) => s.task === srState.taskId);
+    const targetBuilt = buildSessionSteps(srState.taskLabel, session.isRework, hashStr(`${session.caseId}:${targetIndex}`));
+    d3.select('#sr-task-sub').text(`${targetBuilt.steps.length} steps · ${srState.metaSuffix}`);
   }
-  srState.currentStepIndex = stepIndex;
+
   renderScrubber();
-  renderUsersAccordion();
+  renderSessionsList();
 }
 
-function renderUsersAccordion() {
-  const panel = d3.select('#sr-users-panel');
-  panel.selectAll('*').remove();
+function selectStep(stepIndex) {
+  srState.currentStepIndex = stepIndex;
+  updateScrubberPosition();
+  renderSessionsList();
+}
 
-  srState.userSummary.forEach((u) => {
-    const isExpanded = u.user === srState.expandedUser;
+function renderSessionsList() {
+  const panel = d3.select('#sr-sessions-panel');
+  panel.selectAll('*').remove();
+  d3.select('#sr-session-count').text(srState.sessions.length);
+
+  srState.sessions.forEach((session, sessionIndex) => {
+    const isExpanded = sessionIndex === srState.expandedSessionIndex;
     const row = panel.append('div')
       .attr('class', `sr-user-row${isExpanded ? ' expanded' : ''}`)
       .on('click', () => {
-        const expanding = srState.expandedUser !== u.user;
-        srState.expandedUser = expanding ? u.user : null;
-        if (expanding) selectStep(u.sessionIndices[0], 0);
-        else renderUsersAccordion();
+        if (srState.expandedSessionIndex === sessionIndex) { srState.expandedSessionIndex = null; renderSessionsList(); }
+        else expandSession(sessionIndex);
       });
     row.append('span').attr('class', 'sr-user-avatar').html(PERSON_ICON_SVG);
     const info = row.append('span').attr('class', 'sr-user-info');
-    info.append('span').attr('class', 'sr-user-name').text(formatUserId(u.user));
-    info.append('span').attr('class', 'sr-user-meta').text(
-      isExpanded
-        ? `${srState.steps.length} steps · ${formatDuration(u.totalMinutes)} · ${u.sessionIndices.length} session${u.sessionIndices.length === 1 ? '' : 's'}`
-        : `${formatDuration(u.totalMinutes)} · ${u.count} time${u.count === 1 ? '' : 's'}`
-    );
+    info.append('span').attr('class', 'sr-user-name').text(formatUserId(session.user));
+    info.append('span').attr('class', 'sr-user-meta').text(`Path ${session.variantRank != null ? session.variantRank : '–'} · ${session.path.length} Tasks`);
 
     if (!isExpanded) return;
-    u.sessionIndices.forEach((sessionIndex, sessionNum) => {
-      panel.append('div').attr('class', 'sr-session-header')
-        .text(`Session ${sessionNum + 1}`)
-        .on('click', (event) => { event.stopPropagation(); selectStep(sessionIndex, 0); });
+    session.path.forEach((taskEntry, stepGroupIndex) => {
+      const isFocused = sessionIndex === srState.activeIndex && stepGroupIndex === srState.focusedStepGroupIndex;
+      const taskRow = panel.append('div')
+        .attr('class', `sr-task-row${isFocused ? ' focused' : ''}`)
+        .on('click', (event) => { event.stopPropagation(); focusTask(sessionIndex, stepGroupIndex); });
+      const top = taskRow.append('div').attr('class', 'sr-task-row-top');
+      top.append('span').text(taskEntry.task);
+      top.append('span').text(formatDuration(taskEntry.duration));
+      const built = buildSessionSteps(taskEntry.task, isTaskRepeated(session, taskEntry.task), hashStr(`${session.caseId}:${stepGroupIndex}`));
+      taskRow.append('div').attr('class', 'sr-task-row-sub').text(`${built.steps.length} steps`);
 
-      const session = srState.sessions[sessionIndex];
-      const built = buildSessionSteps(srState.taskLabel, session.isRework, hashStr(session.caseId));
-      const base = sessionBaseDateTime(session.caseId);
-      const timeline = panel.append('div').attr('class', 'sr-timeline');
-      built.steps.forEach((step, stepIndex) => {
-        const isCurrent = sessionIndex === srState.activeIndex && stepIndex === srState.currentStepIndex;
+      if (!isFocused) return;
+      const timeline = taskRow.append('div').attr('class', 'sr-task-timeline-wrap').append('div').attr('class', 'sr-timeline');
+      built.steps.forEach((step, stepIdx) => {
+        const isCurrent = stepIdx === srState.currentStepIndex;
         const item = timeline.append('div')
           .attr('class', `sr-timeline-item${step.loop ? ' loop' : ''}${isCurrent ? ' current' : ''}`)
-          .on('click', (event) => { event.stopPropagation(); selectStep(sessionIndex, stepIndex); });
+          .on('click', (event) => { event.stopPropagation(); selectStep(stepIdx); });
         item.append('div').attr('class', 'sr-timeline-time').text(formatClock(step.t));
         item.append('div').attr('class', 'sr-timeline-label').text(step.label);
-        item.append('div').attr('class', 'sr-timeline-date').text(formatStepDateTime(base, step.t));
       });
     });
   });
@@ -1283,13 +1292,13 @@ d3.select('#sr-scrubber-track').on('click', function (event) {
     const d = Math.abs(s.t - targetT);
     if (d < nearestDist) { nearestDist = d; nearest = i; }
   });
-  selectStep(srState.activeIndex, nearest);
+  selectStep(nearest);
 });
 
 // Restart affordances (header + control-bar icon) — there's no real
 // playback to pause/resume, so both just reset the scrubber to the start.
-d3.select('#sr-header-play').on('click', () => selectStep(srState.activeIndex, 0));
-d3.select('#sr-pause-btn').on('click', () => selectStep(srState.activeIndex, 0));
+d3.select('#sr-header-play').on('click', () => selectStep(0));
+d3.select('#sr-pause-btn').on('click', () => selectStep(0));
 
 // Speed and "skip inactive" are cosmetic toggles — honest about there being
 // no real video whose rate or dead-time they could actually affect.
