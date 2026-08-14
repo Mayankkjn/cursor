@@ -1152,6 +1152,11 @@ function expandSession(sessionIndex) {
   const session = srState.sessions[sessionIndex];
   const targetIndex = session.path.findIndex((s) => s.task === srState.taskId);
   focusTask(sessionIndex, targetIndex >= 0 ? targetIndex : 0);
+
+  // Bring the just-expanded session (and the task path revealed beneath
+  // it) into view instead of leaving it to render below the fold.
+  const row = document.querySelector(`#sr-sessions-panel [data-session-index="${sessionIndex}"]`);
+  if (row) row.scrollIntoView({ block: 'start', behavior: 'smooth' });
 }
 
 // Switches the player to a specific task within a session — the target
@@ -1194,6 +1199,7 @@ function renderSessionsList() {
     const isExpanded = sessionIndex === srState.expandedSessionIndex;
     const row = panel.append('div')
       .attr('class', `sr-user-row${isExpanded ? ' expanded' : ''}`)
+      .attr('data-session-index', sessionIndex)
       .on('click', () => {
         if (srState.expandedSessionIndex === sessionIndex) { srState.expandedSessionIndex = null; renderSessionsList(); }
         else expandSession(sessionIndex);
