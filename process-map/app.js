@@ -1078,6 +1078,7 @@ const srState = {
 };
 
 const PERSON_ICON_SVG = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="5.4" r="2.7" stroke="currentColor" stroke-width="1.4"/><path d="M2.8 14 C2.8 10.6 5 9 8 9 C11 9 13.2 10.6 13.2 14" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>';
+const TASK_ICON_SVG = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="2.5" y="3.5" width="11" height="9" rx="2" stroke="currentColor" stroke-width="1.4"/><rect x="9.4" y="6.9" width="2.7" height="2.7" rx="0.7" fill="currentColor"/></svg>';
 
 function hashStr(str) {
   let h = 0;
@@ -1239,13 +1240,16 @@ function renderSessionsList() {
       const taskRow = panel.append('div')
         .attr('class', `sr-task-row${isFocused ? ' focused' : ''}`)
         .on('click', (event) => { event.stopPropagation(); focusTask(sessionIndex, stepGroupIndex); });
-      const top = taskRow.append('div').attr('class', 'sr-task-row-top');
-      top.append('span').text(taskEntry.task);
-      top.append('span').text(formatDuration(taskEntry.duration));
+      const header = taskRow.append('div').attr('class', 'sr-task-row-header');
+      header.append('span').attr('class', 'sr-task-row-icon').html(TASK_ICON_SVG);
+      const textCol = header.append('span').attr('class', 'sr-task-row-text');
       const built = buildSessionSteps(taskEntry.task, isTaskRepeated(session, taskEntry.task), hashStr(`${session.caseId}:${stepGroupIndex}`));
-      taskRow.append('div').attr('class', 'sr-task-row-sub').text(`${built.steps.length} steps`);
+      textCol.append('div').attr('class', 'sr-task-row-top').text(taskEntry.task);
+      textCol.append('div').attr('class', 'sr-task-row-sub').text(`${built.steps.length} steps`);
+      header.append('span').attr('class', 'sr-task-row-duration').text(formatDuration(taskEntry.duration));
 
       if (!isFocused) return;
+      taskRow.append('div').attr('class', 'sr-task-row-divider');
       const timeline = taskRow.append('div').attr('class', 'sr-task-timeline-wrap').append('div').attr('class', 'sr-timeline');
       built.steps.forEach((step, stepIdx) => {
         const isCurrent = stepIdx === srState.currentStepIndex;

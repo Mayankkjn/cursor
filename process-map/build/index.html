@@ -775,13 +775,22 @@ button:hover { filter: brightness(1.08); }
 
 /* Tasks within an expanded session — the target task (or whichever is
    clicked) expands further into its own step timeline. */
-.sr-task-row { padding: 8px 10px; border-radius: 8px; margin: 3px 0; cursor: pointer; border: 1.5px solid transparent; }
+.sr-task-row { padding: 10px 12px; border-radius: 10px; margin: 3px 0; cursor: pointer; border: 1.5px solid transparent; }
 .sr-task-row:hover { background: #f5f6fb; }
-.sr-task-row.focused { border-color: var(--accent-ui); background: var(--accent-ui-soft); }
-.sr-task-row-top { display: flex; justify-content: space-between; align-items: baseline; font-size: 0.85rem; font-weight: 600; color: var(--text-primary); }
+.sr-task-row.focused { border-color: var(--accent-ui); background: #fff; }
+.sr-task-row-header { display: flex; align-items: flex-start; gap: 10px; }
+.sr-task-row-icon {
+  width: 30px; height: 30px; border-radius: 50%; background: #f0f1f6; color: #8b8fa6;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.sr-task-row.focused .sr-task-row-icon { background: var(--accent-ui-soft); color: var(--accent-ui); }
+.sr-task-row-text { flex: 1; min-width: 0; }
+.sr-task-row-top { font-size: 0.88rem; font-weight: 700; color: var(--text-primary); }
 .sr-task-row.focused .sr-task-row-top { color: var(--accent-ui); }
-.sr-task-row-sub { font-size: 0.72rem; color: var(--text-secondary); margin-top: 1px; }
-.sr-task-timeline-wrap { padding-top: 6px; }
+.sr-task-row-sub { font-size: 0.75rem; color: var(--text-secondary); margin-top: 2px; }
+.sr-task-row-duration { font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); flex-shrink: 0; }
+.sr-task-row-divider { border-top: 1px solid #ebecf2; margin: 10px 0 6px; }
+.sr-task-timeline-wrap { padding-top: 2px; }
 
 .sr-timeline { position: relative; margin-bottom: 4px; }
 .sr-timeline-item { position: relative; padding: 7px 8px 7px 29px; border-radius: 8px; cursor: pointer; }
@@ -6619,6 +6628,7 @@ const srState = {
 };
 
 const PERSON_ICON_SVG = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="5.4" r="2.7" stroke="currentColor" stroke-width="1.4"/><path d="M2.8 14 C2.8 10.6 5 9 8 9 C11 9 13.2 10.6 13.2 14" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>';
+const TASK_ICON_SVG = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="2.5" y="3.5" width="11" height="9" rx="2" stroke="currentColor" stroke-width="1.4"/><rect x="9.4" y="6.9" width="2.7" height="2.7" rx="0.7" fill="currentColor"/></svg>';
 
 function hashStr(str) {
   let h = 0;
@@ -6780,13 +6790,16 @@ function renderSessionsList() {
       const taskRow = panel.append('div')
         .attr('class', `sr-task-row${isFocused ? ' focused' : ''}`)
         .on('click', (event) => { event.stopPropagation(); focusTask(sessionIndex, stepGroupIndex); });
-      const top = taskRow.append('div').attr('class', 'sr-task-row-top');
-      top.append('span').text(taskEntry.task);
-      top.append('span').text(formatDuration(taskEntry.duration));
+      const header = taskRow.append('div').attr('class', 'sr-task-row-header');
+      header.append('span').attr('class', 'sr-task-row-icon').html(TASK_ICON_SVG);
+      const textCol = header.append('span').attr('class', 'sr-task-row-text');
       const built = buildSessionSteps(taskEntry.task, isTaskRepeated(session, taskEntry.task), hashStr(`${session.caseId}:${stepGroupIndex}`));
-      taskRow.append('div').attr('class', 'sr-task-row-sub').text(`${built.steps.length} steps`);
+      textCol.append('div').attr('class', 'sr-task-row-top').text(taskEntry.task);
+      textCol.append('div').attr('class', 'sr-task-row-sub').text(`${built.steps.length} steps`);
+      header.append('span').attr('class', 'sr-task-row-duration').text(formatDuration(taskEntry.duration));
 
       if (!isFocused) return;
+      taskRow.append('div').attr('class', 'sr-task-row-divider');
       const timeline = taskRow.append('div').attr('class', 'sr-task-timeline-wrap').append('div').attr('class', 'sr-timeline');
       built.steps.forEach((step, stepIdx) => {
         const isCurrent = stepIdx === srState.currentStepIndex;

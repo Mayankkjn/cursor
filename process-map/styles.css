@@ -768,13 +768,22 @@ button:hover { filter: brightness(1.08); }
 
 /* Tasks within an expanded session — the target task (or whichever is
    clicked) expands further into its own step timeline. */
-.sr-task-row { padding: 8px 10px; border-radius: 8px; margin: 3px 0; cursor: pointer; border: 1.5px solid transparent; }
+.sr-task-row { padding: 10px 12px; border-radius: 10px; margin: 3px 0; cursor: pointer; border: 1.5px solid transparent; }
 .sr-task-row:hover { background: #f5f6fb; }
-.sr-task-row.focused { border-color: var(--accent-ui); background: var(--accent-ui-soft); }
-.sr-task-row-top { display: flex; justify-content: space-between; align-items: baseline; font-size: 0.85rem; font-weight: 600; color: var(--text-primary); }
+.sr-task-row.focused { border-color: var(--accent-ui); background: #fff; }
+.sr-task-row-header { display: flex; align-items: flex-start; gap: 10px; }
+.sr-task-row-icon {
+  width: 30px; height: 30px; border-radius: 50%; background: #f0f1f6; color: #8b8fa6;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.sr-task-row.focused .sr-task-row-icon { background: var(--accent-ui-soft); color: var(--accent-ui); }
+.sr-task-row-text { flex: 1; min-width: 0; }
+.sr-task-row-top { font-size: 0.88rem; font-weight: 700; color: var(--text-primary); }
 .sr-task-row.focused .sr-task-row-top { color: var(--accent-ui); }
-.sr-task-row-sub { font-size: 0.72rem; color: var(--text-secondary); margin-top: 1px; }
-.sr-task-timeline-wrap { padding-top: 6px; }
+.sr-task-row-sub { font-size: 0.75rem; color: var(--text-secondary); margin-top: 2px; }
+.sr-task-row-duration { font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); flex-shrink: 0; }
+.sr-task-row-divider { border-top: 1px solid #ebecf2; margin: 10px 0 6px; }
+.sr-task-timeline-wrap { padding-top: 2px; }
 
 .sr-timeline { position: relative; margin-bottom: 4px; }
 .sr-timeline-item { position: relative; padding: 7px 8px 7px 29px; border-radius: 8px; cursor: pointer; }
