@@ -753,10 +753,12 @@ button:hover { filter: brightness(1.08); }
 .sr-count-badge { background: #eef0f6; color: var(--text-secondary); font-size: 0.72rem; font-weight: 700; padding: 1px 8px; border-radius: 100px; font-variant-numeric: tabular-nums; }
 .sr-filter-btn { display: flex; align-items: center; gap: 5px; background: none; border: 1px solid var(--panel-border); border-radius: 7px; padding: 5px 10px; font-size: 0.76rem; font-weight: 600; color: var(--text-secondary); cursor: pointer; }
 .sr-filter-btn:hover { border-color: var(--accent-ui); color: var(--accent-ui); }
-.sr-tab-panel { padding: 8px 10px 16px 16px; overflow-y: auto; flex: 1; min-height: 0; }
+.sr-tab-panel { padding: 0; overflow-y: auto; flex: 1; min-height: 0; }
 
-/* Sessions list — one row per instance, expandable into its full task path */
-.sr-user-row { display: flex; align-items: center; gap: 12px; padding: 9px 8px; border-radius: 8px; cursor: pointer; border-left: 3px solid transparent; }
+/* Sessions list — one row per instance, expandable into its full task path.
+   Rows run edge-to-edge (no side margin/radius) so the flush strip reads as
+   the outer list; task cards below are inset, reading as nested content. */
+.sr-user-row { display: flex; align-items: center; gap: 12px; padding: 11px 16px; cursor: pointer; border-left: 3px solid transparent; border-bottom: 1px solid var(--panel-border); }
 .sr-user-row:hover { background: #f5f6fb; }
 .sr-user-row.expanded { background: var(--accent-ui-soft); border-left-color: var(--accent-ui); }
 .sr-user-avatar { width: 34px; height: 34px; border-radius: 50%; background: #eef0f6; color: #8b8fa6; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
@@ -766,9 +768,11 @@ button:hover { filter: brightness(1.08); }
 .sr-user-meta { font-size: 0.75rem; color: var(--text-secondary); margin-top: 1px; }
 
 /* Tasks within an expanded session — the target task (or whichever is
-   clicked) expands further into its own step timeline. */
-.sr-task-row { padding: 10px 12px; border-radius: 10px; margin: 3px 0; cursor: pointer; border: 1.5px solid transparent; }
-.sr-task-row:hover { background: #f5f6fb; }
+   clicked) expands further into its own step timeline. Inset from the
+   sessions list's edges and individually bordered so each reads as its
+   own card, in contrast with the edge-to-edge session rows above. */
+.sr-task-row { padding: 10px 12px; border-radius: 10px; margin: 6px 12px; cursor: pointer; border: 1.5px solid var(--panel-border); background: #fff; }
+.sr-task-row:hover { border-color: #c7cadd; }
 .sr-task-row.focused { border-color: var(--accent-ui); background: #fff; }
 .sr-task-row-header { display: flex; align-items: flex-start; gap: 10px; }
 .sr-task-row-icon {
