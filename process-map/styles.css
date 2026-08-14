@@ -538,7 +538,6 @@ button:hover { filter: brightness(1.08); }
   gap: 12px;
 }
 
-.floating-task-filter,
 .floating-path-filter {
   width: 300px;
   max-width: calc(100vw - 32px);

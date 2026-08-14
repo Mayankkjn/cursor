@@ -23,7 +23,6 @@ const state = {
   cases: [],
   model: null,
   threshold: 100, // Path Filter slider value 0-100 (0 = fewest deviations, 100 = all)
-  taskThreshold: 100, // Task filter slider value 0-100 (0 = highest-frequency tasks only, 100 = all)
   highlight: null, // null | { kind: 'variant', value: variant } | { kind: 'node', value: nodeId }
   expandedBubbles: new Set(), // source node ids whose "N variants" bubble is currently expanded
   comparison: null, // null | result of computeFastVsTypical() when "Compare to typical" is active
@@ -116,30 +115,6 @@ function applyThreshold(model, sliderValue) {
   });
 }
 
-// A task's "frequency" is how many distinct process variants its path
-// includes — not how many cases visit it — so a step every variant shares
-// ranks above one that only shows up in a couple of rare routes. Revealed
-// by rank (same incremental approach as applyThreshold) rather than by a
-// frequency cutoff, so the slider never jumps from a couple of tasks to
-// dozens in one step. Start/End are structural, not filterable.
-function applyTaskFilter(model, sliderValue) {
-  const variantCounts = new Map();
-  model.variants.forEach((v) => {
-    new Set(v.path).forEach((task) => {
-      variantCounts.set(task, (variantCounts.get(task) || 0) + 1);
-    });
-  });
-
-  const realNodes = model.nodes.filter((n) => !n.virtual);
-  const sorted = realNodes.slice().sort((a, b) => (variantCounts.get(b.id) || 0) - (variantCounts.get(a.id) || 0));
-  const visibleCount = Math.round((sliderValue / 100) * sorted.length);
-  const visible = new Set(sorted.slice(0, visibleCount));
-  model.nodes.forEach((n) => {
-    n.variantFreqCount = variantCounts.get(n.id) || 0;
-    n.taskHidden = !n.virtual && !visible.has(n);
-  });
-}
-
 const FAST_COHORT_SHARE = 0.05; // bottom 5% of cases by total duration
 const COMPARE_MIN_DELTA_SHARE = 0.1; // ignore per-task time deltas under 10% of the typical duration
 const COMPARE_PRESENCE_HIGH = 0.5; // "normally part of" this cohort's path
@@ -227,9 +202,7 @@ function computeFastVsTypical(model, cases) {
 // branch, so the map stays complete (nothing is discarded — click the
 // bubble to expand it) without every rare fork being drawn at once.
 function buildRenderGraph(model) {
-  const taskHiddenIds = new Set(model.nodes.filter((n) => n.taskHidden).map((n) => n.id));
-  const edgeSurvives = (e) => !e.hidden && !taskHiddenIds.has(e.from) && !taskHiddenIds.has(e.to);
-  const survivingEdges = model.edges.filter(edgeSurvives);
+  const survivingEdges = model.edges.filter((e) => !e.hidden);
 
   // How many surviving edges touch each node.
   const touchCount = new Map();
@@ -485,8 +458,6 @@ function render(fit = false) {
   const model = state.model;
   applyThreshold(model, state.threshold);
   updatePathFilterUI(model);
-  applyTaskFilter(model, state.taskThreshold);
-  updateTaskFilterUI(model);
   const renderGraph = buildRenderGraph(model);
 
   // Fast-vs-typical comparison annotates whichever of its tasks are
@@ -966,12 +937,10 @@ function handleUploadFile(file) {
       state.model = buildProcessModel(cases);
       state.highlight = null;
       state.threshold = 100;
-      state.taskThreshold = 100;
       state.expandedBubbles = new Set();
       state.comparison = null;
       d3.select('#insight-compare-btn').classed('active', false);
       d3.select('#pf-slider').property('value', 100);
-      d3.select('#tf-slider').property('value', 100);
       closeTaskMenu();
       closeSessionReplay();
       setUploadStatus(`Loaded ${cases.length} instance${cases.length === 1 ? '' : 's'} from "${file.name}".`, 'success');
@@ -1438,35 +1407,6 @@ function stepPathFilter(delta) {
 }
 d3.select('#pf-minus').on('click', () => stepPathFilter(-10));
 d3.select('#pf-plus').on('click', () => stepPathFilter(10));
-
-// The task filter's slider runs "High frequency" (0, only the tasks nearly
-// every variant shares) to "Low frequency" (100, everything, including
-// steps that only show up in a rare branch or two).
-function updateTaskFilterUI(model) {
-  const slider = document.getElementById('tf-slider');
-  const value = Number(slider.value);
-  const realNodes = model.nodes.filter((n) => !n.virtual);
-  const visibleCount = realNodes.filter((n) => !n.taskHidden).length;
-
-  document.getElementById('tf-value').textContent = `${value}%`;
-  document.getElementById('tf-subtext').textContent = realNodes.length
-    ? `Showing ${visibleCount} of ${realNodes.length} tasks`
-    : 'No tasks recorded for this process';
-  slider.style.background = `linear-gradient(to right, #c74900 0%, #c74900 ${value}%, #e6e7f0 ${value}%, #e6e7f0 100%)`;
-}
-
-d3.select('#tf-slider').on('input', function () {
-  state.taskThreshold = Number(this.value);
-  render(true);
-});
-
-function stepTaskFilter(delta) {
-  const slider = document.getElementById('tf-slider');
-  slider.value = Math.min(100, Math.max(0, Number(slider.value) + delta));
-  slider.dispatchEvent(new Event('input'));
-}
-d3.select('#tf-minus').on('click', () => stepTaskFilter(-10));
-d3.select('#tf-plus').on('click', () => stepTaskFilter(10));
 
 // If the user arrived here by clicking a process on the Overview page,
 // reflect that process's name in the header (one-time; doesn't persist
