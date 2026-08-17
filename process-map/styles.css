@@ -431,18 +431,17 @@ button:hover { filter: brightness(1.08); }
 .pill-label { fill: var(--text-primary); font-size: 13px; font-weight: 600; pointer-events: none; }
 .icon-flag line { stroke-width: 1.6px; stroke-linecap: round; }
 
-/* ---- diamond count badges ---- */
-.diamond-shape { fill: var(--card-bg); stroke: var(--path-main); stroke-width: 1.4px; stroke-dasharray: 3 3; }
-.diamond-label { fill: var(--path-main); font-size: 13px; font-weight: 700; text-anchor: middle; pointer-events: none; }
+/* ---- fork waypoint: a circular total, or (once it also folds in the
+   fork's low-frequency minor branches) a collapsible circle whose chevron
+   toggles those minor branches between folded-in and drawn individually ---- */
+.diamond-shape { fill: var(--card-bg); stroke: var(--path-deviation); stroke-width: 1.4px; stroke-dasharray: 3 3; transition: stroke 0.15s, fill 0.15s; }
+.diamond-shape.has-bubble { cursor: pointer; }
+.diamond-shape.has-bubble:hover { stroke: var(--accent-ui); fill: var(--accent-ui-soft); }
+.diamond-shape.expanded { stroke-dasharray: none; stroke: var(--accent-ui); fill: var(--accent-ui-soft); }
+.diamond-label { fill: var(--text-primary); font-size: 14px; font-weight: 700; text-anchor: middle; pointer-events: none; }
 .diamond-sub { fill: var(--text-secondary); font-size: 9.5px; text-anchor: middle; pointer-events: none; text-transform: uppercase; letter-spacing: 0.03em; }
-
-/* ---- semantic zoom: collapsed/expanded minor-variant bubble ---- */
-.node.bubble { cursor: pointer; }
-.bubble-bg { fill: var(--path-deviation-soft); stroke: var(--path-deviation); stroke-width: 1.4px; stroke-dasharray: 4 3; transition: stroke 0.15s, fill 0.15s; }
-.node.bubble:hover .bubble-bg { stroke: var(--accent-ui); fill: var(--accent-ui-soft); }
-.bubble-bg.expanded { stroke-dasharray: none; stroke: var(--accent-ui); fill: var(--accent-ui-soft); }
-.bubble-label { fill: var(--text-primary); font-size: 12px; font-weight: 700; pointer-events: none; }
-.bubble-sub { fill: var(--text-secondary); font-size: 9.5px; pointer-events: none; }
+.diamond-chevron { fill: none; stroke: var(--text-secondary); stroke-width: 1.6px; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+.diamond-shape.has-bubble:hover ~ .diamond-chevron { stroke: var(--accent-ui); }
 
 .node.dimmed { opacity: 0.28; }
 
