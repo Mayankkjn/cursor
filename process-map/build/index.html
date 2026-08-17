@@ -6175,7 +6175,7 @@ function edgeTooltipHtml(e, model) {
       <div class="edge-tooltip-stats">
         <div class="edge-tooltip-stat">
           <span class="edge-tooltip-stat-label">Total instance</span>
-          <span class="edge-tooltip-stat-value">${pluralCases(Number(e.label))} (${pct}%)</span>
+          <span class="edge-tooltip-stat-value">${Number(e.label)} time${Number(e.label) === 1 ? '' : 's'} (${pct}%)</span>
         </div>
         <div class="edge-tooltip-stat">
           <span class="edge-tooltip-stat-label">Median Time</span>
