@@ -653,13 +653,27 @@ button:hover { filter: brightness(1.08); }
   padding: 10px 12px;
   font-size: 0.78rem;
   color: var(--text-primary);
-  max-width: 260px;
+  max-width: 300px;
   pointer-events: none;
   z-index: 10;
   box-shadow: var(--shadow-md);
 }
 .tooltip strong { display: block; margin-bottom: 4px; }
 .tooltip div { color: var(--text-secondary); margin-top: 2px; }
+
+.edge-tooltip-card { display: flex; flex-direction: column; min-width: 210px; }
+.edge-tooltip-step { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; font-weight: 600; color: var(--text-primary); }
+.edge-tooltip-icon {
+  width: 22px; height: 22px; border-radius: 50%; background: #f0f1f6; color: #8b8fa6;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.edge-tooltip-icon svg { width: 13px; height: 13px; }
+.edge-tooltip-connector { width: 0; height: 13px; border-left: 1.5px dashed #c7cadd; margin: 1px 0 1px 10.5px; }
+.edge-tooltip-stats { display: flex; gap: 8px; margin-top: 10px; }
+.edge-tooltip-stat { flex: 1; min-width: 0; background: #f7f8fb; border-radius: 8px; padding: 7px 9px; }
+.edge-tooltip-stat-label { display: block; font-size: 0.66rem; color: var(--text-secondary); margin-bottom: 3px; white-space: nowrap; }
+.edge-tooltip-stat-value { display: block; font-size: 0.8rem; font-weight: 700; color: var(--text-primary); white-space: nowrap; }
+.edge-tooltip-note { margin-top: 8px; font-size: 0.72rem; color: var(--rework); font-weight: 600; }
 
 /* ---- task card kebab menu ---- */
 .icon-kebab-hit { cursor: pointer; }
@@ -5379,10 +5393,11 @@ function buildProcessModel(cases) {
   for (const c of cases) {
     // Node stats: count every visit (a rework loop can visit a task twice)
     c.steps.forEach((s) => {
-      const stat = touch(nodeStats, s.task, () => ({ visits: 0, totalDuration: 0, cases: new Set() }));
+      const stat = touch(nodeStats, s.task, () => ({ visits: 0, totalDuration: 0, cases: new Set(), durations: [] }));
       stat.visits += 1;
       stat.totalDuration += s.duration;
       stat.cases.add(c.caseId);
+      stat.durations.push(s.duration);
     });
 
     // Rework: did this case revisit the same task more than once?
@@ -5439,14 +5454,15 @@ function buildProcessModel(cases) {
       caseCount: stat.cases.size,
       casePct: stat.cases.size / totalCases,
       avgDuration: stat.totalDuration / stat.visits,
+      medianDuration: median(stat.durations),
       totalTime: stat.totalDuration,
       reworkCaseCount: rework ? rework.caseCount : 0,
       reworkExtraVisits: rework ? rework.extraVisits : 0,
       reworkRate: (rework ? rework.caseCount : 0) / totalCases,
     };
   });
-  nodes.push({ id: START, label: 'Start', visits: totalCases, caseCount: totalCases, casePct: 1, avgDuration: 0, totalTime: 0, reworkCaseCount: 0, reworkRate: 0, virtual: true });
-  nodes.push({ id: END, label: 'End', visits: totalCases, caseCount: totalCases, casePct: 1, avgDuration: 0, totalTime: 0, reworkCaseCount: 0, reworkRate: 0, virtual: true });
+  nodes.push({ id: START, label: 'Start', visits: totalCases, caseCount: totalCases, casePct: 1, avgDuration: 0, medianDuration: 0, totalTime: 0, reworkCaseCount: 0, reworkRate: 0, virtual: true });
+  nodes.push({ id: END, label: 'End', visits: totalCases, caseCount: totalCases, casePct: 1, avgDuration: 0, medianDuration: 0, totalTime: 0, reworkCaseCount: 0, reworkRate: 0, virtual: true });
 
   const edges = Array.from(edgeStats.values()).map((e) => ({
     from: e.from,
@@ -5821,16 +5837,17 @@ function buildRenderGraph(model) {
   deviationByFrom.forEach((group, from) => {
     if (group.length === 1) {
       const e = group[0];
-      edges.push({ from: e.from, to: e.to, kind: 'deviation', label: `${e.caseCount}`, sourceEdges: e.sourceEdges || [e], isBubbleEdge: e.isBubbleEdge });
+      edges.push({ from: e.from, to: e.to, kind: 'deviation', label: `${e.caseCount}`, casePct: e.caseCount / model.totalCases, sourceEdges: e.sourceEdges || [e], isBubbleEdge: e.isBubbleEdge });
       return;
     }
     const total = group.reduce((s, e) => s + e.caseCount, 0);
+    const totalPct = total / model.totalCases;
     const diamondId = `diamond::${from}`;
     const allSourceEdges = group.flatMap((e) => e.sourceEdges || [e]);
-    nodes.push({ id: diamondId, kind: 'diamond', label: `${total}`, sourceEdges: allSourceEdges });
-    edges.push({ from, to: diamondId, kind: 'deviation-bundle', label: `${total}`, sourceEdges: allSourceEdges });
+    nodes.push({ id: diamondId, kind: 'diamond', label: `${total}`, casePct: totalPct, sourceEdges: allSourceEdges });
+    edges.push({ from, to: diamondId, kind: 'deviation-bundle', label: `${total}`, casePct: totalPct, sourceEdges: allSourceEdges });
     group.forEach((e) => {
-      edges.push({ from: diamondId, to: e.to, kind: 'deviation', label: `${e.caseCount}`, sourceEdges: e.sourceEdges || [e], isBubbleEdge: e.isBubbleEdge });
+      edges.push({ from: diamondId, to: e.to, kind: 'deviation', label: `${e.caseCount}`, casePct: e.caseCount / model.totalCases, sourceEdges: e.sourceEdges || [e], isBubbleEdge: e.isBubbleEdge });
     });
   });
 
@@ -6047,7 +6064,7 @@ function render(fit = false) {
       if (!edgeIsActive(e)) classes.push('dimmed');
       return classes.join(' ');
     })
-    .on('mouseenter', (event, e) => showTooltip(event, edgeTooltipHtml(e)))
+    .on('mouseenter', (event, e) => showTooltip(event, edgeTooltipHtml(e, model)))
     .on('mousemove', moveTooltip)
     .on('mouseleave', hideTooltip);
 
@@ -6065,7 +6082,7 @@ function render(fit = false) {
     if (e.kind === 'happy' || !e.label) return;
     const pts = edgePos.get(edgeKey(e)).points;
     const mid = pts[Math.floor(pts.length / 2)];
-    const text = `${e.label} instance${e.label === '1' ? '' : 's'}`;
+    const text = e.casePct != null ? `${e.label} (${Math.round(e.casePct * 100)}%)` : `${e.label} instance${e.label === '1' ? '' : 's'}`;
     const t = labelGroup.append('text').attr('x', mid.x).attr('y', mid.y).text(text);
     const bbox = t.node().getBBox();
     labelGroup.insert('rect', 'text')
@@ -6137,20 +6154,36 @@ function nodeTooltipHtml(n, model) {
   `;
 }
 
-function edgeTooltipHtml(e) {
+function edgeTooltipHtml(e, model) {
   if (e.kind === 'happy') {
     return `<strong>${labelForNode(e.from)} → ${labelForNode(e.to)}</strong><div>Part of the most common path</div>`;
   }
   if (e.kind === 'deviation-bundle') {
-    return `<strong>${e.sourceEdges.length} deviation paths from ${labelForNode(e.from)}</strong><div>${pluralCases(Number(e.label))} total</div>`;
+    return `<strong>${e.sourceEdges.length} deviation paths from ${labelForNode(e.from)}</strong><div>${pluralCases(Number(e.label))} total (${Math.round(e.casePct * 100)}%)</div>`;
   }
   if (e.isBubbleEdge) {
-    return `<strong>${e.sourceEdges.length} variants from ${labelForNode(e.from)}</strong><div>${pluralCases(Number(e.label))} total</div>`;
+    return `<strong>${e.sourceEdges.length} variants from ${labelForNode(e.from)}</strong><div>${pluralCases(Number(e.label))} total (${Math.round(e.casePct * 100)}%)</div>`;
   }
   const orig = e.sourceEdges[0];
+  const toNode = model.nodes.find((n) => n.id === orig.to);
+  const pct = Math.round(e.casePct * 100);
   return `
-    <strong>${labelForNode(orig.from)} → ${labelForNode(orig.to)}</strong>
-    <div>${pluralCases(Number(e.label))} · ${e.isRework ? 'rework: loops back to an earlier step' : 'deviation from the most common path'}</div>
+    <div class="edge-tooltip-card">
+      <div class="edge-tooltip-step"><span class="edge-tooltip-icon">${TASK_ICON_SVG}</span><span>${labelForNode(orig.from)}</span></div>
+      <div class="edge-tooltip-connector"></div>
+      <div class="edge-tooltip-step"><span class="edge-tooltip-icon">${TASK_ICON_SVG}</span><span>${labelForNode(orig.to)}</span></div>
+      <div class="edge-tooltip-stats">
+        <div class="edge-tooltip-stat">
+          <span class="edge-tooltip-stat-label">Total instance</span>
+          <span class="edge-tooltip-stat-value">${pluralCases(Number(e.label))} (${pct}%)</span>
+        </div>
+        <div class="edge-tooltip-stat">
+          <span class="edge-tooltip-stat-label">Median Time</span>
+          <span class="edge-tooltip-stat-value">${toNode ? formatDuration(toNode.medianDuration) : '–'}</span>
+        </div>
+      </div>
+      ${e.isRework ? '<div class="edge-tooltip-note">Rework — loops back to redo this step</div>' : ''}
+    </div>
   `;
 }
 

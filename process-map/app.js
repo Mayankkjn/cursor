@@ -308,16 +308,17 @@ function buildRenderGraph(model) {
   deviationByFrom.forEach((group, from) => {
     if (group.length === 1) {
       const e = group[0];
-      edges.push({ from: e.from, to: e.to, kind: 'deviation', label: `${e.caseCount}`, sourceEdges: e.sourceEdges || [e], isBubbleEdge: e.isBubbleEdge });
+      edges.push({ from: e.from, to: e.to, kind: 'deviation', label: `${e.caseCount}`, casePct: e.caseCount / model.totalCases, sourceEdges: e.sourceEdges || [e], isBubbleEdge: e.isBubbleEdge });
       return;
     }
     const total = group.reduce((s, e) => s + e.caseCount, 0);
+    const totalPct = total / model.totalCases;
     const diamondId = `diamond::${from}`;
     const allSourceEdges = group.flatMap((e) => e.sourceEdges || [e]);
-    nodes.push({ id: diamondId, kind: 'diamond', label: `${total}`, sourceEdges: allSourceEdges });
-    edges.push({ from, to: diamondId, kind: 'deviation-bundle', label: `${total}`, sourceEdges: allSourceEdges });
+    nodes.push({ id: diamondId, kind: 'diamond', label: `${total}`, casePct: totalPct, sourceEdges: allSourceEdges });
+    edges.push({ from, to: diamondId, kind: 'deviation-bundle', label: `${total}`, casePct: totalPct, sourceEdges: allSourceEdges });
     group.forEach((e) => {
-      edges.push({ from: diamondId, to: e.to, kind: 'deviation', label: `${e.caseCount}`, sourceEdges: e.sourceEdges || [e], isBubbleEdge: e.isBubbleEdge });
+      edges.push({ from: diamondId, to: e.to, kind: 'deviation', label: `${e.caseCount}`, casePct: e.caseCount / model.totalCases, sourceEdges: e.sourceEdges || [e], isBubbleEdge: e.isBubbleEdge });
     });
   });
 
@@ -534,7 +535,7 @@ function render(fit = false) {
       if (!edgeIsActive(e)) classes.push('dimmed');
       return classes.join(' ');
     })
-    .on('mouseenter', (event, e) => showTooltip(event, edgeTooltipHtml(e)))
+    .on('mouseenter', (event, e) => showTooltip(event, edgeTooltipHtml(e, model)))
     .on('mousemove', moveTooltip)
     .on('mouseleave', hideTooltip);
 
@@ -552,7 +553,7 @@ function render(fit = false) {
     if (e.kind === 'happy' || !e.label) return;
     const pts = edgePos.get(edgeKey(e)).points;
     const mid = pts[Math.floor(pts.length / 2)];
-    const text = `${e.label} instance${e.label === '1' ? '' : 's'}`;
+    const text = e.casePct != null ? `${e.label} (${Math.round(e.casePct * 100)}%)` : `${e.label} instance${e.label === '1' ? '' : 's'}`;
     const t = labelGroup.append('text').attr('x', mid.x).attr('y', mid.y).text(text);
     const bbox = t.node().getBBox();
     labelGroup.insert('rect', 'text')
@@ -624,20 +625,36 @@ function nodeTooltipHtml(n, model) {
   `;
 }
 
-function edgeTooltipHtml(e) {
+function edgeTooltipHtml(e, model) {
   if (e.kind === 'happy') {
     return `<strong>${labelForNode(e.from)} → ${labelForNode(e.to)}</strong><div>Part of the most common path</div>`;
   }
   if (e.kind === 'deviation-bundle') {
-    return `<strong>${e.sourceEdges.length} deviation paths from ${labelForNode(e.from)}</strong><div>${pluralCases(Number(e.label))} total</div>`;
+    return `<strong>${e.sourceEdges.length} deviation paths from ${labelForNode(e.from)}</strong><div>${pluralCases(Number(e.label))} total (${Math.round(e.casePct * 100)}%)</div>`;
   }
   if (e.isBubbleEdge) {
-    return `<strong>${e.sourceEdges.length} variants from ${labelForNode(e.from)}</strong><div>${pluralCases(Number(e.label))} total</div>`;
+    return `<strong>${e.sourceEdges.length} variants from ${labelForNode(e.from)}</strong><div>${pluralCases(Number(e.label))} total (${Math.round(e.casePct * 100)}%)</div>`;
   }
   const orig = e.sourceEdges[0];
+  const toNode = model.nodes.find((n) => n.id === orig.to);
+  const pct = Math.round(e.casePct * 100);
   return `
-    <strong>${labelForNode(orig.from)} → ${labelForNode(orig.to)}</strong>
-    <div>${pluralCases(Number(e.label))} · ${e.isRework ? 'rework: loops back to an earlier step' : 'deviation from the most common path'}</div>
+    <div class="edge-tooltip-card">
+      <div class="edge-tooltip-step"><span class="edge-tooltip-icon">${TASK_ICON_SVG}</span><span>${labelForNode(orig.from)}</span></div>
+      <div class="edge-tooltip-connector"></div>
+      <div class="edge-tooltip-step"><span class="edge-tooltip-icon">${TASK_ICON_SVG}</span><span>${labelForNode(orig.to)}</span></div>
+      <div class="edge-tooltip-stats">
+        <div class="edge-tooltip-stat">
+          <span class="edge-tooltip-stat-label">Total instance</span>
+          <span class="edge-tooltip-stat-value">${pluralCases(Number(e.label))} (${pct}%)</span>
+        </div>
+        <div class="edge-tooltip-stat">
+          <span class="edge-tooltip-stat-label">Median Time</span>
+          <span class="edge-tooltip-stat-value">${toNode ? formatDuration(toNode.medianDuration) : '–'}</span>
+        </div>
+      </div>
+      ${e.isRework ? '<div class="edge-tooltip-note">Rework — loops back to redo this step</div>' : ''}
+    </div>
   `;
 }
 

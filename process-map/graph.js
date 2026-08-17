@@ -18,10 +18,11 @@ function buildProcessModel(cases) {
   for (const c of cases) {
     // Node stats: count every visit (a rework loop can visit a task twice)
     c.steps.forEach((s) => {
-      const stat = touch(nodeStats, s.task, () => ({ visits: 0, totalDuration: 0, cases: new Set() }));
+      const stat = touch(nodeStats, s.task, () => ({ visits: 0, totalDuration: 0, cases: new Set(), durations: [] }));
       stat.visits += 1;
       stat.totalDuration += s.duration;
       stat.cases.add(c.caseId);
+      stat.durations.push(s.duration);
     });
 
     // Rework: did this case revisit the same task more than once?
@@ -78,14 +79,15 @@ function buildProcessModel(cases) {
       caseCount: stat.cases.size,
       casePct: stat.cases.size / totalCases,
       avgDuration: stat.totalDuration / stat.visits,
+      medianDuration: median(stat.durations),
       totalTime: stat.totalDuration,
       reworkCaseCount: rework ? rework.caseCount : 0,
       reworkExtraVisits: rework ? rework.extraVisits : 0,
       reworkRate: (rework ? rework.caseCount : 0) / totalCases,
     };
   });
-  nodes.push({ id: START, label: 'Start', visits: totalCases, caseCount: totalCases, casePct: 1, avgDuration: 0, totalTime: 0, reworkCaseCount: 0, reworkRate: 0, virtual: true });
-  nodes.push({ id: END, label: 'End', visits: totalCases, caseCount: totalCases, casePct: 1, avgDuration: 0, totalTime: 0, reworkCaseCount: 0, reworkRate: 0, virtual: true });
+  nodes.push({ id: START, label: 'Start', visits: totalCases, caseCount: totalCases, casePct: 1, avgDuration: 0, medianDuration: 0, totalTime: 0, reworkCaseCount: 0, reworkRate: 0, virtual: true });
+  nodes.push({ id: END, label: 'End', visits: totalCases, caseCount: totalCases, casePct: 1, avgDuration: 0, medianDuration: 0, totalTime: 0, reworkCaseCount: 0, reworkRate: 0, virtual: true });
 
   const edges = Array.from(edgeStats.values()).map((e) => ({
     from: e.from,
