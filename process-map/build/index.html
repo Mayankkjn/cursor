@@ -840,7 +840,7 @@ button:hover { filter: brightness(1.08); }
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 14 14'%3E%3Cpath d='M3 5 L7 9 L11 5' fill='none' stroke='%238b8fa6' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat; background-position: right center;
 }
-.sr-player-row { display: flex; align-items: center; gap: 14px; flex: 1; min-height: 0; }
+.sr-player-row { display: flex; align-items: center; justify-content: center; gap: 14px; flex: 1; min-height: 0; }
 .sr-player-nav {
   flex-shrink: 0;
   width: 32px; height: 32px; border-radius: 50%; border: none;
@@ -850,6 +850,8 @@ button:hover { filter: brightness(1.08); }
 .sr-player-nav:hover { background: #eaeaf2; color: var(--accent-ui); }
 .sr-player-nav:disabled { opacity: 0.35; cursor: default; }
 .sr-player-nav:disabled:hover { background: var(--bg); color: var(--text-primary); }
+/* Always 16:9 — grows to fill the row's width (up to its available
+   height), rather than stretching to whatever shape the modal is. */
 .sr-player {
   position: relative;
   background: linear-gradient(135deg, #2a2e45 0%, #3d3c52 55%, #2a2e45 100%);
@@ -857,12 +859,12 @@ button:hover { filter: brightness(1.08); }
   overflow: hidden;
   flex: 1;
   min-width: 0;
-  min-height: 180px;
+  aspect-ratio: 16 / 9;
+  max-height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
 }
-.sr-panel-expanded .sr-player { min-height: 320px; }
 .sr-ghost { position: absolute; opacity: 0.28; border: 1.4px solid rgba(255, 255, 255, 0.55); border-radius: 6px; }
 .sr-play-btn {
   width: 46px;
