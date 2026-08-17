@@ -787,6 +787,14 @@ button:hover { filter: brightness(1.08); }
 .sr-user-name { font-size: 0.88rem; font-weight: 600; color: var(--text-primary); }
 .sr-user-meta { font-size: 0.75rem; color: var(--text-secondary); margin-top: 1px; }
 
+/* The active path's user picker — sits between the path row and its task
+   list, so switching users re-scopes every task's real duration below. */
+.sr-user-select-row {
+  display: flex; align-items: center; gap: 6px; padding: 10px 16px 4px;
+  font-size: 0.78rem; color: var(--text-secondary); font-weight: 600;
+}
+.sr-user-select-row select.sr-userbar-select { color: var(--text-primary); }
+
 /* Tasks within an expanded session — the target task (or whichever is
    clicked) expands further into its own step timeline. Inset from the
    sessions list's edges and individually bordered so each reads as its
@@ -818,6 +826,32 @@ button:hover { filter: brightness(1.08); }
 .sr-timeline-item.loop .sr-timeline-label::after { content: ' \21ba loop'; font-size: 0.68rem; color: var(--rework); font-weight: 600; }
 
 .sr-player-col { flex: 1; min-width: 0; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; }
+.sr-player-userbar {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  font-size: 0.82rem; color: var(--text-primary); font-weight: 600;
+  padding-bottom: 12px; flex-shrink: 0;
+}
+.sr-player-userbar svg { color: var(--text-secondary); flex-shrink: 0; }
+.sr-player-userbar .sr-userbar-sep { color: var(--text-tertiary); margin: 0 2px; }
+.sr-player-userbar .sr-userbar-duration { color: var(--text-secondary); font-weight: 600; }
+.sr-userbar-select {
+  appearance: none; background: none; border: none; font: inherit; font-weight: 700;
+  color: var(--text-primary); cursor: pointer; padding: 2px 16px 2px 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 14 14'%3E%3Cpath d='M3 5 L7 9 L11 5' fill='none' stroke='%238b8fa6' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right center;
+}
+.sr-player-nav {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  width: 32px; height: 32px; border-radius: 50%; border: none;
+  background: rgba(255, 255, 255, 0.9); color: var(--text-primary);
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18); z-index: 2;
+}
+.sr-player-nav:hover { background: #fff; color: var(--accent-ui); }
+.sr-player-nav:disabled { opacity: 0.35; cursor: default; }
+.sr-player-nav:disabled:hover { color: var(--text-primary); }
+.sr-player-nav-prev { left: 12px; }
+.sr-player-nav-next { right: 12px; }
 .sr-player {
   position: relative;
   background: linear-gradient(135deg, #2a2e45 0%, #3d3c52 55%, #2a2e45 100%);

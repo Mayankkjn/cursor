@@ -787,6 +787,14 @@ button:hover { filter: brightness(1.08); }
 .sr-user-name { font-size: 0.88rem; font-weight: 600; color: var(--text-primary); }
 .sr-user-meta { font-size: 0.75rem; color: var(--text-secondary); margin-top: 1px; }
 
+/* The active path's user picker — sits between the path row and its task
+   list, so switching users re-scopes every task's real duration below. */
+.sr-user-select-row {
+  display: flex; align-items: center; gap: 6px; padding: 10px 16px 4px;
+  font-size: 0.78rem; color: var(--text-secondary); font-weight: 600;
+}
+.sr-user-select-row select.sr-userbar-select { color: var(--text-primary); }
+
 /* Tasks within an expanded session — the target task (or whichever is
    clicked) expands further into its own step timeline. Inset from the
    sessions list's edges and individually bordered so each reads as its
@@ -818,6 +826,32 @@ button:hover { filter: brightness(1.08); }
 .sr-timeline-item.loop .sr-timeline-label::after { content: ' \21ba loop'; font-size: 0.68rem; color: var(--rework); font-weight: 600; }
 
 .sr-player-col { flex: 1; min-width: 0; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; }
+.sr-player-userbar {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  font-size: 0.82rem; color: var(--text-primary); font-weight: 600;
+  padding-bottom: 12px; flex-shrink: 0;
+}
+.sr-player-userbar svg { color: var(--text-secondary); flex-shrink: 0; }
+.sr-player-userbar .sr-userbar-sep { color: var(--text-tertiary); margin: 0 2px; }
+.sr-player-userbar .sr-userbar-duration { color: var(--text-secondary); font-weight: 600; }
+.sr-userbar-select {
+  appearance: none; background: none; border: none; font: inherit; font-weight: 700;
+  color: var(--text-primary); cursor: pointer; padding: 2px 16px 2px 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 14 14'%3E%3Cpath d='M3 5 L7 9 L11 5' fill='none' stroke='%238b8fa6' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right center;
+}
+.sr-player-nav {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  width: 32px; height: 32px; border-radius: 50%; border: none;
+  background: rgba(255, 255, 255, 0.9); color: var(--text-primary);
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18); z-index: 2;
+}
+.sr-player-nav:hover { background: #fff; color: var(--accent-ui); }
+.sr-player-nav:disabled { opacity: 0.35; cursor: default; }
+.sr-player-nav:disabled:hover { color: var(--text-primary); }
+.sr-player-nav-prev { left: 12px; }
+.sr-player-nav-next { right: 12px; }
 .sr-player {
   position: relative;
   background: linear-gradient(135deg, #2a2e45 0%, #3d3c52 55%, #2a2e45 100%);
@@ -1159,7 +1193,7 @@ button:hover { filter: brightness(1.08); }
       <div class="sr-body">
         <div class="sr-side-col">
           <div class="sr-panel-title">
-            <span class="sr-panel-title-left">Sessions <span class="sr-count-badge" id="sr-session-count">0</span></span>
+            <span class="sr-panel-title-left">Paths <span class="sr-count-badge" id="sr-path-count">0</span></span>
             <button class="sr-filter-btn" id="sr-filter-btn" type="button">
               <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2 3 H14 L9.5 8.5 V13 L6.5 11.5 V8.5 Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" /></svg>
               Filter
@@ -1168,10 +1202,17 @@ button:hover { filter: brightness(1.08); }
           <div class="sr-tab-panel" id="sr-sessions-panel"></div>
         </div>
         <div class="sr-player-col">
+          <div class="sr-player-userbar" id="sr-player-userbar"></div>
           <div class="sr-player">
+            <button class="sr-player-nav sr-player-nav-prev" id="sr-user-prev" type="button" aria-label="Previous user">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M9 2 L4 7 L9 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+            </button>
             <div class="sr-ghost" style="top:14%; left:6%; width:30%; height:10%;"></div>
             <div class="sr-ghost" style="top:30%; left:6%; width:88%; height:46%;"></div>
             <button class="sr-play-btn" id="sr-play-btn" type="button" aria-label="Play (preview only)"></button>
+            <button class="sr-player-nav sr-player-nav-next" id="sr-user-next" type="button" aria-label="Next user">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M5 2 L10 7 L5 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+            </button>
           </div>
           <div class="sr-scrubber">
             <div class="sr-scrubber-row">
@@ -6576,18 +6617,20 @@ d3.select(document).on('click.taskMenu', (event) => {
 // There's no real screen-recording data behind this app's synthetic event
 // logs, so the "recording" is an honest placeholder (a static player frame,
 // non-functional play button) while everything else — who performed each
-// session, which path it took, every task in it and how long it really
+// instance, which path it took, every task in it and how long it really
 // took — is real, derived straight from the case log. Only the click-level
 // step breakdown inside a task is a clearly-templated stand-in for detail
 // the log doesn't capture.
 const srState = {
-  taskId: null, taskLabel: '', sessions: [], metaSuffix: '',
-  expandedSessionIndex: null, activeIndex: 0, focusedStepGroupIndex: 0,
+  taskId: null, taskLabel: '', paths: [], metaSuffix: '',
+  activePathIndex: 0, activeUserIndex: 0, focusedStepGroupIndex: 0,
   steps: [], totalSeconds: 0, currentStepIndex: 0,
 };
 
 const PERSON_ICON_SVG = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="5.4" r="2.7" stroke="currentColor" stroke-width="1.4"/><path d="M2.8 14 C2.8 10.6 5 9 8 9 C11 9 13.2 10.6 13.2 14" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>';
 const TASK_ICON_SVG = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="2.5" y="3.5" width="11" height="9" rx="2" stroke="currentColor" stroke-width="1.4"/><rect x="9.4" y="6.9" width="2.7" height="2.7" rx="0.7" fill="currentColor"/></svg>';
+const PATH_ICON_SVG = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="4" cy="4.3" r="1.8" stroke="currentColor" stroke-width="1.3"/><circle cx="12" cy="11.7" r="1.8" stroke="currentColor" stroke-width="1.3"/><path d="M4 6.1 C4 9.5 6 7.8 8 7.8 C10 7.8 12 6.3 12 9.9" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/></svg>';
+const CLOCK_ICON_SVG = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.3"/><path d="M8 4.8 V8 L10.2 9.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
 function hashStr(str) {
   let h = 0;
@@ -6603,30 +6646,35 @@ function formatUserId(user) {
   return `ID:${String(user).replace(/^U-/, '')}`;
 }
 
-// One row per instance that touched the target task — real data throughout:
-// who ran it, which variant/path it followed, and its full ordered list of
-// tasks (with real per-task durations from the case log).
-function buildTaskSessions(cases, taskId, model) {
-  const sessions = [];
+// Groups every instance that touched the target task by which process
+// variant (path) it followed, then by which real user ran it — real data
+// throughout: which users ran each path, the path's ordered list of tasks,
+// and (looked up per active user below) every task's real duration, since
+// the same path can take a different amount of time for each person.
+function buildTaskPaths(cases, taskId, model) {
+  const byPath = new Map();
   cases.forEach((c) => {
-    const occurrences = c.steps.filter((s) => s.task === taskId);
-    if (!occurrences.length) return;
-    const caseDuration = occurrences.reduce((sum, s) => sum + s.duration, 0);
+    if (!c.steps.some((s) => s.task === taskId)) return;
     const variant = model.variants.find((v) => v.caseIds.includes(c.caseId));
-    sessions.push({
-      caseId: c.caseId,
-      user: (c.users && c.users[0]) || 'Unknown user',
-      isRework: occurrences.length > 1,
-      caseDuration,
-      variantRank: variant ? variant.rank : null,
-      path: c.steps,
-    });
+    const taskNames = c.steps.map((s) => s.task);
+    const key = variant ? variant.rank : `u:${taskNames.join('>')}`;
+    if (!byPath.has(key)) byPath.set(key, { variantRank: variant ? variant.rank : null, taskNames, users: new Map() });
+    const entry = byPath.get(key);
+    const userId = (c.users && c.users[0]) || 'Unknown user';
+    if (!entry.users.has(userId)) entry.users.set(userId, []);
+    entry.users.get(userId).push(c);
   });
-  return sessions;
+  return Array.from(byPath.values())
+    .sort((a, b) => (a.variantRank ?? Infinity) - (b.variantRank ?? Infinity))
+    .map((entry) => ({
+      variantRank: entry.variantRank,
+      taskNames: entry.taskNames,
+      users: Array.from(entry.users.entries()).map(([userId, userCases]) => ({ userId, cases: userCases })),
+    }));
 }
 
-function isTaskRepeated(session, taskName) {
-  return session.path.filter((s) => s.task === taskName).length > 1;
+function isTaskRepeated(taskNames, taskName) {
+  return taskNames.filter((t) => t === taskName).length > 1;
 }
 
 // Synthesizes a plausible step-by-step breakdown scaled to a short (2-6.5min)
@@ -6643,25 +6691,27 @@ function buildSessionSteps(taskLabel, isRework, seed) {
   return { totalSeconds, steps };
 }
 
+function activePath() { return srState.paths[srState.activePathIndex]; }
+function activeCase() { return activePath().users[srState.activeUserIndex].cases[0]; }
+
 function openSessionReplay(taskId) {
   const model = state.model;
   const node = model.nodes.find((n) => n.id === taskId);
-  const sessions = buildTaskSessions(state.cases, taskId, model);
-  if (!node || !sessions.length) return;
+  const paths = buildTaskPaths(state.cases, taskId, model);
+  if (!node || !paths.length) return;
 
   srState.taskId = taskId;
   srState.taskLabel = node.label;
-  srState.sessions = sessions;
-  srState.expandedSessionIndex = null;
-  const reworkIndex = sessions.findIndex((s) => s.isRework);
-  srState.activeIndex = reworkIndex >= 0 ? reworkIndex : 0;
+  srState.paths = paths;
+  srState.activePathIndex = 0;
+  srState.activeUserIndex = 0;
 
-  const paths = model.variants.filter((v) => v.path.includes(taskId));
-  const uniqueUserCount = new Set(sessions.map((s) => s.user)).size;
-  srState.metaSuffix = `${sessions.length} instance${sessions.length === 1 ? '' : 's'} · ${uniqueUserCount} unique user${uniqueUserCount === 1 ? '' : 's'} · ${paths.length} path${paths.length === 1 ? '' : 's'}`;
+  const allCases = paths.flatMap((p) => p.users.flatMap((u) => u.cases));
+  const uniqueUserCount = new Set(allCases.map((c) => (c.users && c.users[0]) || 'Unknown user')).size;
+  srState.metaSuffix = `${allCases.length} instance${allCases.length === 1 ? '' : 's'} · ${uniqueUserCount} unique user${uniqueUserCount === 1 ? '' : 's'} · ${paths.length} path${paths.length === 1 ? '' : 's'}`;
 
-  loadActiveSession();
-  renderSessionsList();
+  loadActiveUser();
+  renderPathsList();
   renderScrubber();
   d3.select('#session-replay-modal').classed('hidden', false);
 }
@@ -6670,98 +6720,136 @@ function closeSessionReplay() {
   d3.select('#sr-panel').classed('sr-panel-expanded', false);
 }
 
-// Seeds the player with the target task's own occurrence in the default
-// active session, and sets the header — called once on open, and again
-// whenever a different session becomes active (but not on every step or
-// same-session task click).
-function loadActiveSession() {
-  const session = srState.sessions[srState.activeIndex];
-  const targetIndex = session.path.findIndex((s) => s.task === srState.taskId);
-  srState.focusedStepGroupIndex = targetIndex >= 0 ? targetIndex : 0;
-  const built = buildSessionSteps(srState.taskLabel, session.isRework, hashStr(`${session.caseId}:${srState.focusedStepGroupIndex}`));
+// Rebuilds the synthesized step timeline for whichever task in the active
+// path is focused — shared by loadActiveUser (the target task) and
+// focusTask (any other task the user clicks within the same path).
+function focusTaskSteps(stepGroupIndex) {
+  const path = activePath();
+  const taskName = path.taskNames[stepGroupIndex];
+  const built = buildSessionSteps(taskName, isTaskRepeated(path.taskNames, taskName), hashStr(`${activeCase().caseId}:${stepGroupIndex}`));
   srState.steps = built.steps;
   srState.totalSeconds = built.totalSeconds;
   srState.currentStepIndex = 0;
-
-  d3.select('#sr-task-name').text(srState.taskLabel);
-  d3.select('#sr-task-sub').text(`${built.steps.length} steps · ${srState.metaSuffix}`);
 }
 
-function expandSession(sessionIndex) {
-  srState.expandedSessionIndex = sessionIndex;
-  const session = srState.sessions[sessionIndex];
-  const targetIndex = session.path.findIndex((s) => s.task === srState.taskId);
-  focusTask(sessionIndex, targetIndex >= 0 ? targetIndex : 0);
+// Seeds the player with the target task's own occurrence for the active
+// path + user, and refreshes both header bars — called on open, and again
+// whenever the active path or user changes (but not on every step or
+// same-user task click).
+function loadActiveUser() {
+  const path = activePath();
+  const targetIndex = path.taskNames.findIndex((t) => t === srState.taskId);
+  srState.focusedStepGroupIndex = targetIndex >= 0 ? targetIndex : 0;
+  focusTaskSteps(srState.focusedStepGroupIndex);
 
-  // Bring the just-expanded session (and the task path revealed beneath
-  // it) into view instead of leaving it to render below the fold.
-  const row = document.querySelector(`#sr-sessions-panel [data-session-index="${sessionIndex}"]`);
+  d3.select('#sr-task-name').text(srState.taskLabel);
+  d3.select('#sr-task-sub').text(`${srState.steps.length} steps · ${srState.metaSuffix}`);
+  renderUserBar();
+}
+
+function selectPath(pathIndex) {
+  if (pathIndex === srState.activePathIndex) return;
+  srState.activePathIndex = pathIndex;
+  srState.activeUserIndex = 0;
+  loadActiveUser();
+  renderPathsList();
+  renderScrubber();
+
+  // Bring the just-selected path (and the task list revealed beneath it)
+  // into view instead of leaving it to render below the fold.
+  const row = document.querySelector(`#sr-sessions-panel [data-path-index="${pathIndex}"]`);
   if (row) row.scrollIntoView({ block: 'start', behavior: 'smooth' });
 }
 
-// Switches the player to a specific task within a session — the target
-// task by default when a session first expands, or whichever other task
-// in that same path the user clicks to peek at its own step breakdown.
-function focusTask(sessionIndex, stepGroupIndex) {
-  const sessionChanged = sessionIndex !== srState.activeIndex;
-  srState.activeIndex = sessionIndex;
-  srState.focusedStepGroupIndex = stepGroupIndex;
-
-  const session = srState.sessions[sessionIndex];
-  const taskEntry = session.path[stepGroupIndex];
-  const built = buildSessionSteps(taskEntry.task, isTaskRepeated(session, taskEntry.task), hashStr(`${session.caseId}:${stepGroupIndex}`));
-  srState.steps = built.steps;
-  srState.totalSeconds = built.totalSeconds;
-  srState.currentStepIndex = 0;
-
-  if (sessionChanged) {
-    const targetIndex = session.path.findIndex((s) => s.task === srState.taskId);
-    const targetBuilt = buildSessionSteps(srState.taskLabel, session.isRework, hashStr(`${session.caseId}:${targetIndex}`));
-    d3.select('#sr-task-sub').text(`${targetBuilt.steps.length} steps · ${srState.metaSuffix}`);
-  }
-
+function selectUser(userIndex) {
+  const clamped = Math.min(activePath().users.length - 1, Math.max(0, userIndex));
+  if (clamped === srState.activeUserIndex) return;
+  srState.activeUserIndex = clamped;
+  loadActiveUser();
+  renderPathsList();
   renderScrubber();
-  renderSessionsList();
+}
+
+function stepUser(delta) { selectUser(srState.activeUserIndex + delta); }
+
+// Switches the player to a specific task within the active path — the
+// target task by default, or whichever other task the user clicks to peek
+// at its own step breakdown. Doesn't change the active path/user.
+function focusTask(stepGroupIndex) {
+  srState.focusedStepGroupIndex = stepGroupIndex;
+  focusTaskSteps(stepGroupIndex);
+  renderScrubber();
+  renderPathsList();
 }
 
 function selectStep(stepIndex) {
   srState.currentStepIndex = stepIndex;
   updateScrubberPosition();
-  renderSessionsList();
+  renderPathsList();
 }
 
-function renderSessionsList() {
+// The player-side bar mirrors the sidebar's user picker (both rebuilt on
+// every switch, so they never drift out of sync) and shows that user's
+// real overall case duration — distinct from whichever single task's own
+// duration is focused in the list below.
+function renderUserBar() {
+  const bar = d3.select('#sr-player-userbar');
+  bar.selectAll('*').remove();
+  const path = activePath();
+  bar.append('span').html(PERSON_ICON_SVG);
+  bar.append('span').text('User ID :');
+  const select = bar.append('select').attr('class', 'sr-userbar-select');
+  path.users.forEach((u, i) => {
+    select.append('option').attr('value', i).property('selected', i === srState.activeUserIndex).text(formatUserId(u.userId));
+  });
+  select.on('change', function () { selectUser(Number(this.value)); });
+  bar.append('span').attr('class', 'sr-userbar-sep').text('·');
+  bar.append('span').html(CLOCK_ICON_SVG);
+  bar.append('span').attr('class', 'sr-userbar-duration').text(formatDuration(activeCase().totalDuration));
+
+  d3.select('#sr-user-prev').property('disabled', srState.activeUserIndex === 0);
+  d3.select('#sr-user-next').property('disabled', srState.activeUserIndex === path.users.length - 1);
+}
+
+function renderPathsList() {
   const panel = d3.select('#sr-sessions-panel');
   panel.selectAll('*').remove();
-  d3.select('#sr-session-count').text(srState.sessions.length);
+  d3.select('#sr-path-count').text(srState.paths.length);
 
-  srState.sessions.forEach((session, sessionIndex) => {
-    const isExpanded = sessionIndex === srState.expandedSessionIndex;
+  srState.paths.forEach((path, pathIndex) => {
+    const isActive = pathIndex === srState.activePathIndex;
     const row = panel.append('div')
-      .attr('class', `sr-user-row${isExpanded ? ' expanded' : ''}`)
-      .attr('data-session-index', sessionIndex)
-      .on('click', () => {
-        if (srState.expandedSessionIndex === sessionIndex) { srState.expandedSessionIndex = null; renderSessionsList(); }
-        else expandSession(sessionIndex);
-      });
-    row.append('span').attr('class', 'sr-user-avatar').html(PERSON_ICON_SVG);
+      .attr('class', `sr-user-row${isActive ? ' expanded' : ''}`)
+      .attr('data-path-index', pathIndex)
+      .on('click', () => selectPath(pathIndex));
+    row.append('span').attr('class', 'sr-user-avatar').html(PATH_ICON_SVG);
     const info = row.append('span').attr('class', 'sr-user-info');
-    info.append('span').attr('class', 'sr-user-name').text(formatUserId(session.user));
-    info.append('span').attr('class', 'sr-user-meta').text(`Path ${session.variantRank != null ? session.variantRank : '–'} · ${session.path.length} Tasks`);
+    info.append('span').attr('class', 'sr-user-name').text(`Path ${path.variantRank != null ? path.variantRank : '–'}`);
+    info.append('span').attr('class', 'sr-user-meta').text(`${path.users.length} user${path.users.length === 1 ? '' : 's'} · ${path.taskNames.length} Tasks`);
 
-    if (!isExpanded) return;
-    session.path.forEach((taskEntry, stepGroupIndex) => {
-      const isFocused = sessionIndex === srState.activeIndex && stepGroupIndex === srState.focusedStepGroupIndex;
+    if (!isActive) return;
+
+    const selectRow = panel.append('div').attr('class', 'sr-user-select-row');
+    selectRow.append('span').text('User :');
+    const select = selectRow.append('select').attr('class', 'sr-userbar-select');
+    path.users.forEach((u, i) => {
+      select.append('option').attr('value', i).property('selected', i === srState.activeUserIndex).text(formatUserId(u.userId));
+    });
+    select.on('change', function () { selectUser(Number(this.value)); });
+
+    const currentCase = activeCase();
+    path.taskNames.forEach((taskName, stepGroupIndex) => {
+      const isFocused = stepGroupIndex === srState.focusedStepGroupIndex;
       const taskRow = panel.append('div')
         .attr('class', `sr-task-row${isFocused ? ' focused' : ''}`)
-        .on('click', (event) => { event.stopPropagation(); focusTask(sessionIndex, stepGroupIndex); });
+        .on('click', (event) => { event.stopPropagation(); focusTask(stepGroupIndex); });
       const header = taskRow.append('div').attr('class', 'sr-task-row-header');
       header.append('span').attr('class', 'sr-task-row-icon').html(TASK_ICON_SVG);
       const textCol = header.append('span').attr('class', 'sr-task-row-text');
-      const built = buildSessionSteps(taskEntry.task, isTaskRepeated(session, taskEntry.task), hashStr(`${session.caseId}:${stepGroupIndex}`));
-      textCol.append('div').attr('class', 'sr-task-row-top').text(taskEntry.task);
+      const built = buildSessionSteps(taskName, isTaskRepeated(path.taskNames, taskName), hashStr(`${currentCase.caseId}:${stepGroupIndex}`));
+      textCol.append('div').attr('class', 'sr-task-row-top').text(taskName);
       textCol.append('div').attr('class', 'sr-task-row-sub').text(`${built.steps.length} steps`);
-      header.append('span').attr('class', 'sr-task-row-duration').text(formatDuration(taskEntry.duration));
+      header.append('span').attr('class', 'sr-task-row-duration').text(formatDuration(currentCase.steps[stepGroupIndex].duration));
 
       if (!isFocused) return;
       taskRow.append('div').attr('class', 'sr-task-row-divider');
@@ -6813,6 +6901,9 @@ d3.select('#sr-scrubber-track').on('click', function (event) {
   });
   selectStep(nearest);
 });
+
+d3.select('#sr-user-prev').on('click', () => stepUser(-1));
+d3.select('#sr-user-next').on('click', () => stepUser(1));
 
 // Restart affordances (header + control-bar icon) — there's no real
 // playback to pause/resume, so both just reset the scrubber to the start.
