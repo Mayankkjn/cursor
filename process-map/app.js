@@ -1055,7 +1055,7 @@ d3.select(document).on('click.taskMenu', (event) => {
 const srState = {
   taskId: null, taskLabel: '', paths: [], metaSuffix: '',
   activePathIndex: 0, activeUserIndex: 0, focusedStepGroupIndex: 0,
-  steps: [], totalSeconds: 0, currentTime: 0,
+  segments: [], totalSeconds: 0, currentTime: 0,
 };
 
 const PERSON_ICON_SVG = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="5.4" r="2.7" stroke="currentColor" stroke-width="1.4"/><path d="M2.8 14 C2.8 10.6 5 9 8 9 C11 9 13.2 10.6 13.2 14" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>';
@@ -1122,6 +1122,21 @@ function buildSessionSteps(taskLabel, isRework, seed) {
   return { totalSeconds, steps };
 }
 
+// The whole path is one continuous "recording" — each task's own
+// synthesized steps are laid end-to-end so the scrubber represents the
+// full path, not just whichever task is currently focused.
+function buildPathTimeline(path, caseObj) {
+  let cursor = 0;
+  const segments = path.taskNames.map((taskName, i) => {
+    const built = buildSessionSteps(taskName, isTaskRepeated(path.taskNames, taskName), hashStr(`${caseObj.caseId}:${i}`));
+    const startT = cursor;
+    const steps = built.steps.map((s) => ({ ...s, t: s.t + startT }));
+    cursor += built.totalSeconds;
+    return { taskName, startT, endT: cursor, steps };
+  });
+  return { segments, totalSeconds: cursor };
+}
+
 function activePath() { return srState.paths[srState.activePathIndex]; }
 function activeCase() { return activePath().users[srState.activeUserIndex].cases[0]; }
 
@@ -1156,30 +1171,22 @@ function closeSessionReplay() {
   d3.select('#sr-panel').classed('sr-panel-expanded', false);
 }
 
-// Rebuilds the synthesized step timeline for whichever task in the active
-// path is focused — shared by loadActiveUser (the target task) and
-// focusTask (any other task the user clicks within the same path).
-function focusTaskSteps(stepGroupIndex) {
-  const path = activePath();
-  const taskName = path.taskNames[stepGroupIndex];
-  const built = buildSessionSteps(taskName, isTaskRepeated(path.taskNames, taskName), hashStr(`${activeCase().caseId}:${stepGroupIndex}`));
-  srState.steps = built.steps;
-  srState.totalSeconds = built.totalSeconds;
-  srState.currentTime = 0;
-}
-
-// Seeds the player with the target task's own occurrence for the active
-// path + user, and refreshes both header bars — called on open, and again
-// whenever the active path or user changes (but not on every step or
-// same-user task click).
+// Rebuilds the whole path's timeline for the active user's case, and
+// points the playhead at the target task's segment — called on open, and
+// again whenever the active path or user changes (a different case means
+// different real per-task durations, so the whole timeline is rebuilt).
 function loadActiveUser() {
   const path = activePath();
   const targetIndex = path.taskNames.findIndex((t) => t === srState.taskId);
   srState.focusedStepGroupIndex = targetIndex >= 0 ? targetIndex : 0;
-  focusTaskSteps(srState.focusedStepGroupIndex);
+
+  const timeline = buildPathTimeline(path, activeCase());
+  srState.segments = timeline.segments;
+  srState.totalSeconds = timeline.totalSeconds;
+  srState.currentTime = timeline.segments[srState.focusedStepGroupIndex].startT;
 
   d3.select('#sr-task-name').text(srState.taskLabel);
-  d3.select('#sr-task-sub').text(`${srState.steps.length} steps · ${srState.metaSuffix}`);
+  d3.select('#sr-task-sub').text(`${timeline.segments[srState.focusedStepGroupIndex].steps.length} steps · ${srState.metaSuffix}`);
   renderUserBar();
   renderPlayerMeta();
 }
@@ -1211,17 +1218,30 @@ function stepUser(delta) { selectUser(srState.activeUserIndex + delta); }
 
 // Switches the player to a specific task within the active path — the
 // target task by default, or whichever other task the user clicks to peek
-// at its own step breakdown. Doesn't change the active path/user.
+// at. Jumps the playhead to that task's own segment of the whole-path
+// timeline (already built by loadActiveUser) rather than resetting to 0,
+// so the scrubber visibly slides along the same bar as you move between
+// tasks instead of restarting each time.
 function focusTask(stepGroupIndex) {
   srState.focusedStepGroupIndex = stepGroupIndex;
-  focusTaskSteps(stepGroupIndex);
+  srState.currentTime = srState.segments[stepGroupIndex].startT;
   renderScrubber();
   renderPathsList();
   renderPlayerMeta();
 }
 
+// Moving the scrubber can cross into a different task's own segment of
+// the whole-path timeline — when it does, that task becomes focused too,
+// so the sidebar highlight and meta bar always track the playhead.
 function seekToTime(targetT) {
   srState.currentTime = Math.min(srState.totalSeconds, Math.max(0, targetT));
+  const segIndex = srState.segments.findIndex((seg) => srState.currentTime >= seg.startT && srState.currentTime < seg.endT);
+  const newFocus = segIndex >= 0 ? segIndex : srState.segments.length - 1;
+  if (newFocus !== srState.focusedStepGroupIndex) {
+    srState.focusedStepGroupIndex = newFocus;
+    renderPathsList();
+    renderPlayerMeta();
+  }
   updateScrubberPosition();
 }
 function seekBy(deltaSeconds) { seekToTime(srState.currentTime + deltaSeconds); }
@@ -1321,40 +1341,36 @@ function renderPathsList() {
       const header = taskRow.append('div').attr('class', 'sr-task-row-header');
       header.append('span').attr('class', 'sr-task-row-icon').html(TASK_ICON_SVG);
       const textCol = header.append('span').attr('class', 'sr-task-row-text');
-      const built = buildSessionSteps(taskName, isTaskRepeated(path.taskNames, taskName), hashStr(`${currentCase.caseId}:${stepGroupIndex}`));
       textCol.append('div').attr('class', 'sr-task-row-top').text(taskName);
-      textCol.append('div').attr('class', 'sr-task-row-sub').text(`${built.steps.length} steps`);
+      textCol.append('div').attr('class', 'sr-task-row-sub').text(`${srState.segments[stepGroupIndex].steps.length} steps`);
       header.append('span').attr('class', 'sr-task-row-duration').text(formatDuration(currentCase.steps[stepGroupIndex].duration));
     });
   });
 }
 
+// Ticks mark task boundaries across the whole path now, not individual
+// synthetic steps within one task.
 function renderScrubber() {
   const track = d3.select('#sr-scrubber-track');
   track.selectAll('.sr-scrubber-tick').remove();
-  srState.steps.forEach((step) => {
+  srState.segments.forEach((seg, i) => {
+    if (i === 0) return; // no divider needed at the very start of the bar
     track.append('div')
-      .attr('class', `sr-scrubber-tick${step.loop ? ' loop' : ''}`)
-      .style('left', `${(step.t / srState.totalSeconds) * 100}%`);
+      .attr('class', 'sr-scrubber-tick')
+      .style('left', `${(seg.startT / srState.totalSeconds) * 100}%`);
   });
   updateScrubberPosition();
 }
 function updateScrubberPosition() {
   const t = srState.currentTime;
-  // Which step "bucket" the playhead currently sits in — its span is
-  // highlighted as the lighter, current-chapter fill.
-  let bucketStart = srState.steps[0] ? srState.steps[0].t : 0;
-  let bucketEnd = srState.totalSeconds;
-  srState.steps.forEach((s, i) => {
-    if (s.t <= t) {
-      bucketStart = s.t;
-      bucketEnd = srState.steps[i + 1] ? srState.steps[i + 1].t : srState.totalSeconds;
-    }
-  });
+  const seg = srState.segments[srState.focusedStepGroupIndex];
   const pct = srState.totalSeconds ? (t / srState.totalSeconds) * 100 : 0;
-  const bucketEndPct = srState.totalSeconds ? (bucketEnd / srState.totalSeconds) * 100 : 100;
+  const segEndPct = srState.totalSeconds ? (seg.endT / srState.totalSeconds) * 100 : 100;
   d3.select('#sr-scrubber-fill').style('width', `${pct}%`);
-  d3.select('#sr-scrubber-fill-soft').style('left', `${pct}%`).style('width', `${Math.max(0, bucketEndPct - pct)}%`);
+  // Soft highlight covers the rest of the focused task's own segment,
+  // ahead of the playhead — a preview of "how much of this chapter is
+  // left", distinct from the solid orange already played.
+  d3.select('#sr-scrubber-fill-soft').style('left', `${pct}%`).style('width', `${Math.max(0, segEndPct - pct)}%`);
   d3.select('#sr-scrubber-thumb').style('left', `${pct}%`);
   d3.select('#sr-time-current').text(formatClock(t));
   d3.select('#sr-time-total').text(formatClock(srState.totalSeconds));
