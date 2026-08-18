@@ -771,8 +771,6 @@ button:hover { filter: brightness(1.08); }
 .sr-panel-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 14px 16px; border-bottom: 1px solid var(--panel-border); font-size: 0.88rem; font-weight: 700; color: var(--text-primary); flex-shrink: 0; }
 .sr-panel-title-left { display: flex; align-items: center; gap: 8px; }
 .sr-count-badge { background: #eef0f6; color: var(--text-secondary); font-size: 0.72rem; font-weight: 700; padding: 1px 8px; border-radius: 100px; font-variant-numeric: tabular-nums; }
-.sr-filter-btn { display: flex; align-items: center; gap: 5px; background: none; border: 1px solid var(--panel-border); border-radius: 7px; padding: 5px 10px; font-size: 0.76rem; font-weight: 600; color: var(--text-secondary); cursor: pointer; }
-.sr-filter-btn:hover { border-color: var(--accent-ui); color: var(--accent-ui); }
 .sr-tab-panel { padding: 0; overflow-y: auto; flex: 1; min-height: 0; }
 
 /* Sessions list — one row per instance, expandable into its full task path.
@@ -840,39 +838,30 @@ button:hover { filter: brightness(1.08); }
 .sr-player-nav:hover { background: var(--bg); color: var(--accent-ui); }
 .sr-player-nav:disabled { opacity: 0.3; cursor: default; }
 .sr-player-nav:disabled:hover { background: none; color: var(--text-secondary); }
-/* The bigger side arrows flanking the video itself — step through the
-   active path's tasks rather than switching user. */
-.sr-player-row { display: flex; align-items: center; gap: 14px; flex: 1; min-height: 0; }
-.sr-player-nav-side {
-  width: 36px; height: 36px; background: #ffffff; color: var(--text-secondary);
-  box-shadow: 0 2px 8px rgba(24, 26, 51, 0.12);
-}
-.sr-player-nav-side:hover { background: #ffffff; color: var(--accent-ui); }
-.sr-player-nav-side:disabled:hover { background: #ffffff; color: var(--text-secondary); }
-/* The selected path / focused task / its duration — sits right above the
-   video, between the user picker and the player itself. */
-.sr-player-meta {
-  display: flex; align-items: center; justify-content: center; gap: 7px; flex-wrap: wrap;
-  font-size: 0.78rem; color: var(--text-secondary); font-weight: 600;
-  padding-bottom: 12px; flex-shrink: 0;
-}
-.sr-player-meta svg { color: var(--text-tertiary); flex-shrink: 0; }
-.sr-player-meta-sep { color: var(--text-tertiary); }
-/* Always 16:9 — grows to fill the row's width (between the two side
-   arrows), rather than stretching to whatever shape the modal is. */
+/* Always 16:9, full pane width — sized from the pane rather than
+   stretching to whatever shape the modal is. */
 .sr-player {
   position: relative;
   background: #F6F6F9;
   border-radius: 10px;
   overflow: hidden;
-  flex: 1;
-  min-width: 0;
+  width: 100%;
   aspect-ratio: 16 / 9;
   max-height: 100%;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
 }
+/* The selected path / focused task / its duration — sits right below the
+   video, between the player itself and the scrubber. */
+.sr-player-meta {
+  display: flex; align-items: center; justify-content: center; gap: 7px; flex-wrap: wrap;
+  font-size: 0.78rem; color: var(--text-secondary); font-weight: 600;
+  padding-top: 12px; flex-shrink: 0;
+}
+.sr-player-meta svg { color: var(--text-tertiary); flex-shrink: 0; }
+.sr-player-meta-sep { color: var(--text-tertiary); }
 .sr-ghost { position: absolute; opacity: 0.5; border: 1.4px solid rgba(42, 46, 69, 0.16); border-radius: 6px; }
 .sr-play-btn {
   width: 46px;
@@ -899,35 +888,52 @@ button:hover { filter: brightness(1.08); }
 .sr-scrubber { padding-top: 12px; flex-shrink: 0; }
 .sr-scrubber-row { display: flex; align-items: center; gap: 10px; }
 .sr-time { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.72rem; color: var(--text-secondary); flex-shrink: 0; }
-.sr-scrubber-track { position: relative; flex: 1; height: 4px; border-radius: 2px; background: #eef0f6; cursor: pointer; }
-.sr-scrubber-fill { position: absolute; top: 0; left: 0; height: 100%; border-radius: 2px; background: var(--accent-ui); pointer-events: none; }
-.sr-scrubber-tick { position: absolute; top: -2px; width: 2px; height: 8px; background: #c9ccdb; border-radius: 1px; pointer-events: none; }
+.sr-scrubber-track { position: relative; flex: 1; height: 5px; border-radius: 3px; background: var(--accent-ui-soft); cursor: pointer; overflow: hidden; }
+.sr-scrubber-fill { position: absolute; top: 0; left: 0; height: 100%; background: var(--accent-ui); pointer-events: none; }
+/* A lighter highlight spanning from the playhead to the next step
+   boundary — reads as "current chapter", distinct from the solid
+   orange already played and the plain track still ahead. */
+.sr-scrubber-fill-soft { position: absolute; top: 0; height: 100%; background: #f3c9a8; pointer-events: none; }
+.sr-scrubber-tick { position: absolute; top: 0; width: 2px; height: 100%; background: rgba(255, 255, 255, 0.7); pointer-events: none; z-index: 1; }
 .sr-scrubber-tick.loop { background: var(--rework); }
 .sr-scrubber-thumb {
   position: absolute;
-  top: -5px;
+  top: -4.5px;
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: #ffffff;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-  border: 1px solid var(--card-border);
+  background: var(--accent-ui);
+  border: 2.5px solid #ffffff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
   transform: translateX(-50%);
   pointer-events: none;
+  z-index: 2;
 }
 
-.sr-controls-row { display: flex; align-items: center; gap: 14px; margin-top: 12px; flex-wrap: wrap; }
+/* Three-column layout: an empty spacer on the left balances the
+   fullscreen+speed cluster on the right, so the playback controls in
+   the middle sit at the row's true center regardless of that cluster's
+   width. */
+.sr-controls-row { display: flex; align-items: center; margin-top: 14px; }
+.sr-controls-side { flex: 1; display: flex; align-items: center; gap: 10px; }
+.sr-controls-right { justify-content: flex-end; }
+.sr-controls-center { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 .sr-ctrl-icon { width: 30px; height: 30px; border-radius: 7px; border: none; background: none; display: flex; align-items: center; justify-content: center; color: var(--text-secondary); cursor: pointer; flex-shrink: 0; padding: 0; }
 .sr-ctrl-icon:hover { background: #f5f6fb; color: var(--text-primary); }
-.sr-speed-group { display: flex; align-items: center; gap: 2px; background: #f5f6fb; border-radius: 100px; padding: 3px; flex-shrink: 0; }
-.sr-speed { border: none; background: none; padding: 4px 10px; border-radius: 100px; font-size: 0.72rem; font-weight: 700; color: var(--text-secondary); cursor: pointer; }
-.sr-speed.active { background: var(--accent-ui); color: #fff; }
-.sr-skip-toggle { display: flex; align-items: center; gap: 7px; border: none; background: none; font-size: 0.78rem; color: var(--text-secondary); cursor: pointer; padding: 0; flex-shrink: 0; white-space: nowrap; }
-.sr-toggle-track { width: 30px; height: 17px; border-radius: 100px; background: #dcdfea; position: relative; transition: background 0.15s; flex-shrink: 0; }
-.sr-toggle-thumb { position: absolute; top: 2px; left: 2px; width: 13px; height: 13px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2); transition: left 0.15s; }
-.sr-skip-toggle.active .sr-toggle-track { background: var(--accent-ui); }
-.sr-skip-toggle.active .sr-toggle-thumb { left: 15px; }
-.sr-expand { margin-left: auto; }
+.sr-play-pause-btn {
+  width: 42px; height: 42px; border-radius: 50%; border: none; margin: 0 4px;
+  background: var(--accent-ui); color: #fff;
+  display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(199, 73, 0, 0.3);
+}
+.sr-play-pause-btn:hover { filter: brightness(1.06); }
+.sr-play-pause-btn .sr-icon-play { margin-left: 2px; }
+.sr-speed-select {
+  appearance: none; border: 1px solid var(--panel-border); background: #fff; border-radius: 7px;
+  padding: 5px 22px 5px 10px; font-size: 0.76rem; font-weight: 700; color: var(--text-primary); cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 14 14'%3E%3Cpath d='M3 5 L7 9 L11 5' fill='none' stroke='%238b8fa6' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 8px center;
+}
 
 </style>
 </head>
@@ -1187,11 +1193,6 @@ button:hover { filter: brightness(1.08); }
           <span class="sr-task-sub" id="sr-task-sub"></span>
         </div>
         <div class="sr-header-actions">
-          <button class="sr-icon-btn" id="sr-edit" type="button" aria-label="Rename session" title="Rename session">
-            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-              <path d="M11.5 2.5 L13.5 4.5 L5 13 L2.5 13.5 L3 11 Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round" />
-            </svg>
-          </button>
           <button class="sr-icon-btn" id="sr-close" type="button" aria-label="Close session replay">
             <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true">
               <path d="M3 3 L13 13 M13 3 L3 13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
@@ -1203,57 +1204,68 @@ button:hover { filter: brightness(1.08); }
         <div class="sr-side-col">
           <div class="sr-panel-title">
             <span class="sr-panel-title-left">Paths <span class="sr-count-badge" id="sr-path-count">0</span></span>
-            <button class="sr-filter-btn" id="sr-filter-btn" type="button">
-              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2 3 H14 L9.5 8.5 V13 L6.5 11.5 V8.5 Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" /></svg>
-              Filter
-            </button>
           </div>
           <div class="sr-tab-panel" id="sr-sessions-panel"></div>
         </div>
         <div class="sr-player-col">
           <div class="sr-player-userbar" id="sr-player-userbar"></div>
-          <div class="sr-player-meta" id="sr-player-meta"></div>
-          <div class="sr-player-row">
-            <button class="sr-player-nav sr-player-nav-side" id="sr-task-prev" type="button" aria-label="Previous task">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M9 2 L4 7 L9 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
-            </button>
-            <div class="sr-player">
-              <div class="sr-ghost" style="top:14%; left:6%; width:30%; height:10%;"></div>
-              <div class="sr-ghost" style="top:30%; left:6%; width:88%; height:46%;"></div>
-              <button class="sr-play-btn" id="sr-play-btn" type="button" aria-label="Play (preview only)"></button>
-            </div>
-            <button class="sr-player-nav sr-player-nav-side" id="sr-task-next" type="button" aria-label="Next task">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M5 2 L10 7 L5 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
-            </button>
+          <div class="sr-player">
+            <div class="sr-ghost" style="top:14%; left:6%; width:30%; height:10%;"></div>
+            <div class="sr-ghost" style="top:30%; left:6%; width:88%; height:46%;"></div>
+            <button class="sr-play-btn" id="sr-play-btn" type="button" aria-label="Play (preview only)"></button>
           </div>
+          <div class="sr-player-meta" id="sr-player-meta"></div>
           <div class="sr-scrubber">
             <div class="sr-scrubber-row">
               <span class="sr-time" id="sr-time-current">00:00</span>
               <div class="sr-scrubber-track" id="sr-scrubber-track">
                 <div class="sr-scrubber-fill" id="sr-scrubber-fill"></div>
+                <div class="sr-scrubber-fill-soft" id="sr-scrubber-fill-soft"></div>
                 <div class="sr-scrubber-thumb" id="sr-scrubber-thumb"></div>
               </div>
               <span class="sr-time" id="sr-time-total">00:00</span>
             </div>
             <div class="sr-controls-row">
-              <button class="sr-ctrl-icon" id="sr-pause-btn" type="button" aria-label="Restart preview">
-                <svg width="13" height="13" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><rect x="2.5" y="1.5" width="2.3" height="9" rx="0.6" /><rect x="7.2" y="1.5" width="2.3" height="9" rx="0.6" /></svg>
-              </button>
-              <div class="sr-speed-group" id="sr-speed-group">
-                <button class="sr-speed active" data-speed="1" type="button">1x</button>
-                <button class="sr-speed" data-speed="2" type="button">2x</button>
-                <button class="sr-speed" data-speed="4" type="button">4x</button>
-                <button class="sr-speed" data-speed="8" type="button">8x</button>
+              <div class="sr-controls-side"></div>
+              <div class="sr-controls-center">
+                <button class="sr-ctrl-icon" id="sr-chapter-prev" type="button" aria-label="Previous task">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M10 2 L5 8 L10 14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /><path d="M6 2 L1 8 L6 14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                </button>
+                <button class="sr-ctrl-icon" id="sr-seek-back" type="button" aria-label="Back 10 seconds">
+                  <svg width="17" height="17" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                    <path d="M4 6 V2.6 L1 4.6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
+                    <path d="M4 6 A6.4 6.4 0 1 1 3.3 10.2" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round" />
+                    <text x="10" y="13.5" font-size="6.4" font-weight="700" text-anchor="middle" fill="currentColor">10</text>
+                  </svg>
+                </button>
+                <button class="sr-play-pause-btn" id="sr-play-pause" type="button" aria-label="Play (preview only)">
+                  <svg class="sr-icon-play" width="15" height="15" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M2.5 1.5 L10 6 L2.5 10.5 Z" /></svg>
+                  <svg class="sr-icon-pause" width="13" height="13" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true" style="display:none;"><rect x="2.5" y="1.5" width="2.3" height="9" rx="0.6" /><rect x="7.2" y="1.5" width="2.3" height="9" rx="0.6" /></svg>
+                </button>
+                <button class="sr-ctrl-icon" id="sr-seek-fwd" type="button" aria-label="Forward 10 seconds">
+                  <svg width="17" height="17" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                    <path d="M16 6 V2.6 L19 4.6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
+                    <path d="M16 6 A6.4 6.4 0 1 0 16.7 10.2" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round" />
+                    <text x="10" y="13.5" font-size="6.4" font-weight="700" text-anchor="middle" fill="currentColor">10</text>
+                  </svg>
+                </button>
+                <button class="sr-ctrl-icon" id="sr-chapter-next" type="button" aria-label="Next task">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 2 L11 8 L6 14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /><path d="M10 2 L15 8 L10 14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                </button>
               </div>
-              <button class="sr-skip-toggle active" id="sr-skip-toggle" type="button">
-                <span class="sr-toggle-track"><span class="sr-toggle-thumb"></span></span>
-                skip inactive
-              </button>
-              <button class="sr-icon-btn sr-expand" id="sr-expand" type="button" aria-label="Expand player">
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                  <path d="M6 2 H2 V6 M10 2 H14 V6 M6 14 H2 V10 M10 14 H14 V10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
-              </button>
+              <div class="sr-controls-side sr-controls-right">
+                <button class="sr-icon-btn sr-expand" id="sr-expand" type="button" aria-label="Expand player">
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <path d="M6 2 H2 V6 M10 2 H14 V6 M6 14 H2 V10 M10 14 H14 V10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                </button>
+                <select class="sr-speed-select" id="sr-speed-select">
+                  <option value="1">1x</option>
+                  <option value="2">2x</option>
+                  <option value="4">4x</option>
+                  <option value="8">8x</option>
+                </select>
+              </div>
             </div>
           </div>
         </div>
@@ -6636,7 +6648,7 @@ d3.select(document).on('click.taskMenu', (event) => {
 const srState = {
   taskId: null, taskLabel: '', paths: [], metaSuffix: '',
   activePathIndex: 0, activeUserIndex: 0, focusedStepGroupIndex: 0,
-  steps: [], totalSeconds: 0, currentStepIndex: 0,
+  steps: [], totalSeconds: 0, currentTime: 0,
 };
 
 const PERSON_ICON_SVG = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="5.4" r="2.7" stroke="currentColor" stroke-width="1.4"/><path d="M2.8 14 C2.8 10.6 5 9 8 9 C11 9 13.2 10.6 13.2 14" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>';
@@ -6725,6 +6737,11 @@ function openSessionReplay(taskId) {
   loadActiveUser();
   renderPathsList();
   renderScrubber();
+
+  const playPause = d3.select('#sr-play-pause').classed('is-playing', false);
+  playPause.select('.sr-icon-play').style('display', '');
+  playPause.select('.sr-icon-pause').style('display', 'none');
+
   d3.select('#session-replay-modal').classed('hidden', false);
 }
 function closeSessionReplay() {
@@ -6741,7 +6758,7 @@ function focusTaskSteps(stepGroupIndex) {
   const built = buildSessionSteps(taskName, isTaskRepeated(path.taskNames, taskName), hashStr(`${activeCase().caseId}:${stepGroupIndex}`));
   srState.steps = built.steps;
   srState.totalSeconds = built.totalSeconds;
-  srState.currentStepIndex = 0;
+  srState.currentTime = 0;
 }
 
 // Seeds the player with the target task's own occurrence for the active
@@ -6796,10 +6813,11 @@ function focusTask(stepGroupIndex) {
   renderPlayerMeta();
 }
 
-function selectStep(stepIndex) {
-  srState.currentStepIndex = stepIndex;
+function seekToTime(targetT) {
+  srState.currentTime = Math.min(srState.totalSeconds, Math.max(0, targetT));
   updateScrubberPosition();
 }
+function seekBy(deltaSeconds) { seekToTime(srState.currentTime + deltaSeconds); }
 
 // The player-side bar mirrors the sidebar's user picker (both rebuilt on
 // every switch, so they never drift out of sync); prev/next arrows sit
@@ -6848,12 +6866,12 @@ function renderPlayerMeta() {
   bar.append('span').html(CLOCK_ICON_SVG);
   bar.append('span').text(formatDuration(duration));
 
-  d3.select('#sr-task-prev').property('disabled', srState.focusedStepGroupIndex === 0);
-  d3.select('#sr-task-next').property('disabled', srState.focusedStepGroupIndex === path.taskNames.length - 1);
+  d3.select('#sr-chapter-prev').property('disabled', srState.focusedStepGroupIndex === 0);
+  d3.select('#sr-chapter-next').property('disabled', srState.focusedStepGroupIndex === path.taskNames.length - 1);
 }
 
-// Steps the player to the previous/next task in the active path's own
-// order — the side arrows flanking the video itself.
+// Steps the player to the previous/next task ("chapter") in the active
+// path's own order.
 function stepTask(delta) {
   const path = activePath();
   const next = Math.min(path.taskNames.length - 1, Math.max(0, srState.focusedStepGroupIndex + delta));
@@ -6915,11 +6933,23 @@ function renderScrubber() {
   updateScrubberPosition();
 }
 function updateScrubberPosition() {
-  const step = srState.steps[srState.currentStepIndex];
-  const pct = srState.totalSeconds ? (step.t / srState.totalSeconds) * 100 : 0;
+  const t = srState.currentTime;
+  // Which step "bucket" the playhead currently sits in — its span is
+  // highlighted as the lighter, current-chapter fill.
+  let bucketStart = srState.steps[0] ? srState.steps[0].t : 0;
+  let bucketEnd = srState.totalSeconds;
+  srState.steps.forEach((s, i) => {
+    if (s.t <= t) {
+      bucketStart = s.t;
+      bucketEnd = srState.steps[i + 1] ? srState.steps[i + 1].t : srState.totalSeconds;
+    }
+  });
+  const pct = srState.totalSeconds ? (t / srState.totalSeconds) * 100 : 0;
+  const bucketEndPct = srState.totalSeconds ? (bucketEnd / srState.totalSeconds) * 100 : 100;
   d3.select('#sr-scrubber-fill').style('width', `${pct}%`);
+  d3.select('#sr-scrubber-fill-soft').style('left', `${pct}%`).style('width', `${Math.max(0, bucketEndPct - pct)}%`);
   d3.select('#sr-scrubber-thumb').style('left', `${pct}%`);
-  d3.select('#sr-time-current').text(formatClock(step.t));
+  d3.select('#sr-time-current').text(formatClock(t));
   d3.select('#sr-time-total').text(formatClock(srState.totalSeconds));
 }
 
@@ -6930,33 +6960,32 @@ d3.select('#session-replay-modal').on('click', function (event) {
 d3.select('#sr-scrubber-track').on('click', function (event) {
   const rect = this.getBoundingClientRect();
   const frac = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
-  const targetT = frac * srState.totalSeconds;
-  let nearest = 0;
-  let nearestDist = Infinity;
-  srState.steps.forEach((s, i) => {
-    const d = Math.abs(s.t - targetT);
-    if (d < nearestDist) { nearestDist = d; nearest = i; }
-  });
-  selectStep(nearest);
+  seekToTime(frac * srState.totalSeconds);
 });
 
-d3.select('#sr-task-prev').on('click', () => stepTask(-1));
-d3.select('#sr-task-next').on('click', () => stepTask(1));
+d3.select('#sr-chapter-prev').on('click', () => stepTask(-1));
+d3.select('#sr-chapter-next').on('click', () => stepTask(1));
+d3.select('#sr-seek-back').on('click', () => seekBy(-10));
+d3.select('#sr-seek-fwd').on('click', () => seekBy(10));
 
-// Restart affordances (header + control-bar icon) — there's no real
-// playback to pause/resume, so both just reset the scrubber to the start.
-d3.select('#sr-header-play').on('click', () => selectStep(0));
-d3.select('#sr-pause-btn').on('click', () => selectStep(0));
+// Restart affordances — there's no real playback to pause/resume, so
+// every one of these just resets the scrubber to the start. The big
+// play/pause button also flips its own icon, purely cosmetic (matching
+// the honest-placeholder pattern already used for speed/skip toggles
+// elsewhere in this player) since nothing is actually playing.
+d3.select('#sr-header-play').on('click', () => seekToTime(0));
+d3.select('#sr-play-pause').on('click', function () {
+  const btn = d3.select(this);
+  const isPlaying = !btn.classed('is-playing');
+  btn.classed('is-playing', isPlaying);
+  btn.select('.sr-icon-play').style('display', isPlaying ? 'none' : '');
+  btn.select('.sr-icon-pause').style('display', isPlaying ? '' : 'none');
+  seekToTime(0);
+});
 
-// Speed and "skip inactive" are cosmetic toggles — honest about there being
-// no real video whose rate or dead-time they could actually affect.
-d3.selectAll('.sr-speed').on('click', function () {
-  d3.selectAll('.sr-speed').classed('active', false);
-  d3.select(this).classed('active', true);
-});
-d3.select('#sr-skip-toggle').on('click', function () {
-  d3.select(this).classed('active', !this.classList.contains('active'));
-});
+// Speed is a cosmetic selector — honest about there being no real video
+// whose rate it could actually affect.
+d3.select('#sr-speed-select').on('change', function () {});
 
 d3.select('#sr-expand').on('click', () => {
   d3.select('#sr-panel').classed('sr-panel-expanded', !document.getElementById('sr-panel').classList.contains('sr-panel-expanded'));

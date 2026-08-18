@@ -771,8 +771,6 @@ button:hover { filter: brightness(1.08); }
 .sr-panel-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 14px 16px; border-bottom: 1px solid var(--panel-border); font-size: 0.88rem; font-weight: 700; color: var(--text-primary); flex-shrink: 0; }
 .sr-panel-title-left { display: flex; align-items: center; gap: 8px; }
 .sr-count-badge { background: #eef0f6; color: var(--text-secondary); font-size: 0.72rem; font-weight: 700; padding: 1px 8px; border-radius: 100px; font-variant-numeric: tabular-nums; }
-.sr-filter-btn { display: flex; align-items: center; gap: 5px; background: none; border: 1px solid var(--panel-border); border-radius: 7px; padding: 5px 10px; font-size: 0.76rem; font-weight: 600; color: var(--text-secondary); cursor: pointer; }
-.sr-filter-btn:hover { border-color: var(--accent-ui); color: var(--accent-ui); }
 .sr-tab-panel { padding: 0; overflow-y: auto; flex: 1; min-height: 0; }
 
 /* Sessions list — one row per instance, expandable into its full task path.
@@ -840,39 +838,30 @@ button:hover { filter: brightness(1.08); }
 .sr-player-nav:hover { background: var(--bg); color: var(--accent-ui); }
 .sr-player-nav:disabled { opacity: 0.3; cursor: default; }
 .sr-player-nav:disabled:hover { background: none; color: var(--text-secondary); }
-/* The bigger side arrows flanking the video itself — step through the
-   active path's tasks rather than switching user. */
-.sr-player-row { display: flex; align-items: center; gap: 14px; flex: 1; min-height: 0; }
-.sr-player-nav-side {
-  width: 36px; height: 36px; background: #ffffff; color: var(--text-secondary);
-  box-shadow: 0 2px 8px rgba(24, 26, 51, 0.12);
-}
-.sr-player-nav-side:hover { background: #ffffff; color: var(--accent-ui); }
-.sr-player-nav-side:disabled:hover { background: #ffffff; color: var(--text-secondary); }
-/* The selected path / focused task / its duration — sits right above the
-   video, between the user picker and the player itself. */
-.sr-player-meta {
-  display: flex; align-items: center; justify-content: center; gap: 7px; flex-wrap: wrap;
-  font-size: 0.78rem; color: var(--text-secondary); font-weight: 600;
-  padding-bottom: 12px; flex-shrink: 0;
-}
-.sr-player-meta svg { color: var(--text-tertiary); flex-shrink: 0; }
-.sr-player-meta-sep { color: var(--text-tertiary); }
-/* Always 16:9 — grows to fill the row's width (between the two side
-   arrows), rather than stretching to whatever shape the modal is. */
+/* Always 16:9, full pane width — sized from the pane rather than
+   stretching to whatever shape the modal is. */
 .sr-player {
   position: relative;
   background: #F6F6F9;
   border-radius: 10px;
   overflow: hidden;
-  flex: 1;
-  min-width: 0;
+  width: 100%;
   aspect-ratio: 16 / 9;
   max-height: 100%;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
 }
+/* The selected path / focused task / its duration — sits right below the
+   video, between the player itself and the scrubber. */
+.sr-player-meta {
+  display: flex; align-items: center; justify-content: center; gap: 7px; flex-wrap: wrap;
+  font-size: 0.78rem; color: var(--text-secondary); font-weight: 600;
+  padding-top: 12px; flex-shrink: 0;
+}
+.sr-player-meta svg { color: var(--text-tertiary); flex-shrink: 0; }
+.sr-player-meta-sep { color: var(--text-tertiary); }
 .sr-ghost { position: absolute; opacity: 0.5; border: 1.4px solid rgba(42, 46, 69, 0.16); border-radius: 6px; }
 .sr-play-btn {
   width: 46px;
@@ -899,35 +888,52 @@ button:hover { filter: brightness(1.08); }
 .sr-scrubber { padding-top: 12px; flex-shrink: 0; }
 .sr-scrubber-row { display: flex; align-items: center; gap: 10px; }
 .sr-time { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.72rem; color: var(--text-secondary); flex-shrink: 0; }
-.sr-scrubber-track { position: relative; flex: 1; height: 4px; border-radius: 2px; background: #eef0f6; cursor: pointer; }
-.sr-scrubber-fill { position: absolute; top: 0; left: 0; height: 100%; border-radius: 2px; background: var(--accent-ui); pointer-events: none; }
-.sr-scrubber-tick { position: absolute; top: -2px; width: 2px; height: 8px; background: #c9ccdb; border-radius: 1px; pointer-events: none; }
+.sr-scrubber-track { position: relative; flex: 1; height: 5px; border-radius: 3px; background: var(--accent-ui-soft); cursor: pointer; overflow: hidden; }
+.sr-scrubber-fill { position: absolute; top: 0; left: 0; height: 100%; background: var(--accent-ui); pointer-events: none; }
+/* A lighter highlight spanning from the playhead to the next step
+   boundary — reads as "current chapter", distinct from the solid
+   orange already played and the plain track still ahead. */
+.sr-scrubber-fill-soft { position: absolute; top: 0; height: 100%; background: #f3c9a8; pointer-events: none; }
+.sr-scrubber-tick { position: absolute; top: 0; width: 2px; height: 100%; background: rgba(255, 255, 255, 0.7); pointer-events: none; z-index: 1; }
 .sr-scrubber-tick.loop { background: var(--rework); }
 .sr-scrubber-thumb {
   position: absolute;
-  top: -5px;
+  top: -4.5px;
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: #ffffff;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-  border: 1px solid var(--card-border);
+  background: var(--accent-ui);
+  border: 2.5px solid #ffffff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
   transform: translateX(-50%);
   pointer-events: none;
+  z-index: 2;
 }
 
-.sr-controls-row { display: flex; align-items: center; gap: 14px; margin-top: 12px; flex-wrap: wrap; }
+/* Three-column layout: an empty spacer on the left balances the
+   fullscreen+speed cluster on the right, so the playback controls in
+   the middle sit at the row's true center regardless of that cluster's
+   width. */
+.sr-controls-row { display: flex; align-items: center; margin-top: 14px; }
+.sr-controls-side { flex: 1; display: flex; align-items: center; gap: 10px; }
+.sr-controls-right { justify-content: flex-end; }
+.sr-controls-center { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 .sr-ctrl-icon { width: 30px; height: 30px; border-radius: 7px; border: none; background: none; display: flex; align-items: center; justify-content: center; color: var(--text-secondary); cursor: pointer; flex-shrink: 0; padding: 0; }
 .sr-ctrl-icon:hover { background: #f5f6fb; color: var(--text-primary); }
-.sr-speed-group { display: flex; align-items: center; gap: 2px; background: #f5f6fb; border-radius: 100px; padding: 3px; flex-shrink: 0; }
-.sr-speed { border: none; background: none; padding: 4px 10px; border-radius: 100px; font-size: 0.72rem; font-weight: 700; color: var(--text-secondary); cursor: pointer; }
-.sr-speed.active { background: var(--accent-ui); color: #fff; }
-.sr-skip-toggle { display: flex; align-items: center; gap: 7px; border: none; background: none; font-size: 0.78rem; color: var(--text-secondary); cursor: pointer; padding: 0; flex-shrink: 0; white-space: nowrap; }
-.sr-toggle-track { width: 30px; height: 17px; border-radius: 100px; background: #dcdfea; position: relative; transition: background 0.15s; flex-shrink: 0; }
-.sr-toggle-thumb { position: absolute; top: 2px; left: 2px; width: 13px; height: 13px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2); transition: left 0.15s; }
-.sr-skip-toggle.active .sr-toggle-track { background: var(--accent-ui); }
-.sr-skip-toggle.active .sr-toggle-thumb { left: 15px; }
-.sr-expand { margin-left: auto; }
+.sr-play-pause-btn {
+  width: 42px; height: 42px; border-radius: 50%; border: none; margin: 0 4px;
+  background: var(--accent-ui); color: #fff;
+  display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(199, 73, 0, 0.3);
+}
+.sr-play-pause-btn:hover { filter: brightness(1.06); }
+.sr-play-pause-btn .sr-icon-play { margin-left: 2px; }
+.sr-speed-select {
+  appearance: none; border: 1px solid var(--panel-border); background: #fff; border-radius: 7px;
+  padding: 5px 22px 5px 10px; font-size: 0.76rem; font-weight: 700; color: var(--text-primary); cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 14 14'%3E%3Cpath d='M3 5 L7 9 L11 5' fill='none' stroke='%238b8fa6' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 8px center;
+}
 
 </style>
   <style>

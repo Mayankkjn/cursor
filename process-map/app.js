@@ -1055,7 +1055,7 @@ d3.select(document).on('click.taskMenu', (event) => {
 const srState = {
   taskId: null, taskLabel: '', paths: [], metaSuffix: '',
   activePathIndex: 0, activeUserIndex: 0, focusedStepGroupIndex: 0,
-  steps: [], totalSeconds: 0, currentStepIndex: 0,
+  steps: [], totalSeconds: 0, currentTime: 0,
 };
 
 const PERSON_ICON_SVG = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="5.4" r="2.7" stroke="currentColor" stroke-width="1.4"/><path d="M2.8 14 C2.8 10.6 5 9 8 9 C11 9 13.2 10.6 13.2 14" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>';
@@ -1144,6 +1144,11 @@ function openSessionReplay(taskId) {
   loadActiveUser();
   renderPathsList();
   renderScrubber();
+
+  const playPause = d3.select('#sr-play-pause').classed('is-playing', false);
+  playPause.select('.sr-icon-play').style('display', '');
+  playPause.select('.sr-icon-pause').style('display', 'none');
+
   d3.select('#session-replay-modal').classed('hidden', false);
 }
 function closeSessionReplay() {
@@ -1160,7 +1165,7 @@ function focusTaskSteps(stepGroupIndex) {
   const built = buildSessionSteps(taskName, isTaskRepeated(path.taskNames, taskName), hashStr(`${activeCase().caseId}:${stepGroupIndex}`));
   srState.steps = built.steps;
   srState.totalSeconds = built.totalSeconds;
-  srState.currentStepIndex = 0;
+  srState.currentTime = 0;
 }
 
 // Seeds the player with the target task's own occurrence for the active
@@ -1215,10 +1220,11 @@ function focusTask(stepGroupIndex) {
   renderPlayerMeta();
 }
 
-function selectStep(stepIndex) {
-  srState.currentStepIndex = stepIndex;
+function seekToTime(targetT) {
+  srState.currentTime = Math.min(srState.totalSeconds, Math.max(0, targetT));
   updateScrubberPosition();
 }
+function seekBy(deltaSeconds) { seekToTime(srState.currentTime + deltaSeconds); }
 
 // The player-side bar mirrors the sidebar's user picker (both rebuilt on
 // every switch, so they never drift out of sync); prev/next arrows sit
@@ -1267,12 +1273,12 @@ function renderPlayerMeta() {
   bar.append('span').html(CLOCK_ICON_SVG);
   bar.append('span').text(formatDuration(duration));
 
-  d3.select('#sr-task-prev').property('disabled', srState.focusedStepGroupIndex === 0);
-  d3.select('#sr-task-next').property('disabled', srState.focusedStepGroupIndex === path.taskNames.length - 1);
+  d3.select('#sr-chapter-prev').property('disabled', srState.focusedStepGroupIndex === 0);
+  d3.select('#sr-chapter-next').property('disabled', srState.focusedStepGroupIndex === path.taskNames.length - 1);
 }
 
-// Steps the player to the previous/next task in the active path's own
-// order — the side arrows flanking the video itself.
+// Steps the player to the previous/next task ("chapter") in the active
+// path's own order.
 function stepTask(delta) {
   const path = activePath();
   const next = Math.min(path.taskNames.length - 1, Math.max(0, srState.focusedStepGroupIndex + delta));
@@ -1334,11 +1340,23 @@ function renderScrubber() {
   updateScrubberPosition();
 }
 function updateScrubberPosition() {
-  const step = srState.steps[srState.currentStepIndex];
-  const pct = srState.totalSeconds ? (step.t / srState.totalSeconds) * 100 : 0;
+  const t = srState.currentTime;
+  // Which step "bucket" the playhead currently sits in — its span is
+  // highlighted as the lighter, current-chapter fill.
+  let bucketStart = srState.steps[0] ? srState.steps[0].t : 0;
+  let bucketEnd = srState.totalSeconds;
+  srState.steps.forEach((s, i) => {
+    if (s.t <= t) {
+      bucketStart = s.t;
+      bucketEnd = srState.steps[i + 1] ? srState.steps[i + 1].t : srState.totalSeconds;
+    }
+  });
+  const pct = srState.totalSeconds ? (t / srState.totalSeconds) * 100 : 0;
+  const bucketEndPct = srState.totalSeconds ? (bucketEnd / srState.totalSeconds) * 100 : 100;
   d3.select('#sr-scrubber-fill').style('width', `${pct}%`);
+  d3.select('#sr-scrubber-fill-soft').style('left', `${pct}%`).style('width', `${Math.max(0, bucketEndPct - pct)}%`);
   d3.select('#sr-scrubber-thumb').style('left', `${pct}%`);
-  d3.select('#sr-time-current').text(formatClock(step.t));
+  d3.select('#sr-time-current').text(formatClock(t));
   d3.select('#sr-time-total').text(formatClock(srState.totalSeconds));
 }
 
@@ -1349,33 +1367,32 @@ d3.select('#session-replay-modal').on('click', function (event) {
 d3.select('#sr-scrubber-track').on('click', function (event) {
   const rect = this.getBoundingClientRect();
   const frac = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
-  const targetT = frac * srState.totalSeconds;
-  let nearest = 0;
-  let nearestDist = Infinity;
-  srState.steps.forEach((s, i) => {
-    const d = Math.abs(s.t - targetT);
-    if (d < nearestDist) { nearestDist = d; nearest = i; }
-  });
-  selectStep(nearest);
+  seekToTime(frac * srState.totalSeconds);
 });
 
-d3.select('#sr-task-prev').on('click', () => stepTask(-1));
-d3.select('#sr-task-next').on('click', () => stepTask(1));
+d3.select('#sr-chapter-prev').on('click', () => stepTask(-1));
+d3.select('#sr-chapter-next').on('click', () => stepTask(1));
+d3.select('#sr-seek-back').on('click', () => seekBy(-10));
+d3.select('#sr-seek-fwd').on('click', () => seekBy(10));
 
-// Restart affordances (header + control-bar icon) — there's no real
-// playback to pause/resume, so both just reset the scrubber to the start.
-d3.select('#sr-header-play').on('click', () => selectStep(0));
-d3.select('#sr-pause-btn').on('click', () => selectStep(0));
+// Restart affordances — there's no real playback to pause/resume, so
+// every one of these just resets the scrubber to the start. The big
+// play/pause button also flips its own icon, purely cosmetic (matching
+// the honest-placeholder pattern already used for speed/skip toggles
+// elsewhere in this player) since nothing is actually playing.
+d3.select('#sr-header-play').on('click', () => seekToTime(0));
+d3.select('#sr-play-pause').on('click', function () {
+  const btn = d3.select(this);
+  const isPlaying = !btn.classed('is-playing');
+  btn.classed('is-playing', isPlaying);
+  btn.select('.sr-icon-play').style('display', isPlaying ? 'none' : '');
+  btn.select('.sr-icon-pause').style('display', isPlaying ? '' : 'none');
+  seekToTime(0);
+});
 
-// Speed and "skip inactive" are cosmetic toggles — honest about there being
-// no real video whose rate or dead-time they could actually affect.
-d3.selectAll('.sr-speed').on('click', function () {
-  d3.selectAll('.sr-speed').classed('active', false);
-  d3.select(this).classed('active', true);
-});
-d3.select('#sr-skip-toggle').on('click', function () {
-  d3.select(this).classed('active', !this.classList.contains('active'));
-});
+// Speed is a cosmetic selector — honest about there being no real video
+// whose rate it could actually affect.
+d3.select('#sr-speed-select').on('change', function () {});
 
 d3.select('#sr-expand').on('click', () => {
   d3.select('#sr-panel').classed('sr-panel-expanded', !document.getElementById('sr-panel').classList.contains('sr-panel-expanded'));
