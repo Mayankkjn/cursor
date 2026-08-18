@@ -20,330 +20,272 @@
           <span class="brand-product">Analytics</span>
         </div>
 
-        <nav class="primary-nav" aria-label="Product Analytics sections">
-          <a class="nav-link active" href="#overview">Overview</a>
-          <a class="nav-link" href="#insights">Insights</a>
-          <a class="nav-link" href="#dashboards">Dashboards</a>
-          <a class="nav-link" href="#storyboards">Storyboards</a>
-          <a class="nav-link" href="#guidance">Guidance</a>
+        <nav class="primary-nav" aria-label="Product Analytics sections" id="primaryNav">
+          <a class="nav-link" href="#overview" data-view="overview">Overview</a>
+          <a class="nav-link" href="#insights" data-view="insights">Insights</a>
+          <a class="nav-link" href="#dashboards" data-view="dashboards">Dashboards</a>
+          <a class="nav-link" href="#storyboards" data-view="storyboards">Storyboards</a>
+          <a class="nav-link" href="#guidance" data-view="guidance">Guidance</a>
         </nav>
 
         <div class="header-actions">
-          <button class="icon-btn" id="alertsBtn" type="button" aria-label="Alerts">
-            🔔<span class="badge" id="alertsBadge">2</span>
-          </button>
+          <div class="dropdown-wrap">
+            <button class="icon-btn" id="alertsBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Alerts">
+              🔔<span class="badge hidden" id="alertsBadge">0</span>
+            </button>
+            <div class="dropdown-panel hidden" id="alertsPanel" role="menu"></div>
+          </div>
           <button class="icon-btn" id="themeToggle" type="button" aria-label="Toggle theme">☾</button>
-          <div class="avatar" title="Mayank Jain">MJ</div>
+          <div class="dropdown-wrap">
+            <button class="avatar as-btn" id="avatarBtn" type="button" aria-haspopup="true" aria-expanded="false" title="Mayank Jain">MJ</button>
+            <div class="dropdown-panel hidden" id="avatarPanel" role="menu">
+              <p class="dropdown-heading">Mayank Jain<br /><span>mayankk.jain@whatfix.com</span></p>
+              <button class="dropdown-item" type="button" data-action="profile">Profile</button>
+              <button class="dropdown-item" type="button" data-action="preferences">Preferences</button>
+              <button class="dropdown-item" type="button" data-action="signout">Sign out</button>
+            </div>
+          </div>
         </div>
       </header>
 
-      <main class="content">
-        <!-- Ask Whatfix AI hero -->
-        <section class="ask-ai-card" aria-labelledby="askAiTitle">
-          <div class="ask-ai-top">
-            <div class="ask-ai-heading">
-              <span class="ask-ai-icon">✦</span>
+      <main class="content" id="mainContent">
+        <!-- ============ OVERVIEW ============ -->
+        <section class="view" id="view-overview">
+          <!-- Ask Whatfix AI hero -->
+          <section class="ask-ai-card" aria-labelledby="askAiTitle">
+            <div class="ask-ai-top">
+              <div class="ask-ai-heading">
+                <span class="ask-ai-icon">✦</span>
+                <div>
+                  <h1 id="askAiTitle">Ask Whatfix AI</h1>
+                  <p class="ask-ai-subtitle">Query your data, build dashboards, or set up smart alerts — all in plain language.</p>
+                </div>
+              </div>
+              <label class="agent-mode-toggle">
+                <input type="checkbox" id="agentModeToggle" />
+                <span class="toggle-track" aria-hidden="true"></span>
+                <span class="toggle-label">Agent mode<span class="toggle-hint">turn questions into monitoring alerts</span></span>
+              </label>
+            </div>
+
+            <form class="ask-ai-form" id="askAiForm">
+              <span class="ask-ai-form-icon">⌕</span>
+              <input
+                id="askAiInput"
+                class="ask-ai-input"
+                type="text"
+                autocomplete="off"
+                placeholder="e.g. Compare adoption between regions this quarter"
+              />
+              <button class="icon-btn ghost" type="button" id="micBtn" aria-label="Ask by voice">🎙</button>
+              <button class="pill-btn primary" type="submit">Ask</button>
+            </form>
+
+            <div class="ask-ai-chips" id="askAiChips">
+              <button class="chip" type="button" data-prompt="Is adoption healthy this week?">Is adoption healthy this week?</button>
+              <button class="chip" type="button" data-prompt="Where are users struggling in the Checkout flow?">Where are users struggling in Checkout?</button>
+              <button class="chip" type="button" data-prompt="Notify me if Sales stops using flow X for 3 days">Notify me if Sales stops using flow X for 3 days</button>
+              <button class="chip" type="button" data-prompt="Compare adoption between regions this quarter">Compare adoption between regions this quarter</button>
+            </div>
+
+            <div class="ask-ai-response hidden" id="askAiResponse"></div>
+          </section>
+
+          <!-- Smart Brief snapshot -->
+          <section class="smart-brief" aria-labelledby="smartBriefTitle">
+            <div class="smart-brief-header">
               <div>
-                <h1 id="askAiTitle">Ask Whatfix AI</h1>
-                <p class="ask-ai-subtitle">Query your data, build dashboards, or set up smart alerts — all in plain language.</p>
+                <p class="eyebrow">Smart brief · AI-generated</p>
+                <h2 id="smartBriefTitle">Good morning, Mayank — here's what changed</h2>
+                <p class="smart-brief-date" id="smartBriefDate">Thursday, Jul 30 · since your last visit (5 days ago)</p>
               </div>
+              <button class="pill-btn" type="button" id="refreshBriefBtn">↻ Refresh</button>
             </div>
-            <label class="agent-mode-toggle">
-              <input type="checkbox" id="agentModeToggle" />
-              <span class="toggle-track" aria-hidden="true"></span>
-              <span class="toggle-label">Agent mode<span class="toggle-hint">turn questions into monitoring alerts</span></span>
-            </label>
+
+            <ul class="smart-brief-list">
+              <li class="brief-item brief-up">
+                <span class="brief-icon" aria-hidden="true">↑</span>
+                <div class="brief-copy">
+                  <p><strong>Checkout completion up 12% WoW</strong> — likely driven by the reworded tooltip on Step 3, shipped Jul 24.</p>
+                </div>
+                <button class="text-btn" type="button" data-nav="insights">View insight →</button>
+              </li>
+              <li class="brief-item brief-down">
+                <span class="brief-icon" aria-hidden="true">↓</span>
+                <div class="brief-copy">
+                  <p><strong>APAC adoption of Bulk Export down 18%</strong> — third consecutive week of decline.</p>
+                </div>
+                <button class="text-btn" type="button" data-nav="dashboards">Drill into segment →</button>
+              </li>
+              <li class="brief-item brief-action">
+                <span class="brief-icon" aria-hidden="true">●</span>
+                <div class="brief-copy">
+                  <p><strong>2 anomalies await review, 1 alert unacknowledged</strong> — resolving these keeps your intervention cycle under 24h.</p>
+                </div>
+                <button class="text-btn" type="button" data-nav="insights">Review now →</button>
+              </li>
+            </ul>
+          </section>
+
+          <!-- KPI row -->
+          <section class="kpi-row" aria-label="Key metrics">
+            <article class="stat-tile">
+              <p class="stat-label">Weekly active users · Analytics Overview</p>
+              <p class="stat-value">4,812</p>
+              <p class="stat-delta good">▲ 8.4% vs last week</p>
+              <svg class="sparkline" viewBox="0 0 120 32" preserveAspectRatio="none" aria-hidden="true">
+                <polyline class="spark-ghost" points="0,24 15,22 30,20 45,21 60,17 75,15 90,12 105,9 120,6" />
+                <circle class="spark-dot" cx="120" cy="6" r="3"></circle>
+              </svg>
+            </article>
+
+            <article class="stat-tile">
+              <p class="stat-label">Adoption rate · Core flows</p>
+              <p class="stat-value">76.2%</p>
+              <p class="stat-delta good">▲ 2.1 pts vs last week</p>
+              <svg class="sparkline" viewBox="0 0 120 32" preserveAspectRatio="none" aria-hidden="true">
+                <polyline class="spark-ghost" points="0,18 15,20 30,16 45,17 60,14 75,15 90,11 105,10 120,8" />
+                <circle class="spark-dot" cx="120" cy="8" r="3"></circle>
+              </svg>
+            </article>
+
+            <article class="stat-tile">
+              <p class="stat-label">Median time-to-insight · login → first KPI view</p>
+              <p class="stat-value">18s</p>
+              <p class="stat-delta good">▼ 6s vs last week</p>
+              <svg class="sparkline" viewBox="0 0 120 32" preserveAspectRatio="none" aria-hidden="true">
+                <polyline class="spark-ghost" points="0,8 15,10 30,11 45,14 60,15 75,18 90,20 105,22 120,24" />
+                <circle class="spark-dot" cx="120" cy="24" r="3"></circle>
+              </svg>
+            </article>
+
+            <article class="stat-tile">
+              <p class="stat-label">Open anomalies &amp; alerts</p>
+              <p class="stat-value" id="openAnomaliesValue">3</p>
+              <p class="stat-delta critical">▲ 1 new since yesterday</p>
+              <svg class="sparkline" viewBox="0 0 120 32" preserveAspectRatio="none" aria-hidden="true">
+                <polyline class="spark-ghost" points="0,26 15,26 30,24 45,24 60,22 75,18 90,16 105,10 120,6" />
+                <circle class="spark-dot spark-dot-critical" cx="120" cy="6" r="3"></circle>
+              </svg>
+            </article>
+          </section>
+
+          <!-- Two column layout -->
+          <div class="main-grid">
+            <div class="main-col">
+              <!-- Auto-surfaced insights -->
+              <section class="panel" aria-labelledby="autoInsightsTitle">
+                <div class="panel-header">
+                  <div>
+                    <h2 id="autoInsightsTitle">Auto-surfaced insights</h2>
+                    <p class="panel-subtitle">Flagged by process mining across your product flows</p>
+                  </div>
+                  <a class="text-btn" href="#storyboards">View all storyboards →</a>
+                </div>
+
+                <ul class="insight-list" id="insightList"></ul>
+                <a class="text-btn insight-list-more" href="#insights">See all insights →</a>
+              </section>
+
+              <!-- Pinned insights -->
+              <section class="panel" aria-labelledby="pinnedTitle">
+                <div class="panel-header">
+                  <div>
+                    <h2 id="pinnedTitle">Pinned insights</h2>
+                    <p class="panel-subtitle">Your personal watchlist — thresholds trigger an alert automatically</p>
+                  </div>
+                  <button class="pill-btn" type="button" id="pinMetricBtn">+ Pin a metric</button>
+                </div>
+
+                <ul class="pinned-list" id="pinnedList"></ul>
+              </section>
+            </div>
+
+            <aside class="side-col">
+              <!-- Recently created -->
+              <section class="panel" aria-labelledby="recentTitle">
+                <div class="panel-header">
+                  <div>
+                    <h2 id="recentTitle">Recently created</h2>
+                    <p class="panel-subtitle">Insights &amp; dashboards from your team</p>
+                  </div>
+                  <a class="text-btn" href="#dashboards">View all →</a>
+                </div>
+
+                <ul class="recent-list" id="recentList"></ul>
+              </section>
+
+              <!-- Agent alerts -->
+              <section class="panel" id="agentAlertsPanel" aria-labelledby="agentTitle">
+                <div class="panel-header">
+                  <div>
+                    <h2 id="agentTitle">Agent alerts</h2>
+                    <p class="panel-subtitle">Natural-language monitors set up with Whatfix AI</p>
+                  </div>
+                </div>
+
+                <ul class="agent-list" id="agentList"></ul>
+                <button class="pill-btn full" type="button" id="createAlertBtn">+ Create new alert</button>
+              </section>
+            </aside>
           </div>
-
-          <form class="ask-ai-form" id="askAiForm">
-            <span class="ask-ai-form-icon">⌕</span>
-            <input
-              id="askAiInput"
-              class="ask-ai-input"
-              type="text"
-              autocomplete="off"
-              placeholder="e.g. Compare adoption between regions this quarter"
-            />
-            <button class="icon-btn ghost" type="button" id="micBtn" aria-label="Ask by voice">🎙</button>
-            <button class="pill-btn primary" type="submit">Ask</button>
-          </form>
-
-          <div class="ask-ai-chips" id="askAiChips">
-            <button class="chip" type="button" data-prompt="Is adoption healthy this week?">Is adoption healthy this week?</button>
-            <button class="chip" type="button" data-prompt="Where are users struggling in the Checkout flow?">Where are users struggling in Checkout?</button>
-            <button class="chip" type="button" data-prompt="Notify me if Sales stops using flow X for 3 days">Notify me if Sales stops using flow X for 3 days</button>
-            <button class="chip" type="button" data-prompt="Compare adoption between regions this quarter">Compare adoption between regions this quarter</button>
-          </div>
-
-          <div class="ask-ai-response hidden" id="askAiResponse"></div>
         </section>
 
-        <!-- Smart Brief snapshot -->
-        <section class="smart-brief" aria-labelledby="smartBriefTitle">
-          <div class="smart-brief-header">
+        <!-- ============ INSIGHTS ============ -->
+        <section class="view hidden" id="view-insights">
+          <div class="page-header">
             <div>
-              <p class="eyebrow">Smart brief · AI-generated</p>
-              <h2 id="smartBriefTitle">Good morning, Mayank — here's what changed</h2>
-              <p class="smart-brief-date">Thursday, Jul 30 · since your last visit (5 days ago)</p>
+              <h1>Insights</h1>
+              <p class="page-subtitle">Every insight process mining has surfaced across your product flows</p>
             </div>
-            <button class="pill-btn" type="button" id="refreshBriefBtn">↻ Refresh</button>
           </div>
-
-          <ul class="smart-brief-list">
-            <li class="brief-item brief-up">
-              <span class="brief-icon" aria-hidden="true">↑</span>
-              <div class="brief-copy">
-                <p><strong>Checkout completion up 12% WoW</strong> — likely driven by the reworded tooltip on Step 3, shipped Jul 24.</p>
-              </div>
-              <button class="text-btn" type="button">View insight →</button>
-            </li>
-            <li class="brief-item brief-down">
-              <span class="brief-icon" aria-hidden="true">↓</span>
-              <div class="brief-copy">
-                <p><strong>APAC adoption of Bulk Export down 18%</strong> — third consecutive week of decline.</p>
-              </div>
-              <button class="text-btn" type="button">Drill into segment →</button>
-            </li>
-            <li class="brief-item brief-action">
-              <span class="brief-icon" aria-hidden="true">●</span>
-              <div class="brief-copy">
-                <p><strong>2 anomalies await review, 1 alert unacknowledged</strong> — resolving these keeps your intervention cycle under 24h.</p>
-              </div>
-              <button class="text-btn" type="button">Review now →</button>
-            </li>
-          </ul>
+          <div class="filter-tabs" id="insightFilterTabs">
+            <button class="filter-tab active" type="button" data-filter="all">All</button>
+            <button class="filter-tab" type="button" data-filter="critical">Critical</button>
+            <button class="filter-tab" type="button" data-filter="warning">Needs attention</button>
+            <button class="filter-tab" type="button" data-filter="good">Best path</button>
+          </div>
+          <ul class="insight-list" id="insightListFull"></ul>
         </section>
 
-        <!-- KPI row -->
-        <section class="kpi-row" aria-label="Key metrics">
-          <article class="stat-tile">
-            <p class="stat-label">Weekly active users · Analytics Overview</p>
-            <p class="stat-value">4,812</p>
-            <p class="stat-delta good">▲ 8.4% vs last week</p>
-            <svg class="sparkline" viewBox="0 0 120 32" preserveAspectRatio="none" aria-hidden="true">
-              <polyline class="spark-ghost" points="0,24 15,22 30,20 45,21 60,17 75,15 90,12 105,9 120,6" />
-              <circle class="spark-dot" cx="120" cy="6" r="3"></circle>
-            </svg>
-          </article>
-
-          <article class="stat-tile">
-            <p class="stat-label">Adoption rate · Core flows</p>
-            <p class="stat-value">76.2%</p>
-            <p class="stat-delta good">▲ 2.1 pts vs last week</p>
-            <svg class="sparkline" viewBox="0 0 120 32" preserveAspectRatio="none" aria-hidden="true">
-              <polyline class="spark-ghost" points="0,18 15,20 30,16 45,17 60,14 75,15 90,11 105,10 120,8" />
-              <circle class="spark-dot" cx="120" cy="8" r="3"></circle>
-            </svg>
-          </article>
-
-          <article class="stat-tile">
-            <p class="stat-label">Median time-to-insight · login → first KPI view</p>
-            <p class="stat-value">18s</p>
-            <p class="stat-delta good">▼ 6s vs last week</p>
-            <svg class="sparkline" viewBox="0 0 120 32" preserveAspectRatio="none" aria-hidden="true">
-              <polyline class="spark-ghost" points="0,8 15,10 30,11 45,14 60,15 75,18 90,20 105,22 120,24" />
-              <circle class="spark-dot" cx="120" cy="24" r="3"></circle>
-            </svg>
-          </article>
-
-          <article class="stat-tile">
-            <p class="stat-label">Open anomalies &amp; alerts</p>
-            <p class="stat-value">3</p>
-            <p class="stat-delta critical">▲ 1 new since yesterday</p>
-            <svg class="sparkline" viewBox="0 0 120 32" preserveAspectRatio="none" aria-hidden="true">
-              <polyline class="spark-ghost" points="0,26 15,26 30,24 45,24 60,22 75,18 90,16 105,10 120,6" />
-              <circle class="spark-dot spark-dot-critical" cx="120" cy="6" r="3"></circle>
-            </svg>
-          </article>
+        <!-- ============ DASHBOARDS ============ -->
+        <section class="view hidden" id="view-dashboards">
+          <div class="page-header">
+            <div>
+              <h1>Dashboards</h1>
+              <p class="page-subtitle">Dashboards built by you, your team, and Whatfix AI</p>
+            </div>
+            <button class="pill-btn primary" type="button" id="newDashboardBtn">+ New from Ask AI</button>
+          </div>
+          <div class="card-grid" id="dashboardGrid"></div>
         </section>
 
-        <!-- Two column layout -->
-        <div class="main-grid">
-          <div class="main-col">
-            <!-- Auto-surfaced insights -->
-            <section class="panel" aria-labelledby="autoInsightsTitle">
-              <div class="panel-header">
-                <div>
-                  <h2 id="autoInsightsTitle">Auto-surfaced insights</h2>
-                  <p class="panel-subtitle">Flagged by process mining across your product flows</p>
-                </div>
-                <a class="text-btn" href="#storyboards">View all storyboards →</a>
-              </div>
-
-              <ul class="insight-list" id="insightList">
-                <li class="insight-card" data-severity="critical">
-                  <div class="insight-top">
-                    <span class="status-chip critical"><span class="status-dot" aria-hidden="true"></span>Critical</span>
-                    <span class="insight-flow">Onboarding flow</span>
-                  </div>
-                  <h3>Drop-off spike at "Connect integrations" step</h3>
-                  <p class="insight-cause"><strong>Likely cause:</strong> 38% of users abandon after the new permissions modal shipped Jul 24.</p>
-                  <p class="insight-action"><strong>Recommended:</strong> Revert modal copy or add a guided tooltip before the permissions prompt.</p>
-                  <div class="insight-footer">
-                    <button class="pill-btn primary small" type="button">Deploy guidance</button>
-                    <button class="pill-btn small" type="button">View storyboard</button>
-                    <button class="icon-btn ghost small dismiss-btn" type="button" aria-label="Dismiss">✕</button>
-                  </div>
-                </li>
-
-                <li class="insight-card" data-severity="warning">
-                  <div class="insight-top">
-                    <span class="status-chip warning"><span class="status-dot" aria-hidden="true"></span>Needs attention</span>
-                    <span class="insight-flow">Settings flow</span>
-                  </div>
-                  <h3>Tooltip "Y" ignored 73% of the time</h3>
-                  <p class="insight-cause"><strong>Likely cause:</strong> Placement overlaps a native control on smaller viewports.</p>
-                  <p class="insight-action"><strong>Recommended:</strong> Reposition the tooltip or shorten the copy to one line.</p>
-                  <div class="insight-footer">
-                    <button class="pill-btn primary small" type="button">Deploy guidance</button>
-                    <button class="pill-btn small" type="button">View storyboard</button>
-                    <button class="icon-btn ghost small dismiss-btn" type="button" aria-label="Dismiss">✕</button>
-                  </div>
-                </li>
-
-                <li class="insight-card" data-severity="good">
-                  <div class="insight-top">
-                    <span class="status-chip good"><span class="status-dot" aria-hidden="true"></span>Best path</span>
-                    <span class="insight-flow">New invoice creation</span>
-                  </div>
-                  <h3>Completion rate up to 94%, from 81%</h3>
-                  <p class="insight-cause"><strong>Likely cause:</strong> Inline smart tips added at the line-items step on Jul 20.</p>
-                  <p class="insight-action"><strong>Recommended:</strong> Replicate the same smart-tip pattern on the Expense flow.</p>
-                  <div class="insight-footer">
-                    <button class="pill-btn primary small" type="button">Replicate to Expense flow</button>
-                    <button class="pill-btn small" type="button">View storyboard</button>
-                    <button class="icon-btn ghost small dismiss-btn" type="button" aria-label="Dismiss">✕</button>
-                  </div>
-                </li>
-              </ul>
-            </section>
-
-            <!-- Pinned insights -->
-            <section class="panel" aria-labelledby="pinnedTitle">
-              <div class="panel-header">
-                <div>
-                  <h2 id="pinnedTitle">Pinned insights</h2>
-                  <p class="panel-subtitle">Your personal watchlist — thresholds trigger an alert automatically</p>
-                </div>
-                <button class="pill-btn" type="button" id="pinMetricBtn">+ Pin a metric</button>
-              </div>
-
-              <ul class="pinned-list" id="pinnedList">
-                <li class="pinned-row">
-                  <button class="pin-toggle pinned" type="button" aria-label="Unpin metric" title="Unpin">★</button>
-                  <div class="pinned-main">
-                    <p class="pinned-name">Sales team · Flow X adoption</p>
-                    <p class="pinned-meta">Alert if unused for 3 consecutive days · moves with <em>Onboarding completion</em></p>
-                  </div>
-                  <svg class="sparkline small" viewBox="0 0 80 24" preserveAspectRatio="none" aria-hidden="true">
-                    <polyline class="spark-ghost" points="0,10 13,12 26,9 40,14 53,16 66,20 80,22" />
-                  </svg>
-                  <span class="status-chip warning">2 days idle</span>
-                </li>
-
-                <li class="pinned-row">
-                  <button class="pin-toggle pinned" type="button" aria-label="Unpin metric" title="Unpin">★</button>
-                  <div class="pinned-main">
-                    <p class="pinned-name">Checkout completion rate</p>
-                    <p class="pinned-meta">Threshold: alert below 70% · moves with <em>Tooltip Y engagement</em></p>
-                  </div>
-                  <svg class="sparkline small" viewBox="0 0 80 24" preserveAspectRatio="none" aria-hidden="true">
-                    <polyline class="spark-ghost" points="0,20 13,17 26,18 40,13 53,11 66,8 80,5" />
-                  </svg>
-                  <span class="status-chip good">On track</span>
-                </li>
-
-                <li class="pinned-row">
-                  <button class="pin-toggle pinned" type="button" aria-label="Unpin metric" title="Unpin">★</button>
-                  <div class="pinned-main">
-                    <p class="pinned-name">EU region · Weekly active users</p>
-                    <p class="pinned-meta">Goal: 1,200 WAU by end of quarter</p>
-                  </div>
-                  <svg class="sparkline small" viewBox="0 0 80 24" preserveAspectRatio="none" aria-hidden="true">
-                    <polyline class="spark-ghost" points="0,18 13,16 26,17 40,14 53,12 66,13 80,10" />
-                  </svg>
-                  <span class="status-chip good">On track</span>
-                </li>
-              </ul>
-            </section>
+        <!-- ============ STORYBOARDS ============ -->
+        <section class="view hidden" id="view-storyboards">
+          <div class="page-header">
+            <div>
+              <h1>Storyboards</h1>
+              <p class="page-subtitle">The process-mined journey behind each auto-surfaced insight</p>
+            </div>
           </div>
+          <div class="card-grid" id="storyboardGrid"></div>
+        </section>
 
-          <aside class="side-col">
-            <!-- Recently created -->
-            <section class="panel" aria-labelledby="recentTitle">
-              <div class="panel-header">
-                <div>
-                  <h2 id="recentTitle">Recently created</h2>
-                  <p class="panel-subtitle">Insights &amp; dashboards from your team</p>
-                </div>
-              </div>
-
-              <ul class="recent-list">
-                <li class="recent-row">
-                  <div class="avatar small">RA</div>
-                  <div class="recent-main">
-                    <p class="recent-name">Region-wise adoption Q3</p>
-                    <p class="recent-meta">Riya A. · edited 2h ago · 3 comments</p>
-                  </div>
-                  <button class="text-btn" type="button">Preview</button>
-                </li>
-                <li class="recent-row">
-                  <div class="avatar small">DK</div>
-                  <div class="recent-main">
-                    <p class="recent-name">CX support flows — drop-off audit</p>
-                    <p class="recent-meta">Dev K. · edited yesterday · 1 comment</p>
-                  </div>
-                  <button class="text-btn" type="button">Preview</button>
-                </li>
-                <li class="recent-row">
-                  <div class="avatar small">MJ</div>
-                  <div class="recent-main">
-                    <p class="recent-name">Onboarding funnel — new hires</p>
-                    <p class="recent-meta">You · edited 3 days ago</p>
-                  </div>
-                  <button class="text-btn" type="button">Preview</button>
-                </li>
-              </ul>
-            </section>
-
-            <!-- Agent alerts -->
-            <section class="panel" aria-labelledby="agentTitle">
-              <div class="panel-header">
-                <div>
-                  <h2 id="agentTitle">Agent alerts</h2>
-                  <p class="panel-subtitle">Natural-language monitors set up with Whatfix AI</p>
-                </div>
-              </div>
-
-              <ul class="agent-list">
-                <li class="agent-row">
-                  <div class="agent-main">
-                    <p class="agent-name">"Notify me if Sales stops using Flow X for 3 days"</p>
-                    <p class="agent-meta">Active · last triggered 2 days ago</p>
-                  </div>
-                  <span class="status-chip warning">Firing</span>
-                </li>
-                <li class="agent-row">
-                  <div class="agent-main">
-                    <p class="agent-name">"Tell me when tooltip Y is ignored more than 70% of the time"</p>
-                    <p class="agent-meta">Active · fired repeatedly this week</p>
-                  </div>
-                  <span class="status-chip critical">3 fires</span>
-                </li>
-                <li class="agent-row">
-                  <div class="agent-main">
-                    <p class="agent-name">"Alert me on any anomaly in the EU checkout flow"</p>
-                    <p class="agent-meta">Active · quiet for 12 days</p>
-                  </div>
-                  <span class="status-chip good">Healthy</span>
-                </li>
-              </ul>
-              <button class="pill-btn full" type="button" id="createAlertBtn">+ Create new alert</button>
-            </section>
-          </aside>
-        </div>
+        <!-- ============ GUIDANCE ============ -->
+        <section class="view hidden" id="view-guidance">
+          <div class="page-header">
+            <div>
+              <h1>Guidance</h1>
+              <p class="page-subtitle">Content recommended or deployed from insights</p>
+            </div>
+          </div>
+          <ul class="guidance-list" id="guidanceList"></ul>
+        </section>
       </main>
     </div>
+
+    <div id="modalRoot"></div>
+    <div id="toastRoot" class="toast-root" aria-live="polite"></div>
 
     <script src="./script.js"></script>
   </body>
