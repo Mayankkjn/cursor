@@ -833,6 +833,15 @@ button:hover { filter: brightness(1.08); }
 .sr-player-nav:hover { background: var(--bg); color: var(--accent-ui); }
 .sr-player-nav:disabled { opacity: 0.3; cursor: default; }
 .sr-player-nav:disabled:hover { background: none; color: var(--text-secondary); }
+/* The bigger side arrows flanking the video itself — step through the
+   active path's tasks rather than switching user. */
+.sr-player-row { display: flex; align-items: center; gap: 14px; flex: 1; min-height: 0; }
+.sr-player-nav-side {
+  width: 36px; height: 36px; background: #ffffff; color: var(--text-secondary);
+  box-shadow: 0 2px 8px rgba(24, 26, 51, 0.12);
+}
+.sr-player-nav-side:hover { background: #ffffff; color: var(--accent-ui); }
+.sr-player-nav-side:disabled:hover { background: #ffffff; color: var(--text-secondary); }
 /* The selected path / focused task / its duration — sits right above the
    video, between the user picker and the player itself. */
 .sr-player-meta {
@@ -842,18 +851,17 @@ button:hover { filter: brightness(1.08); }
 }
 .sr-player-meta svg { color: var(--text-tertiary); flex-shrink: 0; }
 .sr-player-meta-sep { color: var(--text-tertiary); }
-/* Always 16:9, centered, sized from the pane's width rather than
-   stretching to whatever shape the modal is. */
+/* Always 16:9 — grows to fill the row's width (between the two side
+   arrows), rather than stretching to whatever shape the modal is. */
 .sr-player {
   position: relative;
   background: linear-gradient(135deg, #2a2e45 0%, #3d3c52 55%, #2a2e45 100%);
   border-radius: 10px;
   overflow: hidden;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   aspect-ratio: 16 / 9;
   max-height: 100%;
-  flex-shrink: 0;
-  margin: 0 auto;
   display: flex;
   align-items: center;
   justify-content: center;

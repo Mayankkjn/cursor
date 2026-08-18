@@ -1266,6 +1266,18 @@ function renderPlayerMeta() {
   bar.append('span').attr('class', 'sr-player-meta-sep').text('·');
   bar.append('span').html(CLOCK_ICON_SVG);
   bar.append('span').text(formatDuration(duration));
+
+  d3.select('#sr-task-prev').property('disabled', srState.focusedStepGroupIndex === 0);
+  d3.select('#sr-task-next').property('disabled', srState.focusedStepGroupIndex === path.taskNames.length - 1);
+}
+
+// Steps the player to the previous/next task in the active path's own
+// order — the side arrows flanking the video itself.
+function stepTask(delta) {
+  const path = activePath();
+  const next = Math.min(path.taskNames.length - 1, Math.max(0, srState.focusedStepGroupIndex + delta));
+  if (next === srState.focusedStepGroupIndex) return;
+  focusTask(next);
 }
 
 function renderPathsList() {
@@ -1346,6 +1358,9 @@ d3.select('#sr-scrubber-track').on('click', function (event) {
   });
   selectStep(nearest);
 });
+
+d3.select('#sr-task-prev').on('click', () => stepTask(-1));
+d3.select('#sr-task-next').on('click', () => stepTask(1));
 
 // Restart affordances (header + control-bar icon) — there's no real
 // playback to pause/resume, so both just reset the scrubber to the start.

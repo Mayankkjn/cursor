@@ -288,10 +288,18 @@
         <div class="sr-player-col">
           <div class="sr-player-userbar" id="sr-player-userbar"></div>
           <div class="sr-player-meta" id="sr-player-meta"></div>
-          <div class="sr-player">
-            <div class="sr-ghost" style="top:14%; left:6%; width:30%; height:10%;"></div>
-            <div class="sr-ghost" style="top:30%; left:6%; width:88%; height:46%;"></div>
-            <button class="sr-play-btn" id="sr-play-btn" type="button" aria-label="Play (preview only)"></button>
+          <div class="sr-player-row">
+            <button class="sr-player-nav sr-player-nav-side" id="sr-task-prev" type="button" aria-label="Previous task">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M9 2 L4 7 L9 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+            </button>
+            <div class="sr-player">
+              <div class="sr-ghost" style="top:14%; left:6%; width:30%; height:10%;"></div>
+              <div class="sr-ghost" style="top:30%; left:6%; width:88%; height:46%;"></div>
+              <button class="sr-play-btn" id="sr-play-btn" type="button" aria-label="Play (preview only)"></button>
+            </div>
+            <button class="sr-player-nav sr-player-nav-side" id="sr-task-next" type="button" aria-label="Next task">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M5 2 L10 7 L5 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+            </button>
           </div>
           <div class="sr-scrubber">
             <div class="sr-scrubber-row">

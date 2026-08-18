@@ -840,6 +840,15 @@ button:hover { filter: brightness(1.08); }
 .sr-player-nav:hover { background: var(--bg); color: var(--accent-ui); }
 .sr-player-nav:disabled { opacity: 0.3; cursor: default; }
 .sr-player-nav:disabled:hover { background: none; color: var(--text-secondary); }
+/* The bigger side arrows flanking the video itself — step through the
+   active path's tasks rather than switching user. */
+.sr-player-row { display: flex; align-items: center; gap: 14px; flex: 1; min-height: 0; }
+.sr-player-nav-side {
+  width: 36px; height: 36px; background: #ffffff; color: var(--text-secondary);
+  box-shadow: 0 2px 8px rgba(24, 26, 51, 0.12);
+}
+.sr-player-nav-side:hover { background: #ffffff; color: var(--accent-ui); }
+.sr-player-nav-side:disabled:hover { background: #ffffff; color: var(--text-secondary); }
 /* The selected path / focused task / its duration — sits right above the
    video, between the user picker and the player itself. */
 .sr-player-meta {
@@ -849,18 +858,17 @@ button:hover { filter: brightness(1.08); }
 }
 .sr-player-meta svg { color: var(--text-tertiary); flex-shrink: 0; }
 .sr-player-meta-sep { color: var(--text-tertiary); }
-/* Always 16:9, centered, sized from the pane's width rather than
-   stretching to whatever shape the modal is. */
+/* Always 16:9 — grows to fill the row's width (between the two side
+   arrows), rather than stretching to whatever shape the modal is. */
 .sr-player {
   position: relative;
   background: linear-gradient(135deg, #2a2e45 0%, #3d3c52 55%, #2a2e45 100%);
   border-radius: 10px;
   overflow: hidden;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   aspect-ratio: 16 / 9;
   max-height: 100%;
-  flex-shrink: 0;
-  margin: 0 auto;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1205,10 +1213,18 @@ button:hover { filter: brightness(1.08); }
         <div class="sr-player-col">
           <div class="sr-player-userbar" id="sr-player-userbar"></div>
           <div class="sr-player-meta" id="sr-player-meta"></div>
-          <div class="sr-player">
-            <div class="sr-ghost" style="top:14%; left:6%; width:30%; height:10%;"></div>
-            <div class="sr-ghost" style="top:30%; left:6%; width:88%; height:46%;"></div>
-            <button class="sr-play-btn" id="sr-play-btn" type="button" aria-label="Play (preview only)"></button>
+          <div class="sr-player-row">
+            <button class="sr-player-nav sr-player-nav-side" id="sr-task-prev" type="button" aria-label="Previous task">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M9 2 L4 7 L9 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+            </button>
+            <div class="sr-player">
+              <div class="sr-ghost" style="top:14%; left:6%; width:30%; height:10%;"></div>
+              <div class="sr-ghost" style="top:30%; left:6%; width:88%; height:46%;"></div>
+              <button class="sr-play-btn" id="sr-play-btn" type="button" aria-label="Play (preview only)"></button>
+            </div>
+            <button class="sr-player-nav sr-player-nav-side" id="sr-task-next" type="button" aria-label="Next task">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M5 2 L10 7 L5 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+            </button>
           </div>
           <div class="sr-scrubber">
             <div class="sr-scrubber-row">
@@ -6831,6 +6847,18 @@ function renderPlayerMeta() {
   bar.append('span').attr('class', 'sr-player-meta-sep').text('·');
   bar.append('span').html(CLOCK_ICON_SVG);
   bar.append('span').text(formatDuration(duration));
+
+  d3.select('#sr-task-prev').property('disabled', srState.focusedStepGroupIndex === 0);
+  d3.select('#sr-task-next').property('disabled', srState.focusedStepGroupIndex === path.taskNames.length - 1);
+}
+
+// Steps the player to the previous/next task in the active path's own
+// order — the side arrows flanking the video itself.
+function stepTask(delta) {
+  const path = activePath();
+  const next = Math.min(path.taskNames.length - 1, Math.max(0, srState.focusedStepGroupIndex + delta));
+  if (next === srState.focusedStepGroupIndex) return;
+  focusTask(next);
 }
 
 function renderPathsList() {
@@ -6911,6 +6939,9 @@ d3.select('#sr-scrubber-track').on('click', function (event) {
   });
   selectStep(nearest);
 });
+
+d3.select('#sr-task-prev').on('click', () => stepTask(-1));
+d3.select('#sr-task-next').on('click', () => stepTask(1));
 
 // Restart affordances (header + control-bar icon) — there's no real
 // playback to pause/resume, so both just reset the scrubber to the start.
