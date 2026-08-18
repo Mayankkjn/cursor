@@ -885,8 +885,45 @@ button:hover { filter: brightness(1.08); }
   display: block;
 }
 
-.sr-scrubber { padding-top: 12px; flex-shrink: 0; }
+.sr-scrubber { position: relative; padding-top: 12px; flex-shrink: 0; }
 .sr-scrubber-row { display: flex; align-items: center; gap: 10px; }
+/* Hover preview — a small chapter thumbnail + task name + duration that
+   tracks the cursor along the scrubber, positioned via left/top set in
+   JS so it always sits directly above wherever's being hovered. */
+.sr-scrubber-preview {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  transform: translateX(-50%);
+  width: 148px;
+  background: #ffffff;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(24, 26, 51, 0.18);
+  padding: 8px;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.1s ease;
+  z-index: 5;
+}
+.sr-scrubber-preview.visible { opacity: 1; visibility: visible; }
+.sr-scrubber-preview-thumb {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #F6F6F9;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.sr-scrubber-preview-title {
+  margin-top: 7px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sr-scrubber-preview-duration { font-size: 0.72rem; color: var(--text-secondary); margin-top: 1px; }
 .sr-time { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.72rem; color: var(--text-secondary); flex-shrink: 0; }
 .sr-scrubber-track { position: relative; flex: 1; height: 5px; border-radius: 3px; background: var(--accent-ui-soft); cursor: pointer; overflow: hidden; }
 .sr-scrubber-fill { position: absolute; top: 0; left: 0; height: 100%; background: var(--accent-ui); pointer-events: none; }
@@ -1215,6 +1252,14 @@ button:hover { filter: brightness(1.08); }
           </div>
           <div class="sr-player-meta" id="sr-player-meta"></div>
           <div class="sr-scrubber">
+            <div class="sr-scrubber-preview" id="sr-scrubber-preview">
+              <div class="sr-scrubber-preview-thumb">
+                <div class="sr-ghost" style="top:16%; left:8%; width:32%; height:12%;"></div>
+                <div class="sr-ghost" style="top:34%; left:8%; width:84%; height:44%;"></div>
+              </div>
+              <div class="sr-scrubber-preview-title" id="sr-scrubber-preview-title"></div>
+              <div class="sr-scrubber-preview-duration" id="sr-scrubber-preview-duration"></div>
+            </div>
             <div class="sr-scrubber-row">
               <span class="sr-time" id="sr-time-current">00:00</span>
               <div class="sr-scrubber-track" id="sr-scrubber-track">
@@ -6976,6 +7021,30 @@ d3.select('#sr-scrubber-track').on('click', function (event) {
   const rect = this.getBoundingClientRect();
   const frac = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
   seekToTime(frac * srState.totalSeconds);
+});
+
+// Hover preview — shows which task's chapter sits under the cursor
+// before you click, with its real duration (matching the task rows and
+// meta bar elsewhere in this player).
+d3.select('#sr-scrubber-track').on('mousemove', function (event) {
+  const trackRect = this.getBoundingClientRect();
+  const wrapRect = document.querySelector('.sr-scrubber').getBoundingClientRect();
+  const frac = Math.min(1, Math.max(0, (event.clientX - trackRect.left) / trackRect.width));
+  const t = frac * srState.totalSeconds;
+  const segIndex = srState.segments.findIndex((seg) => t >= seg.startT && t < seg.endT);
+  const idx = segIndex >= 0 ? segIndex : srState.segments.length - 1;
+
+  const preview = d3.select('#sr-scrubber-preview');
+  const left = Math.min(
+    wrapRect.width - 74,
+    Math.max(74, event.clientX - wrapRect.left),
+  );
+  preview.style('left', `${left}px`).classed('visible', true);
+  d3.select('#sr-scrubber-preview-title').text(srState.segments[idx].taskName);
+  d3.select('#sr-scrubber-preview-duration').text(formatDuration(activeCase().steps[idx].duration));
+});
+d3.select('#sr-scrubber-track').on('mouseleave', () => {
+  d3.select('#sr-scrubber-preview').classed('visible', false);
 });
 
 d3.select('#sr-chapter-prev').on('click', () => stepTask(-1));

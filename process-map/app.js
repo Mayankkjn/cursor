@@ -1386,6 +1386,30 @@ d3.select('#sr-scrubber-track').on('click', function (event) {
   seekToTime(frac * srState.totalSeconds);
 });
 
+// Hover preview — shows which task's chapter sits under the cursor
+// before you click, with its real duration (matching the task rows and
+// meta bar elsewhere in this player).
+d3.select('#sr-scrubber-track').on('mousemove', function (event) {
+  const trackRect = this.getBoundingClientRect();
+  const wrapRect = document.querySelector('.sr-scrubber').getBoundingClientRect();
+  const frac = Math.min(1, Math.max(0, (event.clientX - trackRect.left) / trackRect.width));
+  const t = frac * srState.totalSeconds;
+  const segIndex = srState.segments.findIndex((seg) => t >= seg.startT && t < seg.endT);
+  const idx = segIndex >= 0 ? segIndex : srState.segments.length - 1;
+
+  const preview = d3.select('#sr-scrubber-preview');
+  const left = Math.min(
+    wrapRect.width - 74,
+    Math.max(74, event.clientX - wrapRect.left),
+  );
+  preview.style('left', `${left}px`).classed('visible', true);
+  d3.select('#sr-scrubber-preview-title').text(srState.segments[idx].taskName);
+  d3.select('#sr-scrubber-preview-duration').text(formatDuration(activeCase().steps[idx].duration));
+});
+d3.select('#sr-scrubber-track').on('mouseleave', () => {
+  d3.select('#sr-scrubber-preview').classed('visible', false);
+});
+
 d3.select('#sr-chapter-prev').on('click', () => stepTask(-1));
 d3.select('#sr-chapter-next').on('click', () => stepTask(1));
 d3.select('#sr-seek-back').on('click', () => seekBy(-10));
