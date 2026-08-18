@@ -813,23 +813,14 @@ button:hover { filter: brightness(1.08); }
 .sr-task-row.focused .sr-task-row-top { color: var(--accent-ui); }
 .sr-task-row-sub { font-size: 0.75rem; color: var(--text-secondary); margin-top: 2px; }
 .sr-task-row-duration { font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); flex-shrink: 0; }
-.sr-task-row-divider { border-top: 1px solid #ebecf2; margin: 10px 0 6px; }
-.sr-task-timeline-wrap { padding-top: 2px; }
-
-.sr-timeline { margin-bottom: 4px; }
-.sr-timeline-item { display: flex; align-items: baseline; gap: 10px; padding: 7px 8px; border-radius: 8px; cursor: pointer; }
-.sr-timeline-item:hover { background: #f5f6fb; }
-.sr-timeline-item.current { background: #f5f6fb; }
-.sr-timeline-time { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.72rem; color: #6B697B; font-weight: 700; flex-shrink: 0; width: 38px; }
-.sr-timeline-label { font-size: 0.85rem; color: var(--text-primary); font-weight: 600; }
-.sr-timeline-item.loop .sr-timeline-label { color: #9a5613; }
-.sr-timeline-item.loop .sr-timeline-label::after { content: ' \21ba loop'; font-size: 0.68rem; color: var(--rework); font-weight: 600; }
 
 .sr-player-col { flex: 1; min-width: 0; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; }
+/* User picker, centered above the video — arrows sit right next to the
+   id itself rather than flanking the whole player. */
 .sr-player-userbar {
-  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap;
   font-size: 0.82rem; color: var(--text-primary); font-weight: 600;
-  padding-bottom: 12px; flex-shrink: 0;
+  padding-bottom: 10px; flex-shrink: 0;
 }
 .sr-player-userbar svg { color: var(--text-secondary); flex-shrink: 0; }
 .sr-player-userbar .sr-userbar-sep { color: var(--text-tertiary); margin: 0 2px; }
@@ -840,27 +831,36 @@ button:hover { filter: brightness(1.08); }
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 14 14'%3E%3Cpath d='M3 5 L7 9 L11 5' fill='none' stroke='%238b8fa6' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat; background-position: right center;
 }
-.sr-player-row { display: flex; align-items: center; justify-content: center; gap: 14px; flex: 1; min-height: 0; }
 .sr-player-nav {
   flex-shrink: 0;
-  width: 32px; height: 32px; border-radius: 50%; border: none;
-  background: var(--bg); color: var(--text-primary);
+  width: 24px; height: 24px; border-radius: 50%; border: none;
+  background: none; color: var(--text-secondary);
   display: flex; align-items: center; justify-content: center; cursor: pointer;
 }
-.sr-player-nav:hover { background: #eaeaf2; color: var(--accent-ui); }
-.sr-player-nav:disabled { opacity: 0.35; cursor: default; }
-.sr-player-nav:disabled:hover { background: var(--bg); color: var(--text-primary); }
-/* Always 16:9 — grows to fill the row's width (up to its available
-   height), rather than stretching to whatever shape the modal is. */
+.sr-player-nav:hover { background: var(--bg); color: var(--accent-ui); }
+.sr-player-nav:disabled { opacity: 0.3; cursor: default; }
+.sr-player-nav:disabled:hover { background: none; color: var(--text-secondary); }
+/* The selected path / focused task / its duration — sits right above the
+   video, between the user picker and the player itself. */
+.sr-player-meta {
+  display: flex; align-items: center; justify-content: center; gap: 7px; flex-wrap: wrap;
+  font-size: 0.78rem; color: var(--text-secondary); font-weight: 600;
+  padding-bottom: 12px; flex-shrink: 0;
+}
+.sr-player-meta svg { color: var(--text-tertiary); flex-shrink: 0; }
+.sr-player-meta-sep { color: var(--text-tertiary); }
+/* Always 16:9, centered, sized from the pane's width rather than
+   stretching to whatever shape the modal is. */
 .sr-player {
   position: relative;
   background: linear-gradient(135deg, #2a2e45 0%, #3d3c52 55%, #2a2e45 100%);
   border-radius: 10px;
   overflow: hidden;
-  flex: 1;
-  min-width: 0;
+  width: 100%;
   aspect-ratio: 16 / 9;
   max-height: 100%;
+  flex-shrink: 0;
+  margin: 0 auto;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1204,18 +1204,11 @@ button:hover { filter: brightness(1.08); }
         </div>
         <div class="sr-player-col">
           <div class="sr-player-userbar" id="sr-player-userbar"></div>
-          <div class="sr-player-row">
-            <button class="sr-player-nav sr-player-nav-prev" id="sr-user-prev" type="button" aria-label="Previous user">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M9 2 L4 7 L9 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
-            </button>
-            <div class="sr-player">
-              <div class="sr-ghost" style="top:14%; left:6%; width:30%; height:10%;"></div>
-              <div class="sr-ghost" style="top:30%; left:6%; width:88%; height:46%;"></div>
-              <button class="sr-play-btn" id="sr-play-btn" type="button" aria-label="Play (preview only)"></button>
-            </div>
-            <button class="sr-player-nav sr-player-nav-next" id="sr-user-next" type="button" aria-label="Next user">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M5 2 L10 7 L5 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
-            </button>
+          <div class="sr-player-meta" id="sr-player-meta"></div>
+          <div class="sr-player">
+            <div class="sr-ghost" style="top:14%; left:6%; width:30%; height:10%;"></div>
+            <div class="sr-ghost" style="top:30%; left:6%; width:88%; height:46%;"></div>
+            <button class="sr-play-btn" id="sr-play-btn" type="button" aria-label="Play (preview only)"></button>
           </div>
           <div class="sr-scrubber">
             <div class="sr-scrubber-row">
@@ -6748,6 +6741,7 @@ function loadActiveUser() {
   d3.select('#sr-task-name').text(srState.taskLabel);
   d3.select('#sr-task-sub').text(`${srState.steps.length} steps · ${srState.metaSuffix}`);
   renderUserBar();
+  renderPlayerMeta();
 }
 
 function selectPath(pathIndex) {
@@ -6783,22 +6777,27 @@ function focusTask(stepGroupIndex) {
   focusTaskSteps(stepGroupIndex);
   renderScrubber();
   renderPathsList();
+  renderPlayerMeta();
 }
 
 function selectStep(stepIndex) {
   srState.currentStepIndex = stepIndex;
   updateScrubberPosition();
-  renderPathsList();
 }
 
 // The player-side bar mirrors the sidebar's user picker (both rebuilt on
-// every switch, so they never drift out of sync) and shows that user's
-// real overall case duration — distinct from whichever single task's own
-// duration is focused in the list below.
+// every switch, so they never drift out of sync); prev/next arrows sit
+// right next to the id itself, centered above the video.
 function renderUserBar() {
   const bar = d3.select('#sr-player-userbar');
   bar.selectAll('*').remove();
   const path = activePath();
+
+  bar.append('button').attr('class', 'sr-player-nav').attr('type', 'button').attr('aria-label', 'Previous user')
+    .property('disabled', srState.activeUserIndex === 0)
+    .html('<svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M9 2 L4 7 L9 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>')
+    .on('click', () => stepUser(-1));
+
   bar.append('span').html(PERSON_ICON_SVG);
   bar.append('span').text('User ID :');
   const select = bar.append('select').attr('class', 'sr-userbar-select');
@@ -6806,12 +6805,32 @@ function renderUserBar() {
     select.append('option').attr('value', i).property('selected', i === srState.activeUserIndex).text(formatUserId(u.userId));
   });
   select.on('change', function () { selectUser(Number(this.value)); });
-  bar.append('span').attr('class', 'sr-userbar-sep').text('·');
-  bar.append('span').html(CLOCK_ICON_SVG);
-  bar.append('span').attr('class', 'sr-userbar-duration').text(formatDuration(activeCase().totalDuration));
 
-  d3.select('#sr-user-prev').property('disabled', srState.activeUserIndex === 0);
-  d3.select('#sr-user-next').property('disabled', srState.activeUserIndex === path.users.length - 1);
+  bar.append('button').attr('class', 'sr-player-nav').attr('type', 'button').attr('aria-label', 'Next user')
+    .property('disabled', srState.activeUserIndex === path.users.length - 1)
+    .html('<svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M5 2 L10 7 L5 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>')
+    .on('click', () => stepUser(1));
+}
+
+// The selected path, focused task, and that task's real duration for the
+// active user — sits right above the video, between the user picker and
+// the player itself. Refreshed whenever the focused task, path, or user
+// changes.
+function renderPlayerMeta() {
+  const bar = d3.select('#sr-player-meta');
+  bar.selectAll('*').remove();
+  const path = activePath();
+  const taskName = path.taskNames[srState.focusedStepGroupIndex];
+  const duration = activeCase().steps[srState.focusedStepGroupIndex].duration;
+
+  bar.append('span').html(PATH_ICON_SVG);
+  bar.append('span').text(`Path ${path.variantRank != null ? path.variantRank : '–'}`);
+  bar.append('span').attr('class', 'sr-player-meta-sep').text('·');
+  bar.append('span').html(TASK_ICON_SVG);
+  bar.append('span').text(taskName);
+  bar.append('span').attr('class', 'sr-player-meta-sep').text('·');
+  bar.append('span').html(CLOCK_ICON_SVG);
+  bar.append('span').text(formatDuration(duration));
 }
 
 function renderPathsList() {
@@ -6853,18 +6872,6 @@ function renderPathsList() {
       textCol.append('div').attr('class', 'sr-task-row-top').text(taskName);
       textCol.append('div').attr('class', 'sr-task-row-sub').text(`${built.steps.length} steps`);
       header.append('span').attr('class', 'sr-task-row-duration').text(formatDuration(currentCase.steps[stepGroupIndex].duration));
-
-      if (!isFocused) return;
-      taskRow.append('div').attr('class', 'sr-task-row-divider');
-      const timeline = taskRow.append('div').attr('class', 'sr-task-timeline-wrap').append('div').attr('class', 'sr-timeline');
-      built.steps.forEach((step, stepIdx) => {
-        const isCurrent = stepIdx === srState.currentStepIndex;
-        const item = timeline.append('div')
-          .attr('class', `sr-timeline-item${step.loop ? ' loop' : ''}${isCurrent ? ' current' : ''}`)
-          .on('click', (event) => { event.stopPropagation(); selectStep(stepIdx); });
-        item.append('div').attr('class', 'sr-timeline-time').text(formatClock(step.t));
-        item.append('div').attr('class', 'sr-timeline-label').text(step.label);
-      });
     });
   });
 }
@@ -6904,9 +6911,6 @@ d3.select('#sr-scrubber-track').on('click', function (event) {
   });
   selectStep(nearest);
 });
-
-d3.select('#sr-user-prev').on('click', () => stepUser(-1));
-d3.select('#sr-user-next').on('click', () => stepUser(1));
 
 // Restart affordances (header + control-bar icon) — there's no real
 // playback to pause/resume, so both just reset the scrubber to the start.

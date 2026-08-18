@@ -813,23 +813,14 @@ button:hover { filter: brightness(1.08); }
 .sr-task-row.focused .sr-task-row-top { color: var(--accent-ui); }
 .sr-task-row-sub { font-size: 0.75rem; color: var(--text-secondary); margin-top: 2px; }
 .sr-task-row-duration { font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); flex-shrink: 0; }
-.sr-task-row-divider { border-top: 1px solid #ebecf2; margin: 10px 0 6px; }
-.sr-task-timeline-wrap { padding-top: 2px; }
-
-.sr-timeline { margin-bottom: 4px; }
-.sr-timeline-item { display: flex; align-items: baseline; gap: 10px; padding: 7px 8px; border-radius: 8px; cursor: pointer; }
-.sr-timeline-item:hover { background: #f5f6fb; }
-.sr-timeline-item.current { background: #f5f6fb; }
-.sr-timeline-time { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.72rem; color: #6B697B; font-weight: 700; flex-shrink: 0; width: 38px; }
-.sr-timeline-label { font-size: 0.85rem; color: var(--text-primary); font-weight: 600; }
-.sr-timeline-item.loop .sr-timeline-label { color: #9a5613; }
-.sr-timeline-item.loop .sr-timeline-label::after { content: ' \21ba loop'; font-size: 0.68rem; color: var(--rework); font-weight: 600; }
 
 .sr-player-col { flex: 1; min-width: 0; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; }
+/* User picker, centered above the video — arrows sit right next to the
+   id itself rather than flanking the whole player. */
 .sr-player-userbar {
-  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap;
   font-size: 0.82rem; color: var(--text-primary); font-weight: 600;
-  padding-bottom: 12px; flex-shrink: 0;
+  padding-bottom: 10px; flex-shrink: 0;
 }
 .sr-player-userbar svg { color: var(--text-secondary); flex-shrink: 0; }
 .sr-player-userbar .sr-userbar-sep { color: var(--text-tertiary); margin: 0 2px; }
@@ -840,27 +831,36 @@ button:hover { filter: brightness(1.08); }
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 14 14'%3E%3Cpath d='M3 5 L7 9 L11 5' fill='none' stroke='%238b8fa6' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat; background-position: right center;
 }
-.sr-player-row { display: flex; align-items: center; justify-content: center; gap: 14px; flex: 1; min-height: 0; }
 .sr-player-nav {
   flex-shrink: 0;
-  width: 32px; height: 32px; border-radius: 50%; border: none;
-  background: var(--bg); color: var(--text-primary);
+  width: 24px; height: 24px; border-radius: 50%; border: none;
+  background: none; color: var(--text-secondary);
   display: flex; align-items: center; justify-content: center; cursor: pointer;
 }
-.sr-player-nav:hover { background: #eaeaf2; color: var(--accent-ui); }
-.sr-player-nav:disabled { opacity: 0.35; cursor: default; }
-.sr-player-nav:disabled:hover { background: var(--bg); color: var(--text-primary); }
-/* Always 16:9 — grows to fill the row's width (up to its available
-   height), rather than stretching to whatever shape the modal is. */
+.sr-player-nav:hover { background: var(--bg); color: var(--accent-ui); }
+.sr-player-nav:disabled { opacity: 0.3; cursor: default; }
+.sr-player-nav:disabled:hover { background: none; color: var(--text-secondary); }
+/* The selected path / focused task / its duration — sits right above the
+   video, between the user picker and the player itself. */
+.sr-player-meta {
+  display: flex; align-items: center; justify-content: center; gap: 7px; flex-wrap: wrap;
+  font-size: 0.78rem; color: var(--text-secondary); font-weight: 600;
+  padding-bottom: 12px; flex-shrink: 0;
+}
+.sr-player-meta svg { color: var(--text-tertiary); flex-shrink: 0; }
+.sr-player-meta-sep { color: var(--text-tertiary); }
+/* Always 16:9, centered, sized from the pane's width rather than
+   stretching to whatever shape the modal is. */
 .sr-player {
   position: relative;
   background: linear-gradient(135deg, #2a2e45 0%, #3d3c52 55%, #2a2e45 100%);
   border-radius: 10px;
   overflow: hidden;
-  flex: 1;
-  min-width: 0;
+  width: 100%;
   aspect-ratio: 16 / 9;
   max-height: 100%;
+  flex-shrink: 0;
+  margin: 0 auto;
   display: flex;
   align-items: center;
   justify-content: center;

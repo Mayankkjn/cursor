@@ -1176,6 +1176,7 @@ function loadActiveUser() {
   d3.select('#sr-task-name').text(srState.taskLabel);
   d3.select('#sr-task-sub').text(`${srState.steps.length} steps · ${srState.metaSuffix}`);
   renderUserBar();
+  renderPlayerMeta();
 }
 
 function selectPath(pathIndex) {
@@ -1211,22 +1212,27 @@ function focusTask(stepGroupIndex) {
   focusTaskSteps(stepGroupIndex);
   renderScrubber();
   renderPathsList();
+  renderPlayerMeta();
 }
 
 function selectStep(stepIndex) {
   srState.currentStepIndex = stepIndex;
   updateScrubberPosition();
-  renderPathsList();
 }
 
 // The player-side bar mirrors the sidebar's user picker (both rebuilt on
-// every switch, so they never drift out of sync) and shows that user's
-// real overall case duration — distinct from whichever single task's own
-// duration is focused in the list below.
+// every switch, so they never drift out of sync); prev/next arrows sit
+// right next to the id itself, centered above the video.
 function renderUserBar() {
   const bar = d3.select('#sr-player-userbar');
   bar.selectAll('*').remove();
   const path = activePath();
+
+  bar.append('button').attr('class', 'sr-player-nav').attr('type', 'button').attr('aria-label', 'Previous user')
+    .property('disabled', srState.activeUserIndex === 0)
+    .html('<svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M9 2 L4 7 L9 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>')
+    .on('click', () => stepUser(-1));
+
   bar.append('span').html(PERSON_ICON_SVG);
   bar.append('span').text('User ID :');
   const select = bar.append('select').attr('class', 'sr-userbar-select');
@@ -1234,12 +1240,32 @@ function renderUserBar() {
     select.append('option').attr('value', i).property('selected', i === srState.activeUserIndex).text(formatUserId(u.userId));
   });
   select.on('change', function () { selectUser(Number(this.value)); });
-  bar.append('span').attr('class', 'sr-userbar-sep').text('·');
-  bar.append('span').html(CLOCK_ICON_SVG);
-  bar.append('span').attr('class', 'sr-userbar-duration').text(formatDuration(activeCase().totalDuration));
 
-  d3.select('#sr-user-prev').property('disabled', srState.activeUserIndex === 0);
-  d3.select('#sr-user-next').property('disabled', srState.activeUserIndex === path.users.length - 1);
+  bar.append('button').attr('class', 'sr-player-nav').attr('type', 'button').attr('aria-label', 'Next user')
+    .property('disabled', srState.activeUserIndex === path.users.length - 1)
+    .html('<svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M5 2 L10 7 L5 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>')
+    .on('click', () => stepUser(1));
+}
+
+// The selected path, focused task, and that task's real duration for the
+// active user — sits right above the video, between the user picker and
+// the player itself. Refreshed whenever the focused task, path, or user
+// changes.
+function renderPlayerMeta() {
+  const bar = d3.select('#sr-player-meta');
+  bar.selectAll('*').remove();
+  const path = activePath();
+  const taskName = path.taskNames[srState.focusedStepGroupIndex];
+  const duration = activeCase().steps[srState.focusedStepGroupIndex].duration;
+
+  bar.append('span').html(PATH_ICON_SVG);
+  bar.append('span').text(`Path ${path.variantRank != null ? path.variantRank : '–'}`);
+  bar.append('span').attr('class', 'sr-player-meta-sep').text('·');
+  bar.append('span').html(TASK_ICON_SVG);
+  bar.append('span').text(taskName);
+  bar.append('span').attr('class', 'sr-player-meta-sep').text('·');
+  bar.append('span').html(CLOCK_ICON_SVG);
+  bar.append('span').text(formatDuration(duration));
 }
 
 function renderPathsList() {
@@ -1281,18 +1307,6 @@ function renderPathsList() {
       textCol.append('div').attr('class', 'sr-task-row-top').text(taskName);
       textCol.append('div').attr('class', 'sr-task-row-sub').text(`${built.steps.length} steps`);
       header.append('span').attr('class', 'sr-task-row-duration').text(formatDuration(currentCase.steps[stepGroupIndex].duration));
-
-      if (!isFocused) return;
-      taskRow.append('div').attr('class', 'sr-task-row-divider');
-      const timeline = taskRow.append('div').attr('class', 'sr-task-timeline-wrap').append('div').attr('class', 'sr-timeline');
-      built.steps.forEach((step, stepIdx) => {
-        const isCurrent = stepIdx === srState.currentStepIndex;
-        const item = timeline.append('div')
-          .attr('class', `sr-timeline-item${step.loop ? ' loop' : ''}${isCurrent ? ' current' : ''}`)
-          .on('click', (event) => { event.stopPropagation(); selectStep(stepIdx); });
-        item.append('div').attr('class', 'sr-timeline-time').text(formatClock(step.t));
-        item.append('div').attr('class', 'sr-timeline-label').text(step.label);
-      });
     });
   });
 }
@@ -1332,9 +1346,6 @@ d3.select('#sr-scrubber-track').on('click', function (event) {
   });
   selectStep(nearest);
 });
-
-d3.select('#sr-user-prev').on('click', () => stepUser(-1));
-d3.select('#sr-user-next').on('click', () => stepUser(1));
 
 // Restart affordances (header + control-bar icon) — there's no real
 // playback to pause/resume, so both just reset the scrubber to the start.
