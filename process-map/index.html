@@ -125,6 +125,30 @@
         </button>
       </div>
       <div class="side-drawer-body">
+        <div class="panel">
+          <button class="panel-header" type="button" aria-expanded="true">
+            <h2>Process Summary</h2>
+            <svg class="panel-chevron" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+              <path d="M3 5 L7 9 L11 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+          <div class="panel-body">
+            <div id="process-summary-overview" class="process-summary-text"></div>
+            <div class="completion-grid">
+              <div class="completion-stat completed">
+                <span class="completion-label">Reached the end</span>
+                <span class="completion-value" id="process-summary-completed-value">–</span>
+                <span class="completion-detail" id="process-summary-completed-detail"> </span>
+              </div>
+              <div class="completion-stat incomplete">
+                <span class="completion-label">Did not reach the end</span>
+                <span class="completion-value" id="process-summary-incomplete-value">–</span>
+                <span class="completion-detail" id="process-summary-incomplete-detail"> </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="panel insights-panel">
           <button class="panel-header" type="button" aria-expanded="true">
             <h2>Key Takeaways</h2>

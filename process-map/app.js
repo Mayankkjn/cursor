@@ -595,6 +595,7 @@ function render(fit = false) {
     render(true);
   });
 
+  renderProcessSummary(model);
   renderInsights(model);
   renderTimeList(model);
   renderReworkList(model);
@@ -661,6 +662,70 @@ function moveTooltip(event) {
   tooltip.style('left', `${event.clientX + 14}px`).style('top', `${event.clientY + 14}px`);
 }
 function hideTooltip() { tooltip.style('display', 'none'); }
+
+// Plain-language overview of the whole process, plus the completion split
+// (recognized conclusion vs. an uncommon stopping point) — meant to orient
+// someone before they dig into the Key Takeaways / time / rework panels.
+function renderProcessSummary(model) {
+  const pct = (n) => `${(n * 100).toFixed(0)}%`;
+  const taskCount = model.nodes.filter((n) => !n.virtual).length;
+
+  const entryEdges = model.edges.filter((e) => e.from === START).sort((a, b) => b.caseCount - a.caseCount);
+  const topEntry = entryEdges[0];
+  const entryPhrase = entryEdges.length <= 1
+    ? `start with "${escapeHtml(topEntry ? topEntry.to : '—')}"`
+    : `start at ${entryEdges.length} different tasks, most often "${escapeHtml(topEntry.to)}" (${pct(topEntry.casePct)})`;
+
+  const c = model.completion;
+  const topEnding = c.recognizedEndings[0];
+  const endingPhrase = topEnding ? `, and most often conclude at "${escapeHtml(topEnding.task)}" (${pct(topEnding.pct)})` : '';
+
+  const overviewHtml =
+    `<p>Mined from <strong>${model.totalCases} case${model.totalCases === 1 ? '' : 's'}</strong> across ` +
+    `<strong>${taskCount} task${taskCount === 1 ? '' : 's'}</strong>, fanning out into ` +
+    `<strong>${model.variants.length} distinct path${model.variants.length === 1 ? '' : 's'}</strong>. ` +
+    `Cases ${entryPhrase}${endingPhrase}.</p>` +
+    (c.rareEndings.length
+      ? `<p class="hint">Uncommon stopping points: ${c.rareEndings.slice(0, 4).map((e) => `"${escapeHtml(e.task)}"`).join(', ')}${c.rareEndings.length > 4 ? ', …' : ''}.</p>`
+      : '');
+
+  d3.select('#process-summary-overview').html(overviewHtml);
+  d3.select('#process-summary-completed-value').text(pct(c.completedPct));
+  d3.select('#process-summary-completed-detail').text(`${pluralCases(c.completedCaseCount)} reached a recognized conclusion`);
+  d3.select('#process-summary-incomplete-value').text(pct(c.notCompletedPct));
+  d3.select('#process-summary-incomplete-detail').text(
+    c.notCompletedCaseCount ? `${pluralCases(c.notCompletedCaseCount)} stopped at an uncommon point` : 'Every case reached a typical conclusion'
+  );
+}
+
+// A one-line, plain-language "story" for a single path variant — what kind
+// of run this is (quick single-touch vs. long and looping) and whether it
+// actually reached a normal conclusion or trailed off somewhere unusual.
+function buildPathStory(v, model) {
+  const path = v.path;
+  const n = path.length;
+  const start = path[0];
+  const end = path[n - 1];
+  const hasLoop = new Set(path).size < n;
+  const reachedEnd = model.completion.recognizedTaskSet.has(end);
+
+  let shape;
+  if (n === 1) {
+    shape = `Resolved in a single touch at "${escapeHtml(start)}".`;
+  } else if (n <= 3) {
+    shape = `A short, direct run from "${escapeHtml(start)}" to "${escapeHtml(end)}".`;
+  } else {
+    const middle = n - 2;
+    shape = `Runs from "${escapeHtml(start)}" through ${middle} more step${middle === 1 ? '' : 's'} to "${escapeHtml(end)}"` +
+      `${hasLoop ? ', looping back to redo at least one step along the way' : ''}.`;
+  }
+
+  const ending = n === 1
+    ? (reachedEnd ? '' : ' An uncommon stopping point for this process.')
+    : (reachedEnd ? ' Ends at a typical resolution point.' : ` Trails off at "${escapeHtml(end)}" — an uncommon stopping point, likely stalled before a full resolution.`);
+
+  return shape + ending;
+}
 
 function renderInsights(model) {
   d3.select('#insight-frequent-value').text(`${(model.happyPath.pct * 100).toFixed(0)}%`);
@@ -748,6 +813,7 @@ function renderVariantList(model) {
     <div class="variant-pct">${(v.pct * 100).toFixed(1)}% <span class="variant-count">(${v.count} instance${v.count === 1 ? '' : 's'})</span>${v === model.fastestPath ? ' <span class="fastest-badge" title="Fastest observed path">⚡ fastest</span>' : ''}</div>
     <div class="variant-path">${v.path.join(' → ')}</div>
     <div class="variant-duration">Avg total time: ${formatDuration(v.avgDuration)}</div>
+    <div class="variant-story">${buildPathStory(v, model)}</div>
   `);
 }
 

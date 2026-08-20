@@ -816,6 +816,37 @@ function buildProcessModel(cases) {
     .slice()
     .sort((a, b) => a.avgDuration - b.avgDuration)[0];
 
+  // Case completion: a recorded case doesn't necessarily reach a genuine
+  // resolution just because its trace ends somewhere — some may have been
+  // cut off mid-process. A case counts as having "reached the end" if it
+  // finishes on one of the small set of tasks most cases actually conclude
+  // on (accumulating to ~80% of cases, largest first); finishing on a
+  // rarer, one-off task instead flags it as a stall rather than a normal
+  // conclusion. Edges into END already give the exact per-task tally.
+  const endEdges = edges.filter((e) => e.to === END).sort((a, b) => b.caseCount - a.caseCount);
+  const recognizedEndings = [];
+  const rareEndings = [];
+  let endingCoverage = 0;
+  endEdges.forEach((e) => {
+    const entry = { task: e.from, count: e.caseCount, pct: e.casePct };
+    if (endingCoverage < 0.8) {
+      recognizedEndings.push(entry);
+      endingCoverage += entry.pct;
+    } else {
+      rareEndings.push(entry);
+    }
+  });
+  const completedCaseCount = recognizedEndings.reduce((s, e) => s + e.count, 0);
+  const completion = {
+    completedCaseCount,
+    completedPct: completedCaseCount / totalCases,
+    notCompletedCaseCount: totalCases - completedCaseCount,
+    notCompletedPct: 1 - completedCaseCount / totalCases,
+    recognizedEndings,
+    rareEndings,
+    recognizedTaskSet: new Set(recognizedEndings.map((e) => e.task)),
+  };
+
   return {
     nodes,
     edges,
@@ -827,6 +858,7 @@ function buildProcessModel(cases) {
     timeRanking,
     reworkRanking,
     reworkedCasePct: reworkedCaseIds.size / totalCases,
+    completion,
   };
 }
 
