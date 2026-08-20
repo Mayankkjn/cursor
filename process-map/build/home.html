@@ -590,6 +590,37 @@ function extractRawCases(raw) {
     return cases;
   }
 
+  // Task-catalog process export: a top-level "tasks" catalog (task_id ->
+  // name/description/canonical_reasoning/canonical_subtypes) plus top-level
+  // "execution_paths", where the real per-case identity is the
+  // "execution_id" that recurs at matching positions across every task
+  // step's "instances" list. Grouping by it (ordered by task_start_time)
+  // reconstructs each case's full step sequence with real per-step duration.
+  if (raw && Array.isArray(raw.tasks) && Array.isArray(raw.execution_paths) && raw.tasks[0] && raw.tasks[0].task_id) {
+    const taskNameById = new Map(raw.tasks.map((t) => [t.task_id, t.name || t.task_id]));
+    const byCase = new Map(); // execution_id -> { steps: [{task, start, duration}], users: Set }
+    raw.execution_paths.forEach((ep) => {
+      (ep.path || []).forEach((step) => {
+        const taskName = taskNameById.get(step.task_id) || step.task_id;
+        (step.instances || []).forEach((inst) => {
+          const entry = byCase.get(inst.execution_id) || { steps: [], users: new Set() };
+          entry.steps.push({
+            task: taskName,
+            start: inst.task_start_time,
+            duration: inst.duration_ms != null ? inst.duration_ms / 60000 : 0,
+          });
+          if (inst.user_id) entry.users.add(inst.user_id);
+          byCase.set(inst.execution_id, entry);
+        });
+      });
+    });
+    return Array.from(byCase.entries()).map(([caseId, entry]) => ({
+      caseId,
+      steps: entry.steps.slice().sort((a, b) => a.start - b.start).map(({ task, duration }) => ({ task, duration })),
+      users: Array.from(entry.users),
+    }));
+  }
+
   // A pre-built diagram (nodes/edges, e.g. from a layout tool) rather than
   // an event log. There's no per-case sequence or duration data to mine
   // here, so refuse rather than fabricate frequency/time/rework numbers.
@@ -674,6 +705,59 @@ function normalizeCaseLog(raw) {
   }
 
   return cases;
+}
+
+// Pulls the rich per-task and per-instance detail — description, canonical
+// reasoning, subtype breakdown, per-instance reasoning/ticket-id — out of a
+// task-catalog process export, for the task detail panel. Only that export
+// shape carries this detail; normalizeCaseLog() already reduces everything
+// (this shape included) down to plain { task, duration } steps for the
+// graph itself, so this runs separately, straight over the raw upload, and
+// returns null for any other shape (the panel then falls back to whatever
+// it can compute from the normalized case log alone).
+function extractTaskInsights(raw) {
+  if (!raw || !Array.isArray(raw.tasks) || !Array.isArray(raw.execution_paths) || !raw.tasks[0] || !raw.tasks[0].task_id) {
+    return null;
+  }
+
+  const taskNameById = new Map(raw.tasks.map((t) => [t.task_id, t.name || t.task_id]));
+  const byTaskName = new Map();
+  raw.tasks.forEach((t) => {
+    byTaskName.set(t.name || t.task_id, {
+      description: t.description || '',
+      canonicalReasoning: t.canonical_reasoning || '',
+      subtypes: t.canonical_subtypes || [],
+    });
+  });
+
+  const instancesByTaskName = new Map();
+  raw.execution_paths.forEach((ep) => {
+    const metaByExecId = new Map((ep.instances_meta || []).map((m) => [m.execution_id, m]));
+    (ep.path || []).forEach((step) => {
+      const taskName = taskNameById.get(step.task_id) || step.task_id;
+      const subtypeCatalog = byTaskName.get(taskName);
+      const subtypeNameById = new Map((subtypeCatalog ? subtypeCatalog.subtypes : []).map((s) => [s.id, s.name]));
+      const list = instancesByTaskName.get(taskName) || [];
+      (step.instances || []).forEach((inst) => {
+        const execMeta = metaByExecId.get(inst.execution_id);
+        list.push({
+          caseId: inst.execution_id,
+          userId: inst.user_id,
+          ticketId: (execMeta && execMeta.metadata && execMeta.metadata.ticket_id) || null,
+          subtypeId: inst.subtype || null,
+          subtypeName: inst.subtype ? (subtypeNameById.get(inst.subtype) || inst.subtype) : null,
+          reasoning: inst.reasoning || '',
+          durationMinutes: inst.duration_ms != null ? inst.duration_ms / 60000 : 0,
+          startTime: inst.task_start_time,
+        });
+      });
+      instancesByTaskName.set(taskName, list);
+    });
+  });
+
+  instancesByTaskName.forEach((list) => list.sort((a, b) => (b.startTime || 0) - (a.startTime || 0)));
+
+  return { byTaskName, instancesByTaskName };
 }
 
 </script>

@@ -1,4 +1,4 @@
-/* global d3, dagre, generateEventLog, buildProcessModel, normalizeCaseLog, median, SAMPLE_JSON_TEMPLATE, START, END */
+/* global d3, dagre, generateEventLog, buildProcessModel, normalizeCaseLog, extractTaskInsights, median, SAMPLE_JSON_TEMPLATE, START, END */
 
 const TASK_W = 220;
 const TASK_H = 62;
@@ -24,6 +24,9 @@ const state = {
   highlight: null, // null | { kind: 'variant', value: variant } | { kind: 'node', value: nodeId }
   expandedBubbles: new Set(), // source node ids whose "N variants" bubble is currently expanded
   comparison: null, // null | result of computeFastVsTypical() when "Compare to typical" is active
+  selectedTaskId: null, // task id whose detail panel is open, or null
+  selectedSubtypeId: null, // subtype filter active within the open detail panel, or null
+  taskInsights: null, // null | { byTaskName, instancesByTaskName } from extractTaskInsights() — only present when the raw upload was a task-catalog export
 };
 
 const svg = d3.select('#graph');
@@ -575,7 +578,7 @@ function render(fit = false) {
       const p = nodePos.get(n.id);
       return `translate(${p.x - p.width / 2}, ${p.y - p.height / 2})`;
     })
-    .attr('class', (n) => `node ${n.kind}${nodeIsActive(n) ? '' : ' dimmed'}`)
+    .attr('class', (n) => `node ${n.kind}${nodeIsActive(n) ? '' : ' dimmed'}${n.id === state.selectedTaskId ? ' selected' : ''}`)
     .on('mouseenter', (event, n) => showTooltip(event, nodeTooltipHtml(n, model)))
     .on('mousemove', moveTooltip)
     .on('mouseleave', hideTooltip);
@@ -593,6 +596,11 @@ function render(fit = false) {
     if (n.bubbleExpanded) state.expandedBubbles.delete(n.fromNode);
     else state.expandedBubbles.add(n.fromNode);
     render(true);
+  });
+
+  mergedNodes.filter((n) => n.kind === 'task').on('click', (event, n) => {
+    event.stopPropagation();
+    openTaskDetail(n.id);
   });
 
   renderProcessSummary(model);
@@ -943,6 +951,7 @@ function buildAISummaryHtml(model) {
 
 function openAISummary() {
   closeInsights();
+  closeTaskDetail();
   const btn = document.getElementById('ai-summary-btn');
   const panel = document.getElementById('ai-summary-panel');
   const body = document.getElementById('ai-summary-body');
@@ -970,6 +979,7 @@ function closeAISummary() {
 
 function openInsights() {
   closeAISummary();
+  closeTaskDetail();
   document.getElementById('insights-btn').classList.add('active');
   document.getElementById('insights-btn').setAttribute('aria-expanded', 'true');
   document.getElementById('insights-panel').classList.remove('hidden');
@@ -981,10 +991,187 @@ function closeInsights() {
   document.getElementById('insights-panel').classList.add('hidden');
 }
 
+// ---- task detail panel ----
+// Always-available data: every (case, occurrence) of a task, straight from
+// the normalized case log — this works for any uploaded log, not just a
+// task-catalog export. The panel layers the richer subtype/reasoning detail
+// from state.taskInsights on top of this when that detail happens to exist.
+function getTaskInstanceRows(taskLabel) {
+  const rows = [];
+  state.cases.forEach((c) => {
+    c.steps.forEach((s) => {
+      if (s.task !== taskLabel) return;
+      rows.push({ caseId: c.caseId, duration: s.duration, users: c.users || [] });
+    });
+  });
+  return rows;
+}
+
+function openTaskDetail(taskId) {
+  state.selectedTaskId = taskId;
+  state.selectedSubtypeId = null;
+  closeInsights();
+  closeAISummary();
+  d3.select('#task-detail-panel').classed('hidden', false);
+  renderTaskDetail();
+  render();
+}
+
+function closeTaskDetail() {
+  if (!state.selectedTaskId) {
+    d3.select('#task-detail-panel').classed('hidden', true);
+    return;
+  }
+  state.selectedTaskId = null;
+  state.selectedSubtypeId = null;
+  d3.select('#task-detail-panel').classed('hidden', true);
+  render();
+}
+
+function renderTaskDetail() {
+  const taskId = state.selectedTaskId;
+  if (!taskId) return;
+  const model = state.model;
+  const node = model.nodes.find((n) => n.id === taskId);
+  if (!node) { closeTaskDetail(); return; }
+
+  const rows = getTaskInstanceRows(taskId);
+  const uniqueUsers = new Set(rows.flatMap((r) => r.users));
+  const pathCount = model.variants.filter((v) => v.path.includes(taskId)).length;
+
+  const meta = state.taskInsights && state.taskInsights.byTaskName.get(taskId);
+  const richInstances = state.taskInsights && state.taskInsights.instancesByTaskName.get(taskId);
+
+  d3.select('#task-detail-title').text(taskId);
+  d3.select('#task-detail-meta').text(
+    `${pluralCases(node.caseCount)} · ${uniqueUsers.size} unique user${uniqueUsers.size === 1 ? '' : 's'} · ${pathCount} path${pathCount === 1 ? '' : 's'}`
+  );
+
+  const summarySection = d3.select('#task-detail-summary-section');
+  if (meta && meta.canonicalReasoning) {
+    summarySection.classed('hidden', false);
+    d3.select('#task-detail-summary-text').text(meta.canonicalReasoning);
+  } else {
+    summarySection.classed('hidden', true);
+  }
+
+  const subtypeSection = d3.select('#task-detail-subtype-section');
+  const subtypeCatalog = meta && meta.subtypes && meta.subtypes.length ? meta.subtypes : null;
+  let subtypesWithCounts = null;
+  if (subtypeCatalog && richInstances && richInstances.length) {
+    const countBySubtype = new Map();
+    richInstances.forEach((inst) => {
+      if (!inst.subtypeId) return;
+      countBySubtype.set(inst.subtypeId, (countBySubtype.get(inst.subtypeId) || 0) + 1);
+    });
+    subtypesWithCounts = subtypeCatalog
+      .map((s) => ({ ...s, count: countBySubtype.get(s.id) || 0 }))
+      .filter((s) => s.count > 0)
+      .sort((a, b) => b.count - a.count);
+  }
+
+  if (subtypesWithCounts && subtypesWithCounts.length) {
+    subtypeSection.classed('hidden', false);
+    d3.select('#task-detail-subtype-count').text(subtypesWithCounts.length);
+
+    const list = d3.select('#task-detail-subtype-list');
+    const items = list.selectAll('.subtype-item').data(subtypesWithCounts, (s) => s.id);
+    items.exit().remove();
+    const enter = items.enter().append('button').attr('class', 'subtype-item').attr('type', 'button');
+    enter.append('span').attr('class', 'subtype-item-name');
+    enter.append('span').attr('class', 'subtype-item-count');
+    const merged = enter.merge(items);
+    merged
+      .attr('class', (s) => `subtype-item${state.selectedSubtypeId === s.id ? ' active' : ''}`)
+      .on('click', (event, s) => {
+        state.selectedSubtypeId = state.selectedSubtypeId === s.id ? null : s.id;
+        renderTaskDetail();
+      });
+    merged.select('.subtype-item-name').text((s) => s.name);
+    merged.select('.subtype-item-count').text((s) => `${s.count} instance${s.count === 1 ? '' : 's'}`);
+  } else {
+    subtypeSection.classed('hidden', true);
+    state.selectedSubtypeId = null;
+  }
+
+  const activeSubtype = subtypesWithCounts && state.selectedSubtypeId
+    ? subtypesWithCounts.find((s) => s.id === state.selectedSubtypeId)
+    : null;
+  d3.select('#task-detail-instances-title').text(activeSubtype ? `Instances — ${activeSubtype.name}` : 'Instances');
+
+  const instanceListSel = d3.select('#task-detail-instance-list');
+  instanceListSel.selectAll('*').remove();
+  const MAX_SHOWN = 50;
+
+  if (richInstances && richInstances.length) {
+    const filtered = state.selectedSubtypeId
+      ? richInstances.filter((r) => r.subtypeId === state.selectedSubtypeId)
+      : richInstances;
+    filtered.slice(0, MAX_SHOWN).forEach((r) => {
+      const card = instanceListSel.append('div').attr('class', 'instance-card');
+      if (r.subtypeName) card.append('span').attr('class', 'instance-card-tag').text(r.subtypeName);
+      const top = card.append('div').attr('class', 'instance-card-top');
+      top.append('span').attr('class', 'instance-card-id').text(r.ticketId ? `Ticket #${r.ticketId}` : r.caseId);
+      top.append('span').attr('class', 'instance-card-duration').text(formatDuration(r.durationMinutes));
+      if (r.reasoning) card.append('p').attr('class', 'instance-card-text').text(r.reasoning);
+    });
+    if (filtered.length > MAX_SHOWN) {
+      instanceListSel.append('p').attr('class', 'hint').text(`Showing ${MAX_SHOWN} of ${filtered.length} instances.`);
+    }
+    if (!filtered.length) {
+      instanceListSel.append('p').attr('class', 'hint').text('No instances match this subtype.');
+    }
+  } else if (rows.length) {
+    rows.slice(0, MAX_SHOWN).forEach((r) => {
+      const card = instanceListSel.append('div').attr('class', 'instance-card');
+      const top = card.append('div').attr('class', 'instance-card-top');
+      top.append('span').attr('class', 'instance-card-id').text(r.caseId);
+      top.append('span').attr('class', 'instance-card-duration').text(formatDuration(r.duration));
+      if (r.users.length) card.append('p').attr('class', 'instance-card-text').text(`User: ${r.users.join(', ')}`);
+    });
+    if (rows.length > MAX_SHOWN) {
+      instanceListSel.append('p').attr('class', 'hint').text(`Showing ${MAX_SHOWN} of ${rows.length} instances.`);
+    }
+  } else {
+    instanceListSel.append('p').attr('class', 'hint').text('No instance data available for this task.');
+  }
+}
+
+d3.select('#task-detail-close').on('click', closeTaskDetail);
+
+(function setupTaskDetailResize() {
+  const handle = document.getElementById('task-detail-resize-handle');
+  const panel = document.getElementById('task-detail-panel');
+  let dragging = false;
+  let startX = 0;
+  let startWidth = 0;
+  handle.addEventListener('mousedown', (event) => {
+    dragging = true;
+    startX = event.clientX;
+    startWidth = panel.getBoundingClientRect().width;
+    handle.classList.add('dragging');
+    event.preventDefault();
+  });
+  window.addEventListener('mousemove', (event) => {
+    if (!dragging) return;
+    const delta = startX - event.clientX;
+    const maxWidth = Math.min(900, window.innerWidth - 80);
+    const next = Math.min(Math.max(startWidth + delta, 320), maxWidth);
+    panel.style.width = `${next}px`;
+  });
+  window.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false;
+    handle.classList.remove('dragging');
+  });
+})();
+
 function regenerate(numCases) {
   state.cases = generateEventLog(numCases);
   state.model = buildProcessModel(state.cases);
   state.highlight = null;
+  state.taskInsights = null;
+  closeTaskDetail();
   setUploadStatus('');
   render(true);
 }
@@ -1017,10 +1204,12 @@ function handleUploadFile(file) {
       state.threshold = 100;
       state.expandedBubbles = new Set();
       state.comparison = null;
+      state.taskInsights = (typeof extractTaskInsights === 'function') ? extractTaskInsights(raw) : null;
       d3.select('#insight-compare-btn').classed('active', false);
       d3.select('#pf-slider').property('value', 100);
       closeTaskMenu();
       closeSessionReplay();
+      closeTaskDetail();
       setUploadStatus(`Loaded ${cases.length} instance${cases.length === 1 ? '' : 's'} from "${file.name}".`, 'success');
       render(true);
       setTimeout(closeImportModal, 700);
@@ -1078,6 +1267,7 @@ d3.select(document).on('keydown.sessionReplay', (event) => {
   if (event.key !== 'Escape') return;
   if (!d3.select('#session-replay-modal').classed('hidden')) closeSessionReplay();
   else if (!d3.select('#task-menu').classed('hidden')) closeTaskMenu();
+  else if (!d3.select('#task-detail-panel').classed('hidden')) closeTaskDetail();
 });
 
 // ---- task "..." menu ----
@@ -1642,10 +1832,12 @@ if (selectedProcessName) {
 let loadedFromHandoff = false;
 if (selectedProcessDataRaw) {
   try {
-    const cases = normalizeCaseLog(JSON.parse(selectedProcessDataRaw));
+    const rawHandoff = JSON.parse(selectedProcessDataRaw);
+    const cases = normalizeCaseLog(rawHandoff);
     state.cases = cases;
     state.model = buildProcessModel(cases);
     state.highlight = null;
+    state.taskInsights = (typeof extractTaskInsights === 'function') ? extractTaskInsights(rawHandoff) : null;
     render(true);
     loadedFromHandoff = true;
   } catch (err) {
