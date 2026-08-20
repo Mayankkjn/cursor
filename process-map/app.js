@@ -1107,13 +1107,16 @@ function renderTaskDetail() {
   const instanceListSel = d3.select('#task-detail-instance-list');
   instanceListSel.selectAll('*').remove();
   const MAX_SHOWN = 50;
+  const isInstanceActive = (caseId) => state.highlight && state.highlight.kind === 'variant' && state.highlight.value.caseIds.includes(caseId);
 
   if (richInstances && richInstances.length) {
     const filtered = state.selectedSubtypeId
       ? richInstances.filter((r) => r.subtypeId === state.selectedSubtypeId)
       : richInstances;
     filtered.slice(0, MAX_SHOWN).forEach((r) => {
-      const card = instanceListSel.append('div').attr('class', 'instance-card');
+      const card = instanceListSel.append('div')
+        .attr('class', `instance-card${isInstanceActive(r.caseId) ? ' active' : ''}`)
+        .on('click', () => selectInstance(r.caseId));
       if (r.subtypeName) card.append('span').attr('class', 'instance-card-tag').text(r.subtypeName);
       const top = card.append('div').attr('class', 'instance-card-top');
       top.append('span').attr('class', 'instance-card-id').text(r.ticketId ? `Ticket #${r.ticketId}` : r.caseId);
@@ -1128,7 +1131,9 @@ function renderTaskDetail() {
     }
   } else if (rows.length) {
     rows.slice(0, MAX_SHOWN).forEach((r) => {
-      const card = instanceListSel.append('div').attr('class', 'instance-card');
+      const card = instanceListSel.append('div')
+        .attr('class', `instance-card${isInstanceActive(r.caseId) ? ' active' : ''}`)
+        .on('click', () => selectInstance(r.caseId));
       const top = card.append('div').attr('class', 'instance-card-top');
       top.append('span').attr('class', 'instance-card-id').text(r.caseId);
       top.append('span').attr('class', 'instance-card-duration').text(formatDuration(r.duration));
@@ -1140,6 +1145,16 @@ function renderTaskDetail() {
   } else {
     instanceListSel.append('p').attr('class', 'hint').text('No instance data available for this task.');
   }
+}
+
+// Lets an instance card act as a path filter: traces that instance's exact
+// case through the map (same highlight mechanism as the Insights path
+// list), dimming everything not on its route. Clicking the same instance
+// again toggles the highlight off, via setHighlight's existing toggle.
+function selectInstance(caseId) {
+  const variant = state.model.variants.find((v) => v.caseIds.includes(caseId));
+  if (variant) setHighlight('variant', variant);
+  renderTaskDetail();
 }
 
 d3.select('#task-detail-close').on('click', closeTaskDetail);

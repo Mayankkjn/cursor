@@ -304,7 +304,9 @@ body.app-fullscreen .side-drawer { top: 64px; right: 16px; }
 }
 
 .instance-list { display: flex; flex-direction: column; gap: 10px; }
-.instance-card { border: 1px solid var(--panel-border); border-radius: 10px; padding: 12px; }
+.instance-card { border: 1px solid var(--panel-border); border-radius: 10px; padding: 12px; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+.instance-card:hover { border-color: var(--accent-ui); }
+.instance-card.active { border-color: var(--accent-ui); background: var(--accent-ui-soft); }
 .instance-card-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 .instance-card-id { font-weight: 700; font-size: 0.82rem; }
 .instance-card-duration { font-size: 0.75rem; color: var(--text-secondary); flex-shrink: 0; }
@@ -582,7 +584,7 @@ button:hover { filter: brightness(1.08); }
 .diamond-shape.has-bubble:hover ~ .diamond-chevron { stroke: var(--accent-ui); }
 
 .node.dimmed { opacity: 0.28; }
-.node.task.selected .card-bg { stroke: var(--accent-ui); stroke-width: 2px; }
+.node.task.selected .card-bg { stroke: var(--path-main); stroke-width: 2px; }
 
 /* ---- edges ---- */
 .edge-path { fill: none; }
