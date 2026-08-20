@@ -184,8 +184,8 @@ body.app-fullscreen .side-drawer { top: 64px; right: 16px; }
 
 /* ---- task detail panel (opens on clicking a task node) ---- */
 .task-detail-panel {
-  position: absolute;
-  top: 0;
+  position: fixed;
+  top: 0; /* set by JS to sit flush against the bottom edge of the topbar */
   right: 0;
   bottom: 0;
   width: 420px;
@@ -194,11 +194,26 @@ body.app-fullscreen .side-drawer { top: 64px; right: 16px; }
   background: var(--card-bg);
   border-left: 1px solid var(--panel-border);
   box-shadow: var(--shadow-md);
-  z-index: 20;
+  z-index: 30;
   display: flex;
   flex-direction: column;
 }
 .task-detail-panel.hidden { display: none; }
+
+.task-detail-close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  background: var(--card-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.task-detail-close-btn:hover { color: var(--text-primary); border-color: var(--text-tertiary); }
 
 .task-detail-resize-handle {
   position: absolute;
@@ -234,6 +249,7 @@ body.app-fullscreen .side-drawer { top: 64px; right: 16px; }
   gap: 22px;
 }
 .task-detail-section.hidden { display: none; }
+.task-detail-section-title.hidden { display: none; }
 
 .task-detail-section-title {
   margin: 0 0 10px;
@@ -276,9 +292,16 @@ body.app-fullscreen .side-drawer { top: 64px; right: 16px; }
   transition: border-color 0.15s, background 0.15s;
 }
 .subtype-item:hover { border-color: var(--accent-ui); }
-.subtype-item.active { border-color: var(--accent-ui); background: var(--accent-ui-soft); color: var(--accent-ui); }
-.subtype-item-count { font-weight: 400; color: var(--text-secondary); flex-shrink: 0; }
-.subtype-item.active .subtype-item-count { color: var(--accent-ui); }
+.subtype-item.active { border-color: var(--accent-ui); border-width: 2px; }
+.subtype-item-count {
+  font-weight: 500;
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+  background: var(--bg);
+  border-radius: 100px;
+  padding: 3px 10px;
+  flex-shrink: 0;
+}
 
 .instance-list { display: flex; flex-direction: column; gap: 10px; }
 .instance-card { border: 1px solid var(--panel-border); border-radius: 10px; padding: 12px; }
@@ -695,7 +718,7 @@ button:hover { filter: brightness(1.08); }
 .floating-legend h3 { margin: 0 0 8px; font-size: 0.78rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em; }
 
 /* ---- AI summary ---- */
-.canvas-toolbar { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.canvas-toolbar { display: flex; align-items: center; gap: 10px; flex-shrink: 0; transition: margin-right 0.22s ease; }
 
 .icon-toolbar-btn {
   display: flex;

@@ -1014,17 +1014,20 @@ function openTaskDetail(taskId) {
   closeAISummary();
   d3.select('#task-detail-panel').classed('hidden', false);
   renderTaskDetail();
+  syncTaskDetailLayout();
   render();
 }
 
 function closeTaskDetail() {
   if (!state.selectedTaskId) {
     d3.select('#task-detail-panel').classed('hidden', true);
+    syncTaskDetailLayout();
     return;
   }
   state.selectedTaskId = null;
   state.selectedSubtypeId = null;
   d3.select('#task-detail-panel').classed('hidden', true);
+  syncTaskDetailLayout();
   render();
 }
 
@@ -1097,7 +1100,9 @@ function renderTaskDetail() {
   const activeSubtype = subtypesWithCounts && state.selectedSubtypeId
     ? subtypesWithCounts.find((s) => s.id === state.selectedSubtypeId)
     : null;
-  d3.select('#task-detail-instances-title').text(activeSubtype ? `Instances — ${activeSubtype.name}` : 'Instances');
+  d3.select('#task-detail-instances-title')
+    .classed('hidden', !activeSubtype)
+    .text(activeSubtype ? `Instances — ${activeSubtype.name}` : '');
 
   const instanceListSel = d3.select('#task-detail-instance-list');
   instanceListSel.selectAll('*').remove();
@@ -1139,6 +1144,26 @@ function renderTaskDetail() {
 
 d3.select('#task-detail-close').on('click', closeTaskDetail);
 
+// Keeps the panel flush against the topbar's bottom edge (0 in fullscreen,
+// where the topbar is hidden) and slides the Insights/AI Summary/fullscreen
+// buttons left by the panel's current width so the open panel never covers
+// them — recomputed on open/close, on every resize-drag frame, and on
+// window resize (the topbar can wrap to a second line on a narrow window).
+function syncTaskDetailLayout() {
+  const panel = document.getElementById('task-detail-panel');
+  const toolbar = document.querySelector('.canvas-toolbar');
+  const isOpen = !panel.classList.contains('hidden');
+  if (!isOpen) {
+    toolbar.style.marginRight = '0px';
+    return;
+  }
+  const topbar = document.querySelector('.topbar');
+  const topbarBottom = topbar ? Math.max(0, topbar.getBoundingClientRect().bottom) : 0;
+  panel.style.top = `${topbarBottom}px`;
+  toolbar.style.marginRight = `${panel.getBoundingClientRect().width}px`;
+}
+window.addEventListener('resize', syncTaskDetailLayout);
+
 (function setupTaskDetailResize() {
   const handle = document.getElementById('task-detail-resize-handle');
   const panel = document.getElementById('task-detail-panel');
@@ -1158,6 +1183,7 @@ d3.select('#task-detail-close').on('click', closeTaskDetail);
     const maxWidth = Math.min(900, window.innerWidth - 80);
     const next = Math.min(Math.max(startWidth + delta, 320), maxWidth);
     panel.style.width = `${next}px`;
+    syncTaskDetailLayout();
   });
   window.addEventListener('mouseup', () => {
     if (!dragging) return;
@@ -1241,7 +1267,7 @@ d3.select('#insights-close').on('click', closeInsights);
 d3.select('#fullscreen-btn').on('click', function () {
   const isFullscreen = document.body.classList.toggle('app-fullscreen');
   d3.select(this).classed('active', isFullscreen).attr('aria-pressed', String(isFullscreen));
-  requestAnimationFrame(fitToView);
+  requestAnimationFrame(() => { fitToView(); syncTaskDetailLayout(); });
 });
 
 // ---- collapsible sidebar panels ----
