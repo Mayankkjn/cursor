@@ -1546,6 +1546,60 @@ button:hover { filter: brightness(1.08); }
         <div class="panel">
           <button class="panel-header" type="button" aria-expanded="true">
             <h2>
+              By Task
+              <span class="subtype-count-badge" id="filter-task-count">0</span>
+            </h2>
+            <svg class="panel-chevron" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+              <path d="M3 5 L7 9 L11 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+          <div class="panel-body">
+            <p class="hint">Keep instances that include any of the selected tasks.</p>
+            <div class="filter-checklist" id="filter-task-list"></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <button class="panel-header" type="button" aria-expanded="true">
+            <h2>
+              By Path
+              <span class="subtype-count-badge" id="filter-path-count">0</span>
+            </h2>
+            <svg class="panel-chevron" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+              <path d="M3 5 L7 9 L11 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+          <div class="panel-body">
+            <p class="hint">Keep instances that followed any of the selected paths.</p>
+            <div class="filter-checklist" id="filter-path-list"></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <button class="panel-header" type="button" aria-expanded="true">
+            <h2>By Duration</h2>
+            <svg class="panel-chevron" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+              <path d="M3 5 L7 9 L11 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+          <div class="panel-body">
+            <p class="hint">Total completion time per instance.</p>
+            <div class="duration-slider-values">
+              <span id="filter-duration-min-label">–</span>
+              <span id="filter-duration-max-label">–</span>
+            </div>
+            <div class="duration-slider" id="duration-slider">
+              <div class="duration-slider-track"></div>
+              <div class="duration-slider-range" id="duration-slider-range"></div>
+              <input type="range" id="filter-duration-min-slider" class="duration-range-input" min="0" max="100" value="0" />
+              <input type="range" id="filter-duration-max-slider" class="duration-range-input" min="0" max="100" value="100" />
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <button class="panel-header" type="button" aria-expanded="true">
+            <h2>
               By Process ID
               <span class="subtype-count-badge" id="filter-process-id-count">0</span>
             </h2>
@@ -1578,60 +1632,6 @@ button:hover { filter: brightness(1.08); }
               <div class="filter-select-dropdown hidden" id="filter-user-id-dropdown"></div>
               <div class="filter-select-chips" id="filter-user-id-chips"></div>
             </div>
-          </div>
-        </div>
-
-        <div class="panel">
-          <button class="panel-header" type="button" aria-expanded="true">
-            <h2>By Duration</h2>
-            <svg class="panel-chevron" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
-              <path d="M3 5 L7 9 L11 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
-          </button>
-          <div class="panel-body">
-            <p class="hint">Total completion time per instance.</p>
-            <div class="duration-slider-values">
-              <span id="filter-duration-min-label">–</span>
-              <span id="filter-duration-max-label">–</span>
-            </div>
-            <div class="duration-slider" id="duration-slider">
-              <div class="duration-slider-track"></div>
-              <div class="duration-slider-range" id="duration-slider-range"></div>
-              <input type="range" id="filter-duration-min-slider" class="duration-range-input" min="0" max="100" value="0" />
-              <input type="range" id="filter-duration-max-slider" class="duration-range-input" min="0" max="100" value="100" />
-            </div>
-          </div>
-        </div>
-
-        <div class="panel">
-          <button class="panel-header" type="button" aria-expanded="true">
-            <h2>
-              By Task
-              <span class="subtype-count-badge" id="filter-task-count">0</span>
-            </h2>
-            <svg class="panel-chevron" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
-              <path d="M3 5 L7 9 L11 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
-          </button>
-          <div class="panel-body">
-            <p class="hint">Keep instances that include any of the selected tasks.</p>
-            <div class="filter-checklist" id="filter-task-list"></div>
-          </div>
-        </div>
-
-        <div class="panel">
-          <button class="panel-header" type="button" aria-expanded="true">
-            <h2>
-              By Path
-              <span class="subtype-count-badge" id="filter-path-count">0</span>
-            </h2>
-            <svg class="panel-chevron" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
-              <path d="M3 5 L7 9 L11 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
-          </button>
-          <div class="panel-body">
-            <p class="hint">Keep instances that followed any of the selected paths.</p>
-            <div class="filter-checklist" id="filter-path-list"></div>
           </div>
         </div>
       </div>
