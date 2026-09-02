@@ -457,7 +457,7 @@ body.app-fullscreen .side-drawer { top: 64px; right: 16px; }
 .filter-checklist { display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow-y: auto; }
 .filter-checklist-item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   border: 1px solid var(--panel-border);
   border-radius: 10px;
@@ -465,6 +465,8 @@ body.app-fullscreen .side-drawer { top: 64px; right: 16px; }
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s;
 }
+.filter-checklist-item input[type="checkbox"] { margin-top: 3px; }
+.filter-checklist-item-count { margin-top: 1px; }
 .filter-checklist-item:hover { border-color: var(--accent-ui); }
 .filter-checklist-item.checked { border-color: var(--accent-ui); background: var(--accent-ui-soft); }
 .filter-checklist-item input[type="checkbox"] { flex-shrink: 0; accent-color: var(--accent-ui); }
