@@ -905,7 +905,7 @@ function toggleFastCompare() {
     }
     state.comparison = comparison;
   }
-  d3.select('#insight-compare-btn').classed('active', !!state.comparison);
+  d3.select('#insight-compare-btn').classed('active', !!state.comparison).attr('aria-checked', String(!!state.comparison));
   render();
 }
 
@@ -1291,7 +1291,7 @@ function applyFilters() {
     state.highlight = null;
     state.expandedBubbles = new Set();
     state.comparison = null;
-    d3.select('#insight-compare-btn').classed('active', false);
+    d3.select('#insight-compare-btn').classed('active', false).attr('aria-checked', 'false');
     render(true);
     if (state.selectedTaskId) renderTaskDetail();
   }
@@ -1569,7 +1569,7 @@ function handleUploadFile(file) {
       state.expandedBubbles = new Set();
       state.comparison = null;
       state.taskInsights = (typeof extractTaskInsights === 'function') ? extractTaskInsights(raw) : null;
-      d3.select('#insight-compare-btn').classed('active', false);
+      d3.select('#insight-compare-btn').classed('active', false).attr('aria-checked', 'false');
       d3.select('#pf-slider').property('value', 100);
       closeTaskMenu();
       closeSessionReplay();
@@ -2148,7 +2148,7 @@ d3.select('#insight-compare-btn').on('click', (event) => {
 });
 d3.select('#fast-compare-close').on('click', () => {
   state.comparison = null;
-  d3.select('#insight-compare-btn').classed('active', false);
+  d3.select('#insight-compare-btn').classed('active', false).attr('aria-checked', 'false');
   render();
 });
 
