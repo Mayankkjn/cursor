@@ -1325,9 +1325,10 @@ function renderFilterPanel(matchCountOverride) {
   const taskSel = taskList.selectAll('.filter-checklist-item').data(taskItems, (n) => n.id);
   taskSel.exit().remove();
   const taskEnter = taskSel.enter().append('label').attr('class', 'filter-checklist-item');
-  taskEnter.append('input').attr('type', 'checkbox');
-  taskEnter.append('span').attr('class', 'filter-checklist-item-label');
-  taskEnter.append('span').attr('class', 'filter-checklist-item-count');
+  const taskTop = taskEnter.append('div').attr('class', 'filter-checklist-item-top');
+  taskTop.append('input').attr('type', 'checkbox');
+  taskTop.append('span').attr('class', 'filter-checklist-item-label');
+  taskTop.append('span').attr('class', 'filter-checklist-item-count');
   const taskMerged = taskEnter.merge(taskSel);
   taskMerged.attr('class', (n) => `filter-checklist-item${f.taskNames.has(n.id) ? ' checked' : ''}`);
   taskMerged.select('input').property('checked', (n) => f.taskNames.has(n.id)).on('change', (event, n) => {
@@ -1342,18 +1343,18 @@ function renderFilterPanel(matchCountOverride) {
   const pathSel = pathList.selectAll('.filter-checklist-item').data(base.variants, (v) => v.signature);
   pathSel.exit().remove();
   const pathEnter = pathSel.enter().append('label').attr('class', 'filter-checklist-item');
-  pathEnter.append('input').attr('type', 'checkbox');
-  const pathLabelWrap = pathEnter.append('span').attr('class', 'filter-checklist-item-label');
-  pathLabelWrap.append('div');
-  pathLabelWrap.append('div').attr('class', 'filter-checklist-item-path');
-  pathEnter.append('span').attr('class', 'filter-checklist-item-count');
+  const pathTop = pathEnter.append('div').attr('class', 'filter-checklist-item-top');
+  pathTop.append('input').attr('type', 'checkbox');
+  pathTop.append('span').attr('class', 'filter-checklist-item-label');
+  pathTop.append('span').attr('class', 'filter-checklist-item-count');
+  pathEnter.append('div').attr('class', 'filter-checklist-item-path');
   const pathMerged = pathEnter.merge(pathSel);
   pathMerged.attr('class', (v) => `filter-checklist-item${f.variantSignatures.has(v.signature) ? ' checked' : ''}`);
   pathMerged.select('input').property('checked', (v) => f.variantSignatures.has(v.signature)).on('change', (event, v) => {
     if (f.variantSignatures.has(v.signature)) f.variantSignatures.delete(v.signature); else f.variantSignatures.add(v.signature);
     applyFilters();
   });
-  pathMerged.select('.filter-checklist-item-label > div:first-child').text((v) => `Path ${pathLetterLabel(v.rank)} · ${(v.pct * 100).toFixed(1)}%`);
+  pathMerged.select('.filter-checklist-item-label').text((v) => `Path ${pathLetterLabel(v.rank)} · ${(v.pct * 100).toFixed(1)}%`);
   pathMerged.select('.filter-checklist-item-path').text((v) => v.path.join(' → '));
   pathMerged.select('.filter-checklist-item-count').text((v) => pluralCases(v.count));
 }

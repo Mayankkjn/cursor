@@ -457,21 +457,24 @@ body.app-fullscreen .side-drawer { top: 64px; right: 16px; }
 .filter-checklist { display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow-y: auto; }
 .filter-checklist-item {
   display: flex;
-  align-items: flex-start;
-  gap: 10px;
+  flex-direction: column;
+  gap: 6px;
   border: 1px solid var(--panel-border);
   border-radius: 10px;
   padding: 9px 12px;
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s;
 }
-.filter-checklist-item input[type="checkbox"] { margin-top: 3px; }
-.filter-checklist-item-count { margin-top: 1px; }
 .filter-checklist-item:hover { border-color: var(--accent-ui); }
 .filter-checklist-item.checked { border-color: var(--accent-ui); background: var(--accent-ui-soft); }
-.filter-checklist-item input[type="checkbox"] { flex-shrink: 0; accent-color: var(--accent-ui); }
+/* The checkbox/label/count row is its own flex row, sized only to the top
+   line — a path's step sequence sits below as a full-width sibling instead
+   of sharing that row, so the count badge doesn't eat into the width the
+   (possibly long, wrapping) step text gets to use. */
+.filter-checklist-item-top { display: flex; align-items: flex-start; gap: 10px; }
+.filter-checklist-item-top input[type="checkbox"] { flex-shrink: 0; accent-color: var(--accent-ui); margin-top: 3px; }
 .filter-checklist-item-label { flex: 1; font-size: 0.82rem; font-weight: 600; color: var(--text-primary); min-width: 0; }
-.filter-checklist-item-path { font-size: 0.72rem; font-weight: 400; color: var(--text-secondary); margin-top: 2px; line-height: 1.4; }
+.filter-checklist-item-path { font-size: 0.72rem; font-weight: 400; color: var(--text-secondary); margin: 0 0 0 26px; line-height: 1.4; }
 .filter-checklist-item-count {
   font-weight: 500;
   font-size: 0.76rem;
@@ -479,6 +482,7 @@ body.app-fullscreen .side-drawer { top: 64px; right: 16px; }
   background: var(--bg);
   border-radius: 100px;
   padding: 3px 10px;
+  margin-top: 1px;
   flex-shrink: 0;
 }
 
@@ -7566,9 +7570,10 @@ function renderFilterPanel(matchCountOverride) {
   const taskSel = taskList.selectAll('.filter-checklist-item').data(taskItems, (n) => n.id);
   taskSel.exit().remove();
   const taskEnter = taskSel.enter().append('label').attr('class', 'filter-checklist-item');
-  taskEnter.append('input').attr('type', 'checkbox');
-  taskEnter.append('span').attr('class', 'filter-checklist-item-label');
-  taskEnter.append('span').attr('class', 'filter-checklist-item-count');
+  const taskTop = taskEnter.append('div').attr('class', 'filter-checklist-item-top');
+  taskTop.append('input').attr('type', 'checkbox');
+  taskTop.append('span').attr('class', 'filter-checklist-item-label');
+  taskTop.append('span').attr('class', 'filter-checklist-item-count');
   const taskMerged = taskEnter.merge(taskSel);
   taskMerged.attr('class', (n) => `filter-checklist-item${f.taskNames.has(n.id) ? ' checked' : ''}`);
   taskMerged.select('input').property('checked', (n) => f.taskNames.has(n.id)).on('change', (event, n) => {
@@ -7583,18 +7588,18 @@ function renderFilterPanel(matchCountOverride) {
   const pathSel = pathList.selectAll('.filter-checklist-item').data(base.variants, (v) => v.signature);
   pathSel.exit().remove();
   const pathEnter = pathSel.enter().append('label').attr('class', 'filter-checklist-item');
-  pathEnter.append('input').attr('type', 'checkbox');
-  const pathLabelWrap = pathEnter.append('span').attr('class', 'filter-checklist-item-label');
-  pathLabelWrap.append('div');
-  pathLabelWrap.append('div').attr('class', 'filter-checklist-item-path');
-  pathEnter.append('span').attr('class', 'filter-checklist-item-count');
+  const pathTop = pathEnter.append('div').attr('class', 'filter-checklist-item-top');
+  pathTop.append('input').attr('type', 'checkbox');
+  pathTop.append('span').attr('class', 'filter-checklist-item-label');
+  pathTop.append('span').attr('class', 'filter-checklist-item-count');
+  pathEnter.append('div').attr('class', 'filter-checklist-item-path');
   const pathMerged = pathEnter.merge(pathSel);
   pathMerged.attr('class', (v) => `filter-checklist-item${f.variantSignatures.has(v.signature) ? ' checked' : ''}`);
   pathMerged.select('input').property('checked', (v) => f.variantSignatures.has(v.signature)).on('change', (event, v) => {
     if (f.variantSignatures.has(v.signature)) f.variantSignatures.delete(v.signature); else f.variantSignatures.add(v.signature);
     applyFilters();
   });
-  pathMerged.select('.filter-checklist-item-label > div:first-child').text((v) => `Path ${pathLetterLabel(v.rank)} · ${(v.pct * 100).toFixed(1)}%`);
+  pathMerged.select('.filter-checklist-item-label').text((v) => `Path ${pathLetterLabel(v.rank)} · ${(v.pct * 100).toFixed(1)}%`);
   pathMerged.select('.filter-checklist-item-path').text((v) => v.path.join(' → '));
   pathMerged.select('.filter-checklist-item-count').text((v) => pluralCases(v.count));
 }
