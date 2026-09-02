@@ -264,25 +264,39 @@
 
         <div class="panel">
           <button class="panel-header" type="button" aria-expanded="true">
-            <h2>By Process ID</h2>
+            <h2>
+              By Process ID
+              <span class="subtype-count-badge" id="filter-process-id-count">0</span>
+            </h2>
             <svg class="panel-chevron" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
               <path d="M3 5 L7 9 L11 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
             </svg>
           </button>
           <div class="panel-body">
-            <input type="text" id="filter-process-id" class="filter-text-input" placeholder="Search by process / case ID…" />
+            <div class="filter-select" id="filter-process-id-select">
+              <input type="text" id="filter-process-id-input" class="filter-text-input" placeholder="Search process / case ID…" autocomplete="off" />
+              <div class="filter-select-dropdown hidden" id="filter-process-id-dropdown"></div>
+              <div class="filter-select-chips" id="filter-process-id-chips"></div>
+            </div>
           </div>
         </div>
 
         <div class="panel">
           <button class="panel-header" type="button" aria-expanded="true">
-            <h2>By User ID</h2>
+            <h2>
+              By User ID
+              <span class="subtype-count-badge" id="filter-user-id-count">0</span>
+            </h2>
             <svg class="panel-chevron" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
               <path d="M3 5 L7 9 L11 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
             </svg>
           </button>
           <div class="panel-body">
-            <input type="text" id="filter-user-id" class="filter-text-input" placeholder="Search by user ID…" />
+            <div class="filter-select" id="filter-user-id-select">
+              <input type="text" id="filter-user-id-input" class="filter-text-input" placeholder="Search user ID…" autocomplete="off" />
+              <div class="filter-select-dropdown hidden" id="filter-user-id-dropdown"></div>
+              <div class="filter-select-chips" id="filter-user-id-chips"></div>
+            </div>
           </div>
         </div>
 
@@ -294,13 +308,17 @@
             </svg>
           </button>
           <div class="panel-body">
-            <p class="hint">Total completion time per instance, in minutes.</p>
-            <div class="filter-duration-row">
-              <input type="number" id="filter-duration-min" class="filter-number-input" min="0" placeholder="Min" />
-              <span class="filter-duration-sep">–</span>
-              <input type="number" id="filter-duration-max" class="filter-number-input" min="0" placeholder="Max" />
+            <p class="hint">Total completion time per instance.</p>
+            <div class="duration-slider-values">
+              <span id="filter-duration-min-label">–</span>
+              <span id="filter-duration-max-label">–</span>
             </div>
-            <p class="hint" id="filter-duration-range"></p>
+            <div class="duration-slider" id="duration-slider">
+              <div class="duration-slider-track"></div>
+              <div class="duration-slider-range" id="duration-slider-range"></div>
+              <input type="range" id="filter-duration-min-slider" class="duration-range-input" min="0" max="100" value="0" />
+              <input type="range" id="filter-duration-max-slider" class="duration-range-input" min="0" max="100" value="100" />
+            </div>
           </div>
         </div>
 

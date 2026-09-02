@@ -27,8 +27,8 @@ const state = {
     variantSignatures: new Set(),
     durationMin: null,
     durationMax: null,
-    processIdQuery: '',
-    userIdQuery: '',
+    processIds: new Set(),
+    userIds: new Set(),
   },
   threshold: 100, // Path Filter slider value 0-100 (0 = fewest deviations, 100 = all)
   highlight: null, // null | { kind: 'variant', value: variant } | { kind: 'node', value: nodeId }
@@ -1230,19 +1230,19 @@ window.addEventListener('resize', syncTaskDetailLayout);
 // are what's actually on screen. Applying a filter narrows allCases down into
 // cases and rebuilds the model from that — every other panel (graph, Insights,
 // task detail) already reads state.cases/state.model, so they follow for free.
+// Filter Sets are cleared in place (never reassigned) so the searchable
+// selects' closures — which capture these Set references once at setup —
+// stay attached to the live filter state across a reset.
 function resetFilters() {
-  state.filters = {
-    taskNames: new Set(),
-    variantSignatures: new Set(),
-    durationMin: null,
-    durationMax: null,
-    processIdQuery: '',
-    userIdQuery: '',
-  };
-  d3.select('#filter-process-id').property('value', '');
-  d3.select('#filter-user-id').property('value', '');
-  d3.select('#filter-duration-min').property('value', '');
-  d3.select('#filter-duration-max').property('value', '');
+  state.filters.taskNames.clear();
+  state.filters.variantSignatures.clear();
+  state.filters.durationMin = null;
+  state.filters.durationMax = null;
+  state.filters.processIds.clear();
+  state.filters.userIds.clear();
+  if (processIdSelect) { processIdSelect.renderChips(); processIdSelect.closeDropdown(); processIdSelect.clearInput(); }
+  if (userIdSelect) { userIdSelect.renderChips(); userIdSelect.closeDropdown(); userIdSelect.clearInput(); }
+  syncDurationSliderBounds();
   state.cases = state.allCases;
   state.model = state.baseModel;
 }
@@ -1251,15 +1251,15 @@ function getFilteredCases() {
   const f = state.filters;
   const hasTask = f.taskNames.size > 0;
   const hasPath = f.variantSignatures.size > 0;
-  const pid = f.processIdQuery.trim().toLowerCase();
-  const uid = f.userIdQuery.trim().toLowerCase();
+  const hasProcessId = f.processIds.size > 0;
+  const hasUserId = f.userIds.size > 0;
   return state.allCases.filter((c) => {
     if (hasTask && !c.steps.some((s) => f.taskNames.has(s.task))) return false;
     if (hasPath && !f.variantSignatures.has(c.steps.map((s) => s.task).join(' → '))) return false;
     if (f.durationMin != null && c.totalDuration < f.durationMin) return false;
     if (f.durationMax != null && c.totalDuration > f.durationMax) return false;
-    if (pid && !c.caseId.toLowerCase().includes(pid)) return false;
-    if (uid && !(c.users || []).some((u) => String(u).toLowerCase().includes(uid))) return false;
+    if (hasProcessId && !f.processIds.has(c.caseId)) return false;
+    if (hasUserId && !(c.users || []).some((u) => f.userIds.has(String(u)))) return false;
     return true;
   });
 }
@@ -1299,14 +1299,11 @@ function renderFilterPanel(matchCountOverride) {
         : `No instances match — showing the last matching view.`
   );
 
-  const activeFacets = [f.taskNames.size > 0, f.variantSignatures.size > 0, f.durationMin != null || f.durationMax != null, !!f.processIdQuery.trim(), !!f.userIdQuery.trim()]
+  const activeFacets = [f.taskNames.size > 0, f.variantSignatures.size > 0, f.durationMin != null || f.durationMax != null, f.processIds.size > 0, f.userIds.size > 0]
     .filter(Boolean).length;
   d3.select('#filter-count-badge').classed('hidden', activeFacets === 0).text(activeFacets);
-
-  const durations = state.allCases.map((c) => c.totalDuration);
-  d3.select('#filter-duration-range').text(
-    durations.length ? `Full range: ${formatDuration(Math.min(...durations))} – ${formatDuration(Math.max(...durations))}` : ''
-  );
+  d3.select('#filter-process-id-count').text(f.processIds.size);
+  d3.select('#filter-user-id-count').text(f.userIds.size);
 
   d3.select('#filter-task-count').text(f.taskNames.size);
   const taskItems = base.nodes.filter((n) => !n.virtual).slice().sort((a, b) => b.caseCount - a.caseCount);
@@ -1374,21 +1371,144 @@ d3.select('#filter-reset').on('click', () => {
   render(true);
   renderFilterPanel();
 });
-d3.select('#filter-process-id').on('input', function () {
-  state.filters.processIdQuery = this.value;
-  applyFilters();
+// A searchable multi-select combobox: a text input filters a dropdown list
+// (built from getOptions(), always the full unfiltered dataset so option
+// counts stay stable), clicking an option toggles it into selectedSet and
+// shows it as a removable chip. selectedSet is a Set living in
+// state.filters — resetFilters() clears it in place rather than replacing
+// it, so this closure never goes stale.
+function setupFilterSelect({ inputId, dropdownId, chipsId, selectedSet, getOptions, onChange }) {
+  const input = document.getElementById(inputId);
+  const dropdownEl = document.getElementById(dropdownId);
+  const dropdown = d3.select(dropdownEl);
+  const chips = d3.select(`#${chipsId}`);
+  const MAX_SHOWN = 200;
+
+  function renderChips() {
+    const items = Array.from(selectedSet);
+    const sel = chips.selectAll('.filter-select-chip').data(items, (d) => d);
+    sel.exit().remove();
+    const enter = sel.enter().append('span').attr('class', 'filter-select-chip');
+    enter.append('span').attr('class', 'filter-select-chip-label');
+    enter.append('button').attr('type', 'button').attr('aria-label', 'Remove').html('&times;');
+    const merged = enter.merge(sel);
+    merged.select('.filter-select-chip-label').text((d) => d);
+    merged.select('button').on('click', (event, d) => {
+      selectedSet.delete(d);
+      renderChips();
+      renderDropdown();
+      onChange();
+    });
+  }
+
+  function renderDropdown() {
+    const query = input.value.trim().toLowerCase();
+    const options = getOptions();
+    const filtered = query ? options.filter((o) => o.toLowerCase().includes(query)) : options;
+    const shown = filtered.slice(0, MAX_SHOWN);
+    dropdown.selectAll('*').remove();
+    if (!shown.length) {
+      dropdown.append('div').attr('class', 'filter-select-empty').text('No matches.');
+    } else {
+      shown.forEach((opt) => {
+        dropdown.append('div')
+          .attr('class', `filter-select-option${selectedSet.has(opt) ? ' selected' : ''}`)
+          .text(opt)
+          .on('click', () => {
+            if (selectedSet.has(opt)) selectedSet.delete(opt); else selectedSet.add(opt);
+            input.value = '';
+            renderChips();
+            renderDropdown();
+            onChange();
+          });
+      });
+      if (filtered.length > MAX_SHOWN) {
+        dropdown.append('div').attr('class', 'filter-select-empty').text(`Showing first ${MAX_SHOWN} of ${filtered.length} — keep typing to narrow.`);
+      }
+    }
+  }
+
+  function closeDropdown() { dropdown.classed('hidden', true); }
+  function clearInput() { input.value = ''; }
+
+  input.addEventListener('focus', () => { dropdown.classed('hidden', false); renderDropdown(); });
+  input.addEventListener('input', () => { dropdown.classed('hidden', false); renderDropdown(); });
+  document.addEventListener('click', (event) => {
+    if (event.target !== input && !dropdownEl.contains(event.target)) closeDropdown();
+  });
+
+  renderChips();
+  return { renderChips, renderDropdown, closeDropdown, clearInput };
+}
+
+const processIdSelect = setupFilterSelect({
+  inputId: 'filter-process-id-input',
+  dropdownId: 'filter-process-id-dropdown',
+  chipsId: 'filter-process-id-chips',
+  selectedSet: state.filters.processIds,
+  getOptions: () => state.allCases.map((c) => c.caseId),
+  onChange: applyFilters,
 });
-d3.select('#filter-user-id').on('input', function () {
-  state.filters.userIdQuery = this.value;
-  applyFilters();
+
+const userIdSelect = setupFilterSelect({
+  inputId: 'filter-user-id-input',
+  dropdownId: 'filter-user-id-dropdown',
+  chipsId: 'filter-user-id-chips',
+  selectedSet: state.filters.userIds,
+  getOptions: () => Array.from(new Set(state.allCases.flatMap((c) => c.users || []).map(String))),
+  onChange: applyFilters,
 });
-d3.select('#filter-duration-min').on('input', function () {
-  state.filters.durationMin = this.value === '' ? null : Number(this.value);
-  applyFilters();
-});
-d3.select('#filter-duration-max').on('input', function () {
-  state.filters.durationMax = this.value === '' ? null : Number(this.value);
-  applyFilters();
+
+// Dual-handle range slider: two overlapping <input type=range>, only the
+// thumb itself accepts pointer events (see .duration-range-input CSS) so
+// both stay independently draggable. Bounds track the full dataset's
+// actual min/max duration, not an arbitrary 0-based scale.
+function syncDurationSliderBounds() {
+  const durations = state.allCases.map((c) => c.totalDuration);
+  const dataMin = durations.length ? Math.floor(Math.min(...durations)) : 0;
+  const dataMaxRaw = durations.length ? Math.ceil(Math.max(...durations)) : 100;
+  const dataMax = dataMaxRaw > dataMin ? dataMaxRaw : dataMin + 1;
+  const minSlider = document.getElementById('filter-duration-min-slider');
+  const maxSlider = document.getElementById('filter-duration-max-slider');
+  minSlider.min = dataMin; minSlider.max = dataMax;
+  maxSlider.min = dataMin; maxSlider.max = dataMax;
+  minSlider.value = state.filters.durationMin != null ? state.filters.durationMin : dataMin;
+  maxSlider.value = state.filters.durationMax != null ? state.filters.durationMax : dataMax;
+  updateDurationSliderUI();
+}
+
+function updateDurationSliderUI() {
+  const minSlider = document.getElementById('filter-duration-min-slider');
+  const maxSlider = document.getElementById('filter-duration-max-slider');
+  const rangeMin = Number(minSlider.min);
+  const rangeMax = Number(minSlider.max) || 1;
+  const span = rangeMax - rangeMin || 1;
+  const minPct = ((Number(minSlider.value) - rangeMin) / span) * 100;
+  const maxPct = ((Number(maxSlider.value) - rangeMin) / span) * 100;
+  document.getElementById('duration-slider-range').style.left = `${minPct}%`;
+  document.getElementById('duration-slider-range').style.width = `${Math.max(0, maxPct - minPct)}%`;
+  document.getElementById('filter-duration-min-label').textContent = formatDuration(Number(minSlider.value));
+  document.getElementById('filter-duration-max-label').textContent = formatDuration(Number(maxSlider.value));
+}
+
+['filter-duration-min-slider', 'filter-duration-max-slider'].forEach((id) => {
+  document.getElementById(id).addEventListener('input', () => {
+    const minSlider = document.getElementById('filter-duration-min-slider');
+    const maxSlider = document.getElementById('filter-duration-max-slider');
+    // Keep the handles from crossing — push the other one along instead.
+    if (Number(minSlider.value) > Number(maxSlider.value)) {
+      if (id === 'filter-duration-min-slider') maxSlider.value = minSlider.value;
+      else minSlider.value = maxSlider.value;
+    }
+    updateDurationSliderUI();
+    const rangeMin = Number(minSlider.min);
+    const rangeMax = Number(maxSlider.max);
+    const minVal = Number(minSlider.value);
+    const maxVal = Number(maxSlider.value);
+    state.filters.durationMin = minVal <= rangeMin ? null : minVal;
+    state.filters.durationMax = maxVal >= rangeMax ? null : maxVal;
+    applyFilters();
+  });
 });
 
 function regenerate(numCases) {
