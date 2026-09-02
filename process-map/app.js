@@ -18,8 +18,18 @@ const MINOR_SHARE = 0.2;
 const MIN_MINOR_BRANCHES = 2;
 
 const state = {
-  cases: [],
-  model: null,
+  cases: [], // the currently active view — state.allCases narrowed by state.filters, or === state.allCases when no filter is active
+  model: null, // buildProcessModel(state.cases) — everything on screen (graph, Insights, task detail) reads this
+  allCases: [], // the full, unfiltered case log for the current dataset
+  baseModel: null, // buildProcessModel(state.allCases) — drives the filter panel's option lists so they don't shrink as filters narrow the view
+  filters: {
+    taskNames: new Set(),
+    variantSignatures: new Set(),
+    durationMin: null,
+    durationMax: null,
+    processIdQuery: '',
+    userIdQuery: '',
+  },
   threshold: 100, // Path Filter slider value 0-100 (0 = fewest deviations, 100 = all)
   highlight: null, // null | { kind: 'variant', value: variant } | { kind: 'node', value: nodeId }
   expandedBubbles: new Set(), // source node ids whose "N variants" bubble is currently expanded
@@ -952,6 +962,7 @@ function buildAISummaryHtml(model) {
 function openAISummary() {
   closeInsights();
   closeTaskDetail();
+  closeFilterPanel();
   const btn = document.getElementById('ai-summary-btn');
   const panel = document.getElementById('ai-summary-panel');
   const body = document.getElementById('ai-summary-body');
@@ -980,6 +991,7 @@ function closeAISummary() {
 function openInsights() {
   closeAISummary();
   closeTaskDetail();
+  closeFilterPanel();
   document.getElementById('insights-btn').classList.add('active');
   document.getElementById('insights-btn').setAttribute('aria-expanded', 'true');
   document.getElementById('insights-panel').classList.remove('hidden');
@@ -1012,6 +1024,7 @@ function openTaskDetail(taskId) {
   state.selectedSubtypeId = null;
   closeInsights();
   closeAISummary();
+  closeFilterPanel();
   d3.select('#task-detail-panel').classed('hidden', false);
   renderTaskDetail();
   syncTaskDetailLayout();
@@ -1043,7 +1056,12 @@ function renderTaskDetail() {
   const pathCount = model.variants.filter((v) => v.path.includes(taskId)).length;
 
   const meta = state.taskInsights && state.taskInsights.byTaskName.get(taskId);
-  const richInstances = state.taskInsights && state.taskInsights.instancesByTaskName.get(taskId);
+  // Rich per-instance detail is keyed straight off the raw upload, so it
+  // isn't narrowed by the active filters the way state.cases already is —
+  // restrict it to the case IDs the filters actually left in play.
+  const activeCaseIds = new Set(state.cases.map((c) => c.caseId));
+  const richInstancesAll = state.taskInsights && state.taskInsights.instancesByTaskName.get(taskId);
+  const richInstances = richInstancesAll && richInstancesAll.filter((r) => activeCaseIds.has(r.caseId));
 
   d3.select('#task-detail-title').text(taskId);
   d3.select('#task-detail-meta').text(
@@ -1207,13 +1225,182 @@ window.addEventListener('resize', syncTaskDetailLayout);
   });
 })();
 
+// ---- filter panel ----
+// state.allCases is always the full, unfiltered dataset; state.cases/state.model
+// are what's actually on screen. Applying a filter narrows allCases down into
+// cases and rebuilds the model from that — every other panel (graph, Insights,
+// task detail) already reads state.cases/state.model, so they follow for free.
+function resetFilters() {
+  state.filters = {
+    taskNames: new Set(),
+    variantSignatures: new Set(),
+    durationMin: null,
+    durationMax: null,
+    processIdQuery: '',
+    userIdQuery: '',
+  };
+  d3.select('#filter-process-id').property('value', '');
+  d3.select('#filter-user-id').property('value', '');
+  d3.select('#filter-duration-min').property('value', '');
+  d3.select('#filter-duration-max').property('value', '');
+  state.cases = state.allCases;
+  state.model = state.baseModel;
+}
+
+function getFilteredCases() {
+  const f = state.filters;
+  const hasTask = f.taskNames.size > 0;
+  const hasPath = f.variantSignatures.size > 0;
+  const pid = f.processIdQuery.trim().toLowerCase();
+  const uid = f.userIdQuery.trim().toLowerCase();
+  return state.allCases.filter((c) => {
+    if (hasTask && !c.steps.some((s) => f.taskNames.has(s.task))) return false;
+    if (hasPath && !f.variantSignatures.has(c.steps.map((s) => s.task).join(' → '))) return false;
+    if (f.durationMin != null && c.totalDuration < f.durationMin) return false;
+    if (f.durationMax != null && c.totalDuration > f.durationMax) return false;
+    if (pid && !c.caseId.toLowerCase().includes(pid)) return false;
+    if (uid && !(c.users || []).some((u) => String(u).toLowerCase().includes(uid))) return false;
+    return true;
+  });
+}
+
+// A filter combination that matches nothing would otherwise hand an empty
+// case list to buildProcessModel() — every ratio in there divides by
+// totalCases, so that's NaN and a crash waiting to happen (model.happyPath
+// is undefined). Instead, leave the map showing its last valid state and
+// just report the mismatch in the panel.
+function applyFilters() {
+  const filtered = getFilteredCases();
+  if (filtered.length) {
+    state.cases = filtered;
+    state.model = buildProcessModel(filtered);
+    state.highlight = null;
+    state.expandedBubbles = new Set();
+    state.comparison = null;
+    d3.select('#insight-compare-btn').classed('active', false);
+    render(true);
+    if (state.selectedTaskId) renderTaskDetail();
+  }
+  renderFilterPanel(filtered.length);
+}
+
+function renderFilterPanel(matchCountOverride) {
+  const base = state.baseModel;
+  if (!base) return;
+  const f = state.filters;
+  const matchCount = matchCountOverride != null ? matchCountOverride : state.cases.length;
+  const total = state.allCases.length;
+
+  d3.select('#filter-summary').text(
+    matchCount === total
+      ? `Showing all ${total} instance${total === 1 ? '' : 's'}.`
+      : matchCount
+        ? `Showing ${matchCount} of ${total} instance${total === 1 ? '' : 's'}.`
+        : `No instances match — showing the last matching view.`
+  );
+
+  const activeFacets = [f.taskNames.size > 0, f.variantSignatures.size > 0, f.durationMin != null || f.durationMax != null, !!f.processIdQuery.trim(), !!f.userIdQuery.trim()]
+    .filter(Boolean).length;
+  d3.select('#filter-count-badge').classed('hidden', activeFacets === 0).text(activeFacets);
+
+  const durations = state.allCases.map((c) => c.totalDuration);
+  d3.select('#filter-duration-range').text(
+    durations.length ? `Full range: ${formatDuration(Math.min(...durations))} – ${formatDuration(Math.max(...durations))}` : ''
+  );
+
+  d3.select('#filter-task-count').text(f.taskNames.size);
+  const taskItems = base.nodes.filter((n) => !n.virtual).slice().sort((a, b) => b.caseCount - a.caseCount);
+  const taskList = d3.select('#filter-task-list');
+  const taskSel = taskList.selectAll('.filter-checklist-item').data(taskItems, (n) => n.id);
+  taskSel.exit().remove();
+  const taskEnter = taskSel.enter().append('label').attr('class', 'filter-checklist-item');
+  taskEnter.append('input').attr('type', 'checkbox');
+  taskEnter.append('span').attr('class', 'filter-checklist-item-label');
+  taskEnter.append('span').attr('class', 'filter-checklist-item-count');
+  const taskMerged = taskEnter.merge(taskSel);
+  taskMerged.attr('class', (n) => `filter-checklist-item${f.taskNames.has(n.id) ? ' checked' : ''}`);
+  taskMerged.select('input').property('checked', (n) => f.taskNames.has(n.id)).on('change', (event, n) => {
+    if (f.taskNames.has(n.id)) f.taskNames.delete(n.id); else f.taskNames.add(n.id);
+    applyFilters();
+  });
+  taskMerged.select('.filter-checklist-item-label').text((n) => n.label);
+  taskMerged.select('.filter-checklist-item-count').text((n) => `${n.caseCount}`);
+
+  d3.select('#filter-path-count').text(f.variantSignatures.size);
+  const pathList = d3.select('#filter-path-list');
+  const pathSel = pathList.selectAll('.filter-checklist-item').data(base.variants, (v) => v.signature);
+  pathSel.exit().remove();
+  const pathEnter = pathSel.enter().append('label').attr('class', 'filter-checklist-item');
+  pathEnter.append('input').attr('type', 'checkbox');
+  const pathLabelWrap = pathEnter.append('span').attr('class', 'filter-checklist-item-label');
+  pathLabelWrap.append('div');
+  pathLabelWrap.append('div').attr('class', 'filter-checklist-item-path');
+  pathEnter.append('span').attr('class', 'filter-checklist-item-count');
+  const pathMerged = pathEnter.merge(pathSel);
+  pathMerged.attr('class', (v) => `filter-checklist-item${f.variantSignatures.has(v.signature) ? ' checked' : ''}`);
+  pathMerged.select('input').property('checked', (v) => f.variantSignatures.has(v.signature)).on('change', (event, v) => {
+    if (f.variantSignatures.has(v.signature)) f.variantSignatures.delete(v.signature); else f.variantSignatures.add(v.signature);
+    applyFilters();
+  });
+  pathMerged.select('.filter-checklist-item-label > div:first-child').text((v) => `#${v.rank} · ${(v.pct * 100).toFixed(1)}%`);
+  pathMerged.select('.filter-checklist-item-path').text((v) => v.path.join(' → '));
+  pathMerged.select('.filter-checklist-item-count').text((v) => pluralCases(v.count));
+}
+
+function openFilterPanel() {
+  closeInsights();
+  closeAISummary();
+  closeTaskDetail();
+  document.getElementById('filter-btn').classList.add('active');
+  document.getElementById('filter-btn').setAttribute('aria-expanded', 'true');
+  document.getElementById('filter-panel').classList.remove('hidden');
+  renderFilterPanel();
+}
+
+function closeFilterPanel() {
+  document.getElementById('filter-btn').classList.remove('active');
+  document.getElementById('filter-btn').setAttribute('aria-expanded', 'false');
+  document.getElementById('filter-panel').classList.add('hidden');
+}
+
+d3.select('#filter-btn').on('click', () => {
+  const panel = document.getElementById('filter-panel');
+  if (panel.classList.contains('hidden')) openFilterPanel();
+  else closeFilterPanel();
+});
+d3.select('#filter-close').on('click', closeFilterPanel);
+d3.select('#filter-reset').on('click', () => {
+  resetFilters();
+  render(true);
+  renderFilterPanel();
+});
+d3.select('#filter-process-id').on('input', function () {
+  state.filters.processIdQuery = this.value;
+  applyFilters();
+});
+d3.select('#filter-user-id').on('input', function () {
+  state.filters.userIdQuery = this.value;
+  applyFilters();
+});
+d3.select('#filter-duration-min').on('input', function () {
+  state.filters.durationMin = this.value === '' ? null : Number(this.value);
+  applyFilters();
+});
+d3.select('#filter-duration-max').on('input', function () {
+  state.filters.durationMax = this.value === '' ? null : Number(this.value);
+  applyFilters();
+});
+
 function regenerate(numCases) {
-  state.cases = generateEventLog(numCases);
-  state.model = buildProcessModel(state.cases);
+  state.allCases = generateEventLog(numCases);
+  state.baseModel = buildProcessModel(state.allCases);
+  resetFilters();
   state.highlight = null;
   state.taskInsights = null;
   closeTaskDetail();
+  closeFilterPanel();
   setUploadStatus('');
+  renderFilterPanel();
   render(true);
 }
 
@@ -1239,8 +1426,9 @@ function handleUploadFile(file) {
     }
     try {
       const cases = normalizeCaseLog(raw);
-      state.cases = cases;
-      state.model = buildProcessModel(cases);
+      state.allCases = cases;
+      state.baseModel = buildProcessModel(cases);
+      resetFilters();
       state.highlight = null;
       state.threshold = 100;
       state.expandedBubbles = new Set();
@@ -1251,6 +1439,8 @@ function handleUploadFile(file) {
       closeTaskMenu();
       closeSessionReplay();
       closeTaskDetail();
+      closeFilterPanel();
+      renderFilterPanel();
       setUploadStatus(`Loaded ${cases.length} instance${cases.length === 1 ? '' : 's'} from "${file.name}".`, 'success');
       render(true);
       setTimeout(closeImportModal, 700);
@@ -1309,6 +1499,7 @@ d3.select(document).on('keydown.sessionReplay', (event) => {
   if (!d3.select('#session-replay-modal').classed('hidden')) closeSessionReplay();
   else if (!d3.select('#task-menu').classed('hidden')) closeTaskMenu();
   else if (!d3.select('#task-detail-panel').classed('hidden')) closeTaskDetail();
+  else if (!d3.select('#filter-panel').classed('hidden')) closeFilterPanel();
 });
 
 // ---- task "..." menu ----
@@ -1875,10 +2066,12 @@ if (selectedProcessDataRaw) {
   try {
     const rawHandoff = JSON.parse(selectedProcessDataRaw);
     const cases = normalizeCaseLog(rawHandoff);
-    state.cases = cases;
-    state.model = buildProcessModel(cases);
+    state.allCases = cases;
+    state.baseModel = buildProcessModel(cases);
+    resetFilters();
     state.highlight = null;
     state.taskInsights = (typeof extractTaskInsights === 'function') ? extractTaskInsights(rawHandoff) : null;
+    renderFilterPanel();
     render(true);
     loadedFromHandoff = true;
   } catch (err) {

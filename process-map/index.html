@@ -44,6 +44,13 @@
         </svg>
         Insights
       </button>
+      <button id="filter-btn" class="ai-summary-btn" type="button" aria-expanded="false">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M2 3 H14 L9.5 8.2 V13 L6.5 11.3 V8.2 Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" />
+        </svg>
+        Filter
+        <span class="filter-count-badge hidden" id="filter-count-badge">0</span>
+      </button>
       <button id="ai-summary-btn" class="ai-summary-btn" type="button" aria-expanded="false">
         <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
           <path d="M8 1 L9.2 5.6 L13.5 7 L9.2 8.4 L8 13 L6.8 8.4 L2.5 7 L6.8 5.6 Z" />
@@ -235,6 +242,97 @@
           <div class="panel-body">
             <p class="hint">Click a path to trace it on the map. ⚡ marks the fastest observed path.</p>
             <ul id="variant-list"></ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="filter-panel" class="side-drawer hidden">
+      <div class="side-drawer-header">
+        <h2>Filter</h2>
+        <div class="side-drawer-header-actions">
+          <button id="filter-reset" class="link-button" type="button">Reset all</button>
+          <button id="filter-close" class="ai-summary-close" type="button" aria-label="Close filter">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+              <path d="M2 2 L10 10 M10 2 L2 10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="side-drawer-body">
+        <p class="hint filter-summary" id="filter-summary"></p>
+
+        <div class="panel">
+          <button class="panel-header" type="button" aria-expanded="true">
+            <h2>By Process ID</h2>
+            <svg class="panel-chevron" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+              <path d="M3 5 L7 9 L11 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+          <div class="panel-body">
+            <input type="text" id="filter-process-id" class="filter-text-input" placeholder="Search by process / case ID…" />
+          </div>
+        </div>
+
+        <div class="panel">
+          <button class="panel-header" type="button" aria-expanded="true">
+            <h2>By User ID</h2>
+            <svg class="panel-chevron" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+              <path d="M3 5 L7 9 L11 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+          <div class="panel-body">
+            <input type="text" id="filter-user-id" class="filter-text-input" placeholder="Search by user ID…" />
+          </div>
+        </div>
+
+        <div class="panel">
+          <button class="panel-header" type="button" aria-expanded="true">
+            <h2>By Duration</h2>
+            <svg class="panel-chevron" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+              <path d="M3 5 L7 9 L11 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+          <div class="panel-body">
+            <p class="hint">Total completion time per instance, in minutes.</p>
+            <div class="filter-duration-row">
+              <input type="number" id="filter-duration-min" class="filter-number-input" min="0" placeholder="Min" />
+              <span class="filter-duration-sep">–</span>
+              <input type="number" id="filter-duration-max" class="filter-number-input" min="0" placeholder="Max" />
+            </div>
+            <p class="hint" id="filter-duration-range"></p>
+          </div>
+        </div>
+
+        <div class="panel">
+          <button class="panel-header" type="button" aria-expanded="true">
+            <h2>
+              By Task
+              <span class="subtype-count-badge" id="filter-task-count">0</span>
+            </h2>
+            <svg class="panel-chevron" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+              <path d="M3 5 L7 9 L11 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+          <div class="panel-body">
+            <p class="hint">Keep instances that include any of the selected tasks.</p>
+            <div class="filter-checklist" id="filter-task-list"></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <button class="panel-header" type="button" aria-expanded="true">
+            <h2>
+              By Path
+              <span class="subtype-count-badge" id="filter-path-count">0</span>
+            </h2>
+            <svg class="panel-chevron" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+              <path d="M3 5 L7 9 L11 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+          <div class="panel-body">
+            <p class="hint">Keep instances that followed any of the selected paths.</p>
+            <div class="filter-checklist" id="filter-path-list"></div>
           </div>
         </div>
       </div>

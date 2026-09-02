@@ -329,6 +329,66 @@ body.app-fullscreen .side-drawer { top: 64px; right: 16px; }
 }
 .instance-card-text { font-size: 0.8rem; line-height: 1.5; color: var(--text-secondary); margin: 6px 0 0; }
 
+/* ---- filter panel ---- */
+.filter-count-badge {
+  background: #ffffff;
+  color: var(--accent-ui);
+  font-size: 0.68rem;
+  font-weight: 700;
+  border-radius: 100px;
+  padding: 1px 7px;
+}
+.filter-count-badge.hidden { display: none; }
+.ai-summary-btn.active .filter-count-badge { background: rgba(255, 255, 255, 0.25); color: #ffffff; }
+
+.side-drawer-header-actions { display: flex; align-items: center; gap: 14px; }
+
+.filter-summary { margin: -4px 0 0; }
+
+.filter-text-input,
+.filter-number-input {
+  width: 100%;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 0.82rem;
+  color: var(--text-primary);
+  background: var(--card-bg);
+}
+.filter-text-input:focus,
+.filter-number-input:focus { outline: none; border-color: var(--accent-ui); }
+
+.filter-duration-row { display: flex; align-items: center; gap: 8px; }
+.filter-number-input { width: 0; flex: 1; }
+.filter-duration-sep { color: var(--text-tertiary); flex-shrink: 0; }
+
+.filter-checklist { display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow-y: auto; }
+.filter-checklist-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  padding: 9px 12px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.filter-checklist-item:hover { border-color: var(--accent-ui); }
+.filter-checklist-item.checked { border-color: var(--accent-ui); background: var(--accent-ui-soft); }
+.filter-checklist-item input[type="checkbox"] { flex-shrink: 0; accent-color: var(--accent-ui); }
+.filter-checklist-item-label { flex: 1; font-size: 0.82rem; font-weight: 600; color: var(--text-primary); min-width: 0; }
+.filter-checklist-item-path { font-size: 0.72rem; font-weight: 400; color: var(--text-secondary); margin-top: 2px; line-height: 1.4; }
+.filter-checklist-item-count {
+  font-weight: 500;
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+  background: var(--bg);
+  border-radius: 100px;
+  padding: 3px 10px;
+  flex-shrink: 0;
+}
+
 .panel {
   background: var(--card-bg);
   border: 1px solid var(--panel-border);
@@ -1174,6 +1234,13 @@ button:hover { filter: brightness(1.08); }
         </svg>
         Insights
       </button>
+      <button id="filter-btn" class="ai-summary-btn" type="button" aria-expanded="false">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M2 3 H14 L9.5 8.2 V13 L6.5 11.3 V8.2 Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" />
+        </svg>
+        Filter
+        <span class="filter-count-badge hidden" id="filter-count-badge">0</span>
+      </button>
       <button id="ai-summary-btn" class="ai-summary-btn" type="button" aria-expanded="false">
         <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
           <path d="M8 1 L9.2 5.6 L13.5 7 L9.2 8.4 L8 13 L6.8 8.4 L2.5 7 L6.8 5.6 Z" />
@@ -1365,6 +1432,97 @@ button:hover { filter: brightness(1.08); }
           <div class="panel-body">
             <p class="hint">Click a path to trace it on the map. ⚡ marks the fastest observed path.</p>
             <ul id="variant-list"></ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="filter-panel" class="side-drawer hidden">
+      <div class="side-drawer-header">
+        <h2>Filter</h2>
+        <div class="side-drawer-header-actions">
+          <button id="filter-reset" class="link-button" type="button">Reset all</button>
+          <button id="filter-close" class="ai-summary-close" type="button" aria-label="Close filter">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+              <path d="M2 2 L10 10 M10 2 L2 10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="side-drawer-body">
+        <p class="hint filter-summary" id="filter-summary"></p>
+
+        <div class="panel">
+          <button class="panel-header" type="button" aria-expanded="true">
+            <h2>By Process ID</h2>
+            <svg class="panel-chevron" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+              <path d="M3 5 L7 9 L11 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+          <div class="panel-body">
+            <input type="text" id="filter-process-id" class="filter-text-input" placeholder="Search by process / case ID…" />
+          </div>
+        </div>
+
+        <div class="panel">
+          <button class="panel-header" type="button" aria-expanded="true">
+            <h2>By User ID</h2>
+            <svg class="panel-chevron" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+              <path d="M3 5 L7 9 L11 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+          <div class="panel-body">
+            <input type="text" id="filter-user-id" class="filter-text-input" placeholder="Search by user ID…" />
+          </div>
+        </div>
+
+        <div class="panel">
+          <button class="panel-header" type="button" aria-expanded="true">
+            <h2>By Duration</h2>
+            <svg class="panel-chevron" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+              <path d="M3 5 L7 9 L11 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+          <div class="panel-body">
+            <p class="hint">Total completion time per instance, in minutes.</p>
+            <div class="filter-duration-row">
+              <input type="number" id="filter-duration-min" class="filter-number-input" min="0" placeholder="Min" />
+              <span class="filter-duration-sep">–</span>
+              <input type="number" id="filter-duration-max" class="filter-number-input" min="0" placeholder="Max" />
+            </div>
+            <p class="hint" id="filter-duration-range"></p>
+          </div>
+        </div>
+
+        <div class="panel">
+          <button class="panel-header" type="button" aria-expanded="true">
+            <h2>
+              By Task
+              <span class="subtype-count-badge" id="filter-task-count">0</span>
+            </h2>
+            <svg class="panel-chevron" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+              <path d="M3 5 L7 9 L11 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+          <div class="panel-body">
+            <p class="hint">Keep instances that include any of the selected tasks.</p>
+            <div class="filter-checklist" id="filter-task-list"></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <button class="panel-header" type="button" aria-expanded="true">
+            <h2>
+              By Path
+              <span class="subtype-count-badge" id="filter-path-count">0</span>
+            </h2>
+            <svg class="panel-chevron" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+              <path d="M3 5 L7 9 L11 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+          <div class="panel-body">
+            <p class="hint">Keep instances that followed any of the selected paths.</p>
+            <div class="filter-checklist" id="filter-path-list"></div>
           </div>
         </div>
       </div>
@@ -5990,8 +6148,18 @@ const MINOR_SHARE = 0.2;
 const MIN_MINOR_BRANCHES = 2;
 
 const state = {
-  cases: [],
-  model: null,
+  cases: [], // the currently active view — state.allCases narrowed by state.filters, or === state.allCases when no filter is active
+  model: null, // buildProcessModel(state.cases) — everything on screen (graph, Insights, task detail) reads this
+  allCases: [], // the full, unfiltered case log for the current dataset
+  baseModel: null, // buildProcessModel(state.allCases) — drives the filter panel's option lists so they don't shrink as filters narrow the view
+  filters: {
+    taskNames: new Set(),
+    variantSignatures: new Set(),
+    durationMin: null,
+    durationMax: null,
+    processIdQuery: '',
+    userIdQuery: '',
+  },
   threshold: 100, // Path Filter slider value 0-100 (0 = fewest deviations, 100 = all)
   highlight: null, // null | { kind: 'variant', value: variant } | { kind: 'node', value: nodeId }
   expandedBubbles: new Set(), // source node ids whose "N variants" bubble is currently expanded
@@ -6924,6 +7092,7 @@ function buildAISummaryHtml(model) {
 function openAISummary() {
   closeInsights();
   closeTaskDetail();
+  closeFilterPanel();
   const btn = document.getElementById('ai-summary-btn');
   const panel = document.getElementById('ai-summary-panel');
   const body = document.getElementById('ai-summary-body');
@@ -6952,6 +7121,7 @@ function closeAISummary() {
 function openInsights() {
   closeAISummary();
   closeTaskDetail();
+  closeFilterPanel();
   document.getElementById('insights-btn').classList.add('active');
   document.getElementById('insights-btn').setAttribute('aria-expanded', 'true');
   document.getElementById('insights-panel').classList.remove('hidden');
@@ -6984,6 +7154,7 @@ function openTaskDetail(taskId) {
   state.selectedSubtypeId = null;
   closeInsights();
   closeAISummary();
+  closeFilterPanel();
   d3.select('#task-detail-panel').classed('hidden', false);
   renderTaskDetail();
   syncTaskDetailLayout();
@@ -7015,7 +7186,12 @@ function renderTaskDetail() {
   const pathCount = model.variants.filter((v) => v.path.includes(taskId)).length;
 
   const meta = state.taskInsights && state.taskInsights.byTaskName.get(taskId);
-  const richInstances = state.taskInsights && state.taskInsights.instancesByTaskName.get(taskId);
+  // Rich per-instance detail is keyed straight off the raw upload, so it
+  // isn't narrowed by the active filters the way state.cases already is —
+  // restrict it to the case IDs the filters actually left in play.
+  const activeCaseIds = new Set(state.cases.map((c) => c.caseId));
+  const richInstancesAll = state.taskInsights && state.taskInsights.instancesByTaskName.get(taskId);
+  const richInstances = richInstancesAll && richInstancesAll.filter((r) => activeCaseIds.has(r.caseId));
 
   d3.select('#task-detail-title').text(taskId);
   d3.select('#task-detail-meta').text(
@@ -7179,13 +7355,182 @@ window.addEventListener('resize', syncTaskDetailLayout);
   });
 })();
 
+// ---- filter panel ----
+// state.allCases is always the full, unfiltered dataset; state.cases/state.model
+// are what's actually on screen. Applying a filter narrows allCases down into
+// cases and rebuilds the model from that — every other panel (graph, Insights,
+// task detail) already reads state.cases/state.model, so they follow for free.
+function resetFilters() {
+  state.filters = {
+    taskNames: new Set(),
+    variantSignatures: new Set(),
+    durationMin: null,
+    durationMax: null,
+    processIdQuery: '',
+    userIdQuery: '',
+  };
+  d3.select('#filter-process-id').property('value', '');
+  d3.select('#filter-user-id').property('value', '');
+  d3.select('#filter-duration-min').property('value', '');
+  d3.select('#filter-duration-max').property('value', '');
+  state.cases = state.allCases;
+  state.model = state.baseModel;
+}
+
+function getFilteredCases() {
+  const f = state.filters;
+  const hasTask = f.taskNames.size > 0;
+  const hasPath = f.variantSignatures.size > 0;
+  const pid = f.processIdQuery.trim().toLowerCase();
+  const uid = f.userIdQuery.trim().toLowerCase();
+  return state.allCases.filter((c) => {
+    if (hasTask && !c.steps.some((s) => f.taskNames.has(s.task))) return false;
+    if (hasPath && !f.variantSignatures.has(c.steps.map((s) => s.task).join(' → '))) return false;
+    if (f.durationMin != null && c.totalDuration < f.durationMin) return false;
+    if (f.durationMax != null && c.totalDuration > f.durationMax) return false;
+    if (pid && !c.caseId.toLowerCase().includes(pid)) return false;
+    if (uid && !(c.users || []).some((u) => String(u).toLowerCase().includes(uid))) return false;
+    return true;
+  });
+}
+
+// A filter combination that matches nothing would otherwise hand an empty
+// case list to buildProcessModel() — every ratio in there divides by
+// totalCases, so that's NaN and a crash waiting to happen (model.happyPath
+// is undefined). Instead, leave the map showing its last valid state and
+// just report the mismatch in the panel.
+function applyFilters() {
+  const filtered = getFilteredCases();
+  if (filtered.length) {
+    state.cases = filtered;
+    state.model = buildProcessModel(filtered);
+    state.highlight = null;
+    state.expandedBubbles = new Set();
+    state.comparison = null;
+    d3.select('#insight-compare-btn').classed('active', false);
+    render(true);
+    if (state.selectedTaskId) renderTaskDetail();
+  }
+  renderFilterPanel(filtered.length);
+}
+
+function renderFilterPanel(matchCountOverride) {
+  const base = state.baseModel;
+  if (!base) return;
+  const f = state.filters;
+  const matchCount = matchCountOverride != null ? matchCountOverride : state.cases.length;
+  const total = state.allCases.length;
+
+  d3.select('#filter-summary').text(
+    matchCount === total
+      ? `Showing all ${total} instance${total === 1 ? '' : 's'}.`
+      : matchCount
+        ? `Showing ${matchCount} of ${total} instance${total === 1 ? '' : 's'}.`
+        : `No instances match — showing the last matching view.`
+  );
+
+  const activeFacets = [f.taskNames.size > 0, f.variantSignatures.size > 0, f.durationMin != null || f.durationMax != null, !!f.processIdQuery.trim(), !!f.userIdQuery.trim()]
+    .filter(Boolean).length;
+  d3.select('#filter-count-badge').classed('hidden', activeFacets === 0).text(activeFacets);
+
+  const durations = state.allCases.map((c) => c.totalDuration);
+  d3.select('#filter-duration-range').text(
+    durations.length ? `Full range: ${formatDuration(Math.min(...durations))} – ${formatDuration(Math.max(...durations))}` : ''
+  );
+
+  d3.select('#filter-task-count').text(f.taskNames.size);
+  const taskItems = base.nodes.filter((n) => !n.virtual).slice().sort((a, b) => b.caseCount - a.caseCount);
+  const taskList = d3.select('#filter-task-list');
+  const taskSel = taskList.selectAll('.filter-checklist-item').data(taskItems, (n) => n.id);
+  taskSel.exit().remove();
+  const taskEnter = taskSel.enter().append('label').attr('class', 'filter-checklist-item');
+  taskEnter.append('input').attr('type', 'checkbox');
+  taskEnter.append('span').attr('class', 'filter-checklist-item-label');
+  taskEnter.append('span').attr('class', 'filter-checklist-item-count');
+  const taskMerged = taskEnter.merge(taskSel);
+  taskMerged.attr('class', (n) => `filter-checklist-item${f.taskNames.has(n.id) ? ' checked' : ''}`);
+  taskMerged.select('input').property('checked', (n) => f.taskNames.has(n.id)).on('change', (event, n) => {
+    if (f.taskNames.has(n.id)) f.taskNames.delete(n.id); else f.taskNames.add(n.id);
+    applyFilters();
+  });
+  taskMerged.select('.filter-checklist-item-label').text((n) => n.label);
+  taskMerged.select('.filter-checklist-item-count').text((n) => `${n.caseCount}`);
+
+  d3.select('#filter-path-count').text(f.variantSignatures.size);
+  const pathList = d3.select('#filter-path-list');
+  const pathSel = pathList.selectAll('.filter-checklist-item').data(base.variants, (v) => v.signature);
+  pathSel.exit().remove();
+  const pathEnter = pathSel.enter().append('label').attr('class', 'filter-checklist-item');
+  pathEnter.append('input').attr('type', 'checkbox');
+  const pathLabelWrap = pathEnter.append('span').attr('class', 'filter-checklist-item-label');
+  pathLabelWrap.append('div');
+  pathLabelWrap.append('div').attr('class', 'filter-checklist-item-path');
+  pathEnter.append('span').attr('class', 'filter-checklist-item-count');
+  const pathMerged = pathEnter.merge(pathSel);
+  pathMerged.attr('class', (v) => `filter-checklist-item${f.variantSignatures.has(v.signature) ? ' checked' : ''}`);
+  pathMerged.select('input').property('checked', (v) => f.variantSignatures.has(v.signature)).on('change', (event, v) => {
+    if (f.variantSignatures.has(v.signature)) f.variantSignatures.delete(v.signature); else f.variantSignatures.add(v.signature);
+    applyFilters();
+  });
+  pathMerged.select('.filter-checklist-item-label > div:first-child').text((v) => `#${v.rank} · ${(v.pct * 100).toFixed(1)}%`);
+  pathMerged.select('.filter-checklist-item-path').text((v) => v.path.join(' → '));
+  pathMerged.select('.filter-checklist-item-count').text((v) => pluralCases(v.count));
+}
+
+function openFilterPanel() {
+  closeInsights();
+  closeAISummary();
+  closeTaskDetail();
+  document.getElementById('filter-btn').classList.add('active');
+  document.getElementById('filter-btn').setAttribute('aria-expanded', 'true');
+  document.getElementById('filter-panel').classList.remove('hidden');
+  renderFilterPanel();
+}
+
+function closeFilterPanel() {
+  document.getElementById('filter-btn').classList.remove('active');
+  document.getElementById('filter-btn').setAttribute('aria-expanded', 'false');
+  document.getElementById('filter-panel').classList.add('hidden');
+}
+
+d3.select('#filter-btn').on('click', () => {
+  const panel = document.getElementById('filter-panel');
+  if (panel.classList.contains('hidden')) openFilterPanel();
+  else closeFilterPanel();
+});
+d3.select('#filter-close').on('click', closeFilterPanel);
+d3.select('#filter-reset').on('click', () => {
+  resetFilters();
+  render(true);
+  renderFilterPanel();
+});
+d3.select('#filter-process-id').on('input', function () {
+  state.filters.processIdQuery = this.value;
+  applyFilters();
+});
+d3.select('#filter-user-id').on('input', function () {
+  state.filters.userIdQuery = this.value;
+  applyFilters();
+});
+d3.select('#filter-duration-min').on('input', function () {
+  state.filters.durationMin = this.value === '' ? null : Number(this.value);
+  applyFilters();
+});
+d3.select('#filter-duration-max').on('input', function () {
+  state.filters.durationMax = this.value === '' ? null : Number(this.value);
+  applyFilters();
+});
+
 function regenerate(numCases) {
-  state.cases = generateEventLog(numCases);
-  state.model = buildProcessModel(state.cases);
+  state.allCases = generateEventLog(numCases);
+  state.baseModel = buildProcessModel(state.allCases);
+  resetFilters();
   state.highlight = null;
   state.taskInsights = null;
   closeTaskDetail();
+  closeFilterPanel();
   setUploadStatus('');
+  renderFilterPanel();
   render(true);
 }
 
@@ -7211,8 +7556,9 @@ function handleUploadFile(file) {
     }
     try {
       const cases = normalizeCaseLog(raw);
-      state.cases = cases;
-      state.model = buildProcessModel(cases);
+      state.allCases = cases;
+      state.baseModel = buildProcessModel(cases);
+      resetFilters();
       state.highlight = null;
       state.threshold = 100;
       state.expandedBubbles = new Set();
@@ -7223,6 +7569,8 @@ function handleUploadFile(file) {
       closeTaskMenu();
       closeSessionReplay();
       closeTaskDetail();
+      closeFilterPanel();
+      renderFilterPanel();
       setUploadStatus(`Loaded ${cases.length} instance${cases.length === 1 ? '' : 's'} from "${file.name}".`, 'success');
       render(true);
       setTimeout(closeImportModal, 700);
@@ -7281,6 +7629,7 @@ d3.select(document).on('keydown.sessionReplay', (event) => {
   if (!d3.select('#session-replay-modal').classed('hidden')) closeSessionReplay();
   else if (!d3.select('#task-menu').classed('hidden')) closeTaskMenu();
   else if (!d3.select('#task-detail-panel').classed('hidden')) closeTaskDetail();
+  else if (!d3.select('#filter-panel').classed('hidden')) closeFilterPanel();
 });
 
 // ---- task "..." menu ----
@@ -7847,10 +8196,12 @@ if (selectedProcessDataRaw) {
   try {
     const rawHandoff = JSON.parse(selectedProcessDataRaw);
     const cases = normalizeCaseLog(rawHandoff);
-    state.cases = cases;
-    state.model = buildProcessModel(cases);
+    state.allCases = cases;
+    state.baseModel = buildProcessModel(cases);
+    resetFilters();
     state.highlight = null;
     state.taskInsights = (typeof extractTaskInsights === 'function') ? extractTaskInsights(rawHandoff) : null;
+    renderFilterPanel();
     render(true);
     loadedFromHandoff = true;
   } catch (err) {
