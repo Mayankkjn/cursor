@@ -339,35 +339,52 @@ body.app-fullscreen .side-drawer { top: 64px; right: 16px; }
   letter-spacing: normal;
 }
 
-.subtype-list { display: flex; flex-direction: column; gap: 6px; }
-.subtype-item {
+.subtype-accordion-list { display: flex; flex-direction: column; gap: 8px; }
+.subtype-accordion-item {
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+.subtype-accordion-item.expanded { border-color: var(--accent-ui); }
+.subtype-accordion-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
   gap: 10px;
-  border: 1px solid var(--panel-border);
-  border-radius: 10px;
-  padding: 10px 12px;
+  width: 100%;
+  background: var(--card-bg);
+  border: none;
+  padding: 12px 14px;
   cursor: pointer;
   font: inherit;
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  background: var(--card-bg);
   text-align: left;
-  transition: border-color 0.15s, background 0.15s;
 }
-.subtype-item:hover { border-color: var(--accent-ui); }
-.subtype-item.active { border-color: var(--accent-ui); border-width: 2px; }
-.subtype-item-count {
-  font-weight: 500;
-  font-size: 0.76rem;
-  color: var(--text-secondary);
+.subtype-accordion-header:hover { background: var(--bg); }
+.subtype-accordion-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
   background: var(--bg);
-  border-radius: 100px;
-  padding: 3px 10px;
+  color: var(--text-secondary);
   flex-shrink: 0;
 }
+.subtype-accordion-title { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.subtype-accordion-name { font-size: 0.84rem; font-weight: 700; color: var(--text-primary); }
+.subtype-accordion-count { font-size: 0.74rem; color: var(--text-secondary); }
+.subtype-accordion-chevron { color: var(--text-tertiary); flex-shrink: 0; display: flex; transition: transform 0.15s ease; }
+.subtype-accordion-item.expanded .subtype-accordion-chevron { transform: rotate(180deg); color: var(--accent-ui); }
+.subtype-accordion-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--bg);
+  padding: 12px;
+  border-top: 1px solid var(--panel-border);
+}
+.subtype-accordion-body .instance-card { background: var(--card-bg); }
 
 .instance-list { display: flex; flex-direction: column; gap: 10px; }
 .instance-card { border: 1px solid var(--panel-border); border-radius: 10px; padding: 12px; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
@@ -1795,10 +1812,10 @@ button:hover { filter: brightness(1.08); }
       </div>
       <div id="task-detail-subtype-section" class="task-detail-section hidden">
         <h3 class="task-detail-section-title">
-          Breakdown by Subtype
+          Task Subtype
           <span class="subtype-count-badge" id="task-detail-subtype-count">0</span>
         </h3>
-        <div class="subtype-list" id="task-detail-subtype-list"></div>
+        <div class="subtype-accordion-list" id="task-detail-subtype-list"></div>
       </div>
       <div class="task-detail-section">
         <h3 class="task-detail-section-title">Applications Involved</h3>
@@ -1812,8 +1829,7 @@ button:hover { filter: brightness(1.08); }
         <h3 class="task-detail-section-title">Trend Over Time</h3>
         <div id="task-detail-trend-body"></div>
       </div>
-      <div class="task-detail-section">
-        <h3 class="task-detail-section-title hidden" id="task-detail-instances-title"></h3>
+      <div class="task-detail-section" id="task-detail-instances-section">
         <div class="instance-list" id="task-detail-instance-list"></div>
       </div>
     </div>
@@ -6406,7 +6422,7 @@ const state = {
   expandedBubbles: new Set(), // source node ids whose "N variants" bubble is currently expanded
   comparison: null, // null | result of computeFastVsTypical() when "Compare to typical" is active
   selectedTaskId: null, // task id whose detail panel is open, or null
-  selectedSubtypeId: null, // subtype filter active within the open detail panel, or null
+  expandedSubtypeIds: new Set(), // subtype ids currently expanded in the Task Subtype accordion
   taskInsights: null, // null | { byTaskName, instancesByTaskName } from extractTaskInsights() — only present when the raw upload was a task-catalog export
 };
 
@@ -7404,9 +7420,34 @@ function getTaskInstanceRows(taskLabel) {
   return rows;
 }
 
+const SUBTYPE_ICON_SVG = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 3 V8 A2 2 0 0 0 6 10 H10 M4 3 L2.3 4.7 M4 3 L5.7 4.7 M10 10 L11.7 11.7 M10 10 L8.3 11.7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" /></svg>';
+const CHEVRON_DOWN_SVG = '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M3 5 L7 9 L11 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>';
+
+// Every instance card — whether nested in a Task Subtype accordion row or in
+// the plain fallback list — is labeled by which path (variant) it took,
+// reusing the same Path A/B/C convention as the Filter panel, since that's
+// real and derivable for any case regardless of whether the upload carries
+// rich per-instance detail.
+function instancePathLabel(caseId) {
+  const variant = state.model.variants.find((v) => v.caseIds.includes(caseId));
+  return variant ? `Path ${pathLetterLabel(variant.rank)}` : null;
+}
+
+function appendInstanceCard(container, { caseId, idLabel, durationMinutes, text, tag }) {
+  const isActive = state.highlight && state.highlight.kind === 'variant' && state.highlight.value.caseIds.includes(caseId);
+  const card = container.append('div')
+    .attr('class', `instance-card${isActive ? ' active' : ''}`)
+    .on('click', () => selectInstance(caseId));
+  if (tag) card.append('span').attr('class', 'instance-card-tag').text(tag);
+  const top = card.append('div').attr('class', 'instance-card-top');
+  top.append('span').attr('class', 'instance-card-id').text(idLabel);
+  top.append('span').attr('class', 'instance-card-duration').text(formatDuration(durationMinutes));
+  if (text) card.append('p').attr('class', 'instance-card-text').text(text);
+}
+
 function openTaskDetail(taskId) {
   state.selectedTaskId = taskId;
-  state.selectedSubtypeId = null;
+  state.expandedSubtypeIds = new Set();
   closeInsights();
   closeAISummary();
   closeFilterPanel();
@@ -7423,7 +7464,7 @@ function closeTaskDetail() {
     return;
   }
   state.selectedTaskId = null;
-  state.selectedSubtypeId = null;
+  state.expandedSubtypeIds = new Set();
   d3.select('#task-detail-panel').classed('hidden', true);
   syncTaskDetailLayout();
   render();
@@ -7453,22 +7494,16 @@ function renderTaskDetail() {
     `${pluralCases(node.caseCount)} · ${uniqueUsers.size} unique user${uniqueUsers.size === 1 ? '' : 's'} · ${pathCount} path${pathCount === 1 ? '' : 's'}`
   );
 
-  // Task Details stat grid — everything here comes straight from the
-  // process model (real, for any uploaded log); Error Rate is the one
-  // exception, since nothing in this app's data model captures task
-  // failure/success, so it's shown as explicitly untracked rather than
-  // invented from something that isn't actually an error signal.
+  // Task Details stat grid — all straight from the process model, real for
+  // any uploaded log.
   const pct = (n) => `${(n * 100).toFixed(0)}%`;
   const taskStats = [
     { label: 'Total Executions', value: `${node.visits}` },
     { label: 'Unique Users', value: `${uniqueUsers.size}` },
     { label: 'Frequency', value: `${pct(node.casePct)} of instances` },
-    { label: 'Avg Duration', value: formatDuration(node.avgDuration) },
     { label: 'Median Duration', value: formatDuration(node.medianDuration) },
-    { label: 'Min / Max Duration', value: `${formatDuration(node.minDuration)} – ${formatDuration(node.maxDuration)}` },
     { label: 'Rework Rate', value: pct(node.reworkRate) },
     { label: 'Deviation Rate', value: pct(node.deviationRate) },
-    { label: 'Error Rate', value: 'Not tracked in this data', muted: true },
   ];
   const statSel = d3.select('#task-detail-stats').selectAll('.task-stat').data(taskStats, (d) => d.label);
   statSel.exit().remove();
@@ -7555,92 +7590,93 @@ function renderTaskDetail() {
     trendBody.append('p').attr('class', 'task-detail-muted-note').text('Not available — this dataset has no per-instance timestamps.');
   }
 
+  const MAX_SHOWN = 50;
   const subtypeSection = d3.select('#task-detail-subtype-section');
   const subtypeCatalog = meta && meta.subtypes && meta.subtypes.length ? meta.subtypes : null;
   let subtypesWithCounts = null;
+  let instancesBySubtype = null;
   if (subtypeCatalog && richInstances && richInstances.length) {
-    const countBySubtype = new Map();
+    instancesBySubtype = new Map();
     richInstances.forEach((inst) => {
       if (!inst.subtypeId) return;
-      countBySubtype.set(inst.subtypeId, (countBySubtype.get(inst.subtypeId) || 0) + 1);
+      const list = instancesBySubtype.get(inst.subtypeId) || [];
+      list.push(inst);
+      instancesBySubtype.set(inst.subtypeId, list);
     });
     subtypesWithCounts = subtypeCatalog
-      .map((s) => ({ ...s, count: countBySubtype.get(s.id) || 0 }))
+      .map((s) => ({ ...s, count: (instancesBySubtype.get(s.id) || []).length }))
       .filter((s) => s.count > 0)
       .sort((a, b) => b.count - a.count);
   }
+
+  const instanceListSel = d3.select('#task-detail-instance-list');
+  instanceListSel.selectAll('*').remove();
 
   if (subtypesWithCounts && subtypesWithCounts.length) {
     subtypeSection.classed('hidden', false);
     d3.select('#task-detail-subtype-count').text(subtypesWithCounts.length);
 
+    // The fallback flat list only exists for tasks with no subtype catalog —
+    // once a task has subtypes, its instances live nested inside each
+    // subtype's own accordion row instead.
+    d3.select('#task-detail-instances-section').classed('hidden', true);
+
     const list = d3.select('#task-detail-subtype-list');
-    const items = list.selectAll('.subtype-item').data(subtypesWithCounts, (s) => s.id);
-    items.exit().remove();
-    const enter = items.enter().append('button').attr('class', 'subtype-item').attr('type', 'button');
-    enter.append('span').attr('class', 'subtype-item-name');
-    enter.append('span').attr('class', 'subtype-item-count');
-    const merged = enter.merge(items);
-    merged
-      .attr('class', (s) => `subtype-item${state.selectedSubtypeId === s.id ? ' active' : ''}`)
-      .on('click', (event, s) => {
-        state.selectedSubtypeId = state.selectedSubtypeId === s.id ? null : s.id;
-        renderTaskDetail();
-      });
-    merged.select('.subtype-item-name').text((s) => s.name);
-    merged.select('.subtype-item-count').text((s) => `${s.count} instance${s.count === 1 ? '' : 's'}`);
+    list.selectAll('*').remove();
+    subtypesWithCounts.forEach((s) => {
+      const expanded = state.expandedSubtypeIds.has(s.id);
+      const item = list.append('div').attr('class', `subtype-accordion-item${expanded ? ' expanded' : ''}`);
+      const header = item.append('button').attr('class', 'subtype-accordion-header').attr('type', 'button')
+        .on('click', () => {
+          if (state.expandedSubtypeIds.has(s.id)) state.expandedSubtypeIds.delete(s.id);
+          else state.expandedSubtypeIds.add(s.id);
+          renderTaskDetail();
+        });
+      header.append('span').attr('class', 'subtype-accordion-icon').html(SUBTYPE_ICON_SVG);
+      const titleWrap = header.append('span').attr('class', 'subtype-accordion-title');
+      titleWrap.append('span').attr('class', 'subtype-accordion-name').text(s.name);
+      titleWrap.append('span').attr('class', 'subtype-accordion-count').text(`${s.count} instance${s.count === 1 ? '' : 's'}`);
+      header.append('span').attr('class', 'subtype-accordion-chevron').html(CHEVRON_DOWN_SVG);
+
+      if (expanded) {
+        const body = item.append('div').attr('class', 'subtype-accordion-body');
+        const instances = instancesBySubtype.get(s.id) || [];
+        instances.slice(0, MAX_SHOWN).forEach((r) => {
+          const pathLabel = instancePathLabel(r.caseId);
+          const idText = r.ticketId ? `Ticket #${r.ticketId}` : r.caseId;
+          appendInstanceCard(body, {
+            caseId: r.caseId,
+            idLabel: pathLabel ? `${pathLabel} · ${idText}` : idText,
+            durationMinutes: r.durationMinutes,
+            text: r.reasoning,
+          });
+        });
+        if (instances.length > MAX_SHOWN) {
+          body.append('p').attr('class', 'hint').text(`Showing ${MAX_SHOWN} of ${instances.length} instances.`);
+        }
+      }
+    });
   } else {
     subtypeSection.classed('hidden', true);
-    state.selectedSubtypeId = null;
-  }
+    state.expandedSubtypeIds = new Set();
 
-  const activeSubtype = subtypesWithCounts && state.selectedSubtypeId
-    ? subtypesWithCounts.find((s) => s.id === state.selectedSubtypeId)
-    : null;
-  d3.select('#task-detail-instances-title')
-    .classed('hidden', !activeSubtype)
-    .text(activeSubtype ? `Instances — ${activeSubtype.name}` : '');
-
-  const instanceListSel = d3.select('#task-detail-instance-list');
-  instanceListSel.selectAll('*').remove();
-  const MAX_SHOWN = 50;
-  const isInstanceActive = (caseId) => state.highlight && state.highlight.kind === 'variant' && state.highlight.value.caseIds.includes(caseId);
-
-  if (richInstances && richInstances.length) {
-    const filtered = state.selectedSubtypeId
-      ? richInstances.filter((r) => r.subtypeId === state.selectedSubtypeId)
-      : richInstances;
-    filtered.slice(0, MAX_SHOWN).forEach((r) => {
-      const card = instanceListSel.append('div')
-        .attr('class', `instance-card${isInstanceActive(r.caseId) ? ' active' : ''}`)
-        .on('click', () => selectInstance(r.caseId));
-      if (r.subtypeName) card.append('span').attr('class', 'instance-card-tag').text(r.subtypeName);
-      const top = card.append('div').attr('class', 'instance-card-top');
-      top.append('span').attr('class', 'instance-card-id').text(r.ticketId ? `Ticket #${r.ticketId}` : r.caseId);
-      top.append('span').attr('class', 'instance-card-duration').text(formatDuration(r.durationMinutes));
-      if (r.reasoning) card.append('p').attr('class', 'instance-card-text').text(r.reasoning);
-    });
-    if (filtered.length > MAX_SHOWN) {
-      instanceListSel.append('p').attr('class', 'hint').text(`Showing ${MAX_SHOWN} of ${filtered.length} instances.`);
+    d3.select('#task-detail-instances-section').classed('hidden', false);
+    if (rows.length) {
+      rows.slice(0, MAX_SHOWN).forEach((r) => {
+        const pathLabel = instancePathLabel(r.caseId);
+        appendInstanceCard(instanceListSel, {
+          caseId: r.caseId,
+          idLabel: pathLabel ? `${pathLabel} · ${r.caseId}` : r.caseId,
+          durationMinutes: r.duration,
+          text: r.users.length ? `User: ${r.users.join(', ')}` : '',
+        });
+      });
+      if (rows.length > MAX_SHOWN) {
+        instanceListSel.append('p').attr('class', 'hint').text(`Showing ${MAX_SHOWN} of ${rows.length} instances.`);
+      }
+    } else {
+      instanceListSel.append('p').attr('class', 'hint').text('No instance data available for this task.');
     }
-    if (!filtered.length) {
-      instanceListSel.append('p').attr('class', 'hint').text('No instances match this subtype.');
-    }
-  } else if (rows.length) {
-    rows.slice(0, MAX_SHOWN).forEach((r) => {
-      const card = instanceListSel.append('div')
-        .attr('class', `instance-card${isInstanceActive(r.caseId) ? ' active' : ''}`)
-        .on('click', () => selectInstance(r.caseId));
-      const top = card.append('div').attr('class', 'instance-card-top');
-      top.append('span').attr('class', 'instance-card-id').text(r.caseId);
-      top.append('span').attr('class', 'instance-card-duration').text(formatDuration(r.duration));
-      if (r.users.length) card.append('p').attr('class', 'instance-card-text').text(`User: ${r.users.join(', ')}`);
-    });
-    if (rows.length > MAX_SHOWN) {
-      instanceListSel.append('p').attr('class', 'hint').text(`Showing ${MAX_SHOWN} of ${rows.length} instances.`);
-    }
-  } else {
-    instanceListSel.append('p').attr('class', 'hint').text('No instance data available for this task.');
   }
 }
 
