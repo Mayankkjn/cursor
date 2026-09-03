@@ -37,6 +37,9 @@ const state = {
   selectedTaskId: null, // task id whose detail panel is open, or null
   expandedSubtypeIds: new Set(), // subtype ids currently expanded in the Task Subtype accordion
   taskInsights: null, // null | { byTaskName, instancesByTaskName } from extractTaskInsights() — only present when the raw upload was a task-catalog export
+  expandedOpportunityIds: new Set(), // task ids currently expanded in the Automation Opportunities list
+  opportunitySort: 'impact', // 'impact' | 'score' | 'frequency' — how the Automation Opportunities list is ordered
+  opportunityShowAll: false, // false = only the top OPPORTUNITY_PAGE_SIZE shown, true = the full ranked list
 };
 
 const svg = d3.select('#graph');
@@ -977,6 +980,7 @@ function openAISummary() {
   closeInsights();
   closeTaskDetail();
   closeFilterPanel();
+  closeAutomationOpportunities();
   const btn = document.getElementById('ai-summary-btn');
   const panel = document.getElementById('ai-summary-panel');
   const body = document.getElementById('ai-summary-body');
@@ -1006,6 +1010,7 @@ function openInsights() {
   closeAISummary();
   closeTaskDetail();
   closeFilterPanel();
+  closeAutomationOpportunities();
   document.getElementById('insights-btn').classList.add('active');
   document.getElementById('insights-btn').setAttribute('aria-expanded', 'true');
   document.getElementById('insights-panel').classList.remove('hidden');
@@ -1015,6 +1020,132 @@ function closeInsights() {
   document.getElementById('insights-btn').classList.remove('active');
   document.getElementById('insights-btn').setAttribute('aria-expanded', 'false');
   document.getElementById('insights-panel').classList.add('hidden');
+}
+
+// ---- automation opportunities panel ----
+// Ranks every real task in the active (filtered) view as an automation
+// candidate, using the exact same scoring function as the per-task
+// Automation tab — this list is just that same assessment applied to
+// every task at once, sorted so the biggest opportunities surface first.
+const OPPORTUNITY_PAGE_SIZE = 5;
+
+function openAutomationOpportunities() {
+  closeInsights();
+  closeAISummary();
+  closeTaskDetail();
+  closeFilterPanel();
+  state.opportunityShowAll = false;
+  document.getElementById('automation-opps-btn').classList.add('active');
+  document.getElementById('automation-opps-btn').setAttribute('aria-expanded', 'true');
+  document.getElementById('automation-opps-panel').classList.remove('hidden');
+  // Only default-expand the top opportunity the first time the panel is
+  // opened in a session — re-deriving this on every render would fight the
+  // user the moment they collapse the last open card.
+  if (state.expandedOpportunityIds.size === 0) {
+    const top = buildOpportunityList().sort((a, b) => b.node.totalTime - a.node.totalTime)[0];
+    if (top) state.expandedOpportunityIds.add(top.node.id);
+  }
+  renderAutomationOpportunities();
+}
+
+function closeAutomationOpportunities() {
+  document.getElementById('automation-opps-btn').classList.remove('active');
+  document.getElementById('automation-opps-btn').setAttribute('aria-expanded', 'false');
+  document.getElementById('automation-opps-panel').classList.add('hidden');
+}
+
+function buildOpportunityList() {
+  const model = state.model;
+  return model.nodes
+    .filter((n) => !n.virtual)
+    .map((node) => {
+      const meta = state.taskInsights && state.taskInsights.byTaskName.get(node.id);
+      const m = computeAutomationMetrics(node, meta);
+      return { node, meta, ...m };
+    });
+}
+
+function renderAutomationOpportunities() {
+  const sortFns = {
+    impact: (a, b) => b.node.totalTime - a.node.totalTime,
+    score: (a, b) => b.score - a.score,
+    frequency: (a, b) => b.node.casePct - a.node.casePct,
+  };
+  const items = buildOpportunityList().sort(sortFns[state.opportunitySort] || sortFns.impact);
+
+  d3.select('#automation-opps-count').text(`${items.length} opportunit${items.length === 1 ? 'y' : 'ies'} found`);
+  d3.select('#automation-opps-sort-select').property('value', state.opportunitySort);
+
+  const shown = state.opportunityShowAll ? items : items.slice(0, OPPORTUNITY_PAGE_SIZE);
+  const list = d3.select('#automation-opps-list');
+  list.selectAll('*').remove();
+
+  if (!items.length) {
+    list.append('p').attr('class', 'task-detail-muted-note').text('No tasks in the current view to assess.');
+    d3.select('#automation-opps-view-all').classed('hidden', true);
+    return;
+  }
+
+  shown.forEach((item, i) => {
+    const { node, meta, score, tier, tierLabel, reasonText, verdict } = item;
+    const expanded = state.expandedOpportunityIds.has(node.id);
+    const card = list.append('div').attr('class', `opp-card${expanded ? ' expanded' : ''}`);
+
+    const header = card.append('button').attr('class', 'opp-card-header').attr('type', 'button')
+      .attr('aria-expanded', String(expanded))
+      .on('click', () => {
+        if (state.expandedOpportunityIds.has(node.id)) state.expandedOpportunityIds.delete(node.id);
+        else state.expandedOpportunityIds.add(node.id);
+        renderAutomationOpportunities();
+      });
+    header.append('span').attr('class', 'opp-rank-badge').text(i + 1);
+    const titleGroup = header.append('span').attr('class', 'opp-title-group');
+    titleGroup.append('span').attr('class', 'opp-title').text(node.label);
+    titleGroup.append('span').attr('class', 'opp-subtitle').text(`${formatDuration(node.totalTime)} potential savings (total)`);
+    header.append('span').attr('class', `opp-score-pill ${tier}`).html(`<strong>${score}</strong> ${tierLabel}`);
+    header.append('span').attr('class', 'opp-chevron').html(CHEVRON_DOWN_SVG);
+
+    if (!expanded) return;
+
+    const body = card.append('div').attr('class', 'opp-card-body');
+
+    const whySection = body.append('div').attr('class', 'task-detail-section');
+    whySection.append('h4').attr('class', 'task-detail-section-title')
+      .text(tier === 'low' ? 'Why not to automate?' : 'Why automate?');
+    const whyGrid = whySection.append('div').attr('class', 'task-stat-grid');
+    renderWhyAutomateTiles(whyGrid, node, meta, item);
+
+    const lens = body.append('div').attr('class', 'opp-lens-found');
+    lens.append('h4').attr('class', 'task-detail-section-title').text('Lens found');
+    lens.append('p').text(`This task is ${verdict} due to ${reasonText}.`);
+
+    const impact = body.append('div').attr('class', 'automation-impact-card');
+    impact.append('div').attr('class', 'automation-impact-heading').text('Potential impact');
+    const impactRow = impact.append('div').attr('class', 'automation-impact-row');
+    const impactTime = impactRow.append('div');
+    impactTime.append('div').attr('class', 'automation-impact-value').text(formatDuration(node.totalTime));
+    impactTime.append('div').attr('class', 'automation-impact-label').text('time saved (total)');
+    impactRow.append('div').attr('class', 'automation-impact-sep');
+    const impactPct = impactRow.append('div');
+    impactPct.append('div').attr('class', 'automation-impact-value').text('100%');
+    impactPct.append('div').attr('class', 'automation-impact-label').text('est. automation coverage');
+
+    const footer = body.append('div').attr('class', 'opp-card-footer');
+    footer.append('button').attr('class', 'task-detail-footer-btn').attr('type', 'button')
+      .text('Investigate')
+      .on('click', () => { openTaskDetail(node.id); setTaskDetailTab('automation'); });
+    footer.append('button').attr('class', 'task-detail-footer-btn').attr('type', 'button')
+      .text('Watch replay')
+      .on('click', () => openSessionReplay(node.id));
+    // "Automate with Seek" is an intentionally inert placeholder CTA, same
+    // as its counterpart on the per-task Automation tab — no real
+    // automation integration sits behind this app.
+    footer.append('button').attr('class', 'task-detail-footer-btn primary').attr('type', 'button').text('Automate with Seek →');
+  });
+
+  d3.select('#automation-opps-view-all')
+    .classed('hidden', items.length <= OPPORTUNITY_PAGE_SIZE)
+    .text(state.opportunityShowAll ? 'Show less ↑' : 'View all opportunities →');
 }
 
 // ---- task detail panel ----
@@ -1064,6 +1195,7 @@ function openTaskDetail(taskId) {
   closeInsights();
   closeAISummary();
   closeFilterPanel();
+  closeAutomationOpportunities();
   setTaskDetailTab('overview');
   d3.select('#task-detail-panel').classed('hidden', false);
   renderTaskDetail();
@@ -1313,14 +1445,46 @@ function buildStatTile(container, { label, value, sub, muted }) {
   if (sub) tile.append('span').attr('class', 'task-stat-sub').text(sub);
 }
 
+// The 9-tile "why automate" stat grid, shared by the per-task Automation
+// tab and each card in the Automation Opportunities list — one place
+// computing what "why automate this task" means.
+function renderWhyAutomateTiles(container, node, meta, m) {
+  const pct = (n) => `${(n * 100).toFixed(0)}%`;
+  buildStatTile(container, { label: 'Frequency', value: pct(m.frequency), sub: 'of all instances' });
+  buildStatTile(container, { label: 'Consistency', value: pct(m.consistency), sub: 'same pattern' });
+  buildStatTile(container, { label: 'Executions', value: `${node.visits}`, sub: 'total' });
+  buildStatTile(container, { label: 'Avg Duration', value: formatDuration(node.avgDuration), sub: 'per execution' });
+  buildStatTile(container, {
+    label: 'Rework Rate',
+    value: pct(node.reworkRate),
+    sub: node.reworkCaseCount ? `${pluralCases(node.reworkCaseCount)} reworked` : 'no rework',
+  });
+  buildStatTile(container, {
+    label: 'Human Judgment',
+    value: m.judgment,
+    sub: m.judgment === 'Low' ? 'rules based' : m.judgment === 'Medium' ? 'some judgment needed' : 'case-by-case',
+  });
+  buildStatTile(container, meta && meta.appId
+    ? { label: 'Applications', value: '1', sub: meta.appId }
+    : { label: 'Applications', value: 'Not tracked', sub: 'in this dataset', muted: true });
+  buildStatTile(container, { label: 'Error Rate', value: 'Not tracked', sub: 'in this data', muted: true });
+  buildStatTile(container, {
+    label: 'Deviation Rate',
+    value: pct(node.deviationRate),
+    sub: node.deviationCaseCount ? `${pluralCases(node.deviationCaseCount)} deviate` : 'no deviations',
+  });
+}
+
 // Automation Opportunity: a transparent, deterministic blend of signals
 // already shown as real stats elsewhere in this panel (frequency,
 // consistency = 1 - deviation rate, rework rate) — nothing here is
 // invented. The one soft signal is "human judgment", proxied by how many
 // distinct ways the task gets carried out: more subtypes (or, lacking
 // subtype data, more deviation) implies more situational judgment.
-function renderAutomationTab(node, meta, uniqueUsers) {
-  const pct = (n) => `${(n * 100).toFixed(0)}%`;
+// Shared by the per-task Automation tab and the cross-task Automation
+// Opportunities list, so every score shown anywhere in the app comes from
+// exactly one formula.
+function computeAutomationMetrics(node, meta) {
   const consistency = 1 - node.deviationRate;
   const frequency = node.casePct;
   const reworkFactor = 1 - node.reworkRate;
@@ -1336,16 +1500,24 @@ function renderAutomationTab(node, meta, uniqueUsers) {
   const tierLabel = tier === 'high' ? 'High' : tier === 'medium' ? 'Medium' : 'Low';
   const tierColorVar = tier === 'high' ? 'var(--path-main)' : tier === 'medium' ? 'var(--rework)' : 'var(--flag-end-fg)';
 
-  d3.selectAll('.automation-tier-badge').attr('class', `automation-tier-badge ${tier}`).text(tierLabel);
-  d3.selectAll('.automation-score').html(`${score} <span>/100</span>`);
-  updateAutomationGauge(score / 100, tierColorVar);
-
   const reasonParts = [];
   if (consistency >= 0.8) reasonParts.push('its consistency');
   if (judgment === 'Low') reasonParts.push('low need for human judgement');
   if (node.reworkRate < 0.05) reasonParts.push('minimal rework');
   const reasonText = reasonParts.length ? reasonParts.join(' and ') : 'a mix of moderate consistency and judgment needs';
   const verdict = tier === 'high' ? 'highly automatable' : tier === 'medium' ? 'a moderate automation candidate' : 'a weaker automation candidate';
+
+  return { consistency, frequency, reworkFactor, subtypeCount, judgment, judgmentFactor, score, tier, tierLabel, tierColorVar, reasonText, verdict };
+}
+
+function renderAutomationTab(node, meta, uniqueUsers) {
+  const m = computeAutomationMetrics(node, meta);
+  const { score, tier, tierLabel, tierColorVar, reasonText, verdict } = m;
+
+  d3.selectAll('.automation-tier-badge').attr('class', `automation-tier-badge ${tier}`).text(tierLabel);
+  d3.selectAll('.automation-score').html(`${score} <span>/100</span>`);
+  updateAutomationGauge(score / 100, tierColorVar);
+
   d3.selectAll('.automation-opportunity-text').text(
     `This task is ${verdict} due to ${reasonText}, potentially saving ~${formatDuration(node.totalTime)} effort.`
   );
@@ -1354,29 +1526,7 @@ function renderAutomationTab(node, meta, uniqueUsers) {
 
   const whyGrid = d3.select('#automation-why-grid');
   whyGrid.selectAll('*').remove();
-  buildStatTile(whyGrid, { label: 'Frequency', value: pct(frequency), sub: 'of all instances' });
-  buildStatTile(whyGrid, { label: 'Consistency', value: pct(consistency), sub: 'same pattern' });
-  buildStatTile(whyGrid, { label: 'Executions', value: `${node.visits}`, sub: 'total' });
-  buildStatTile(whyGrid, { label: 'Avg Duration', value: formatDuration(node.avgDuration), sub: 'per execution' });
-  buildStatTile(whyGrid, {
-    label: 'Rework Rate',
-    value: pct(node.reworkRate),
-    sub: node.reworkCaseCount ? `${pluralCases(node.reworkCaseCount)} reworked` : 'no rework',
-  });
-  buildStatTile(whyGrid, {
-    label: 'Human Judgment',
-    value: judgment,
-    sub: judgment === 'Low' ? 'rules based' : judgment === 'Medium' ? 'some judgment needed' : 'case-by-case',
-  });
-  buildStatTile(whyGrid, meta && meta.appId
-    ? { label: 'Applications', value: '1', sub: meta.appId }
-    : { label: 'Applications', value: 'Not tracked', sub: 'in this dataset', muted: true });
-  buildStatTile(whyGrid, { label: 'Error Rate', value: 'Not tracked', sub: 'in this data', muted: true });
-  buildStatTile(whyGrid, {
-    label: 'Deviation Rate',
-    value: pct(node.deviationRate),
-    sub: node.deviationCaseCount ? `${pluralCases(node.deviationCaseCount)} deviate` : 'no deviations',
-  });
+  renderWhyAutomateTiles(whyGrid, node, meta, m);
 
   d3.select('#automation-impact-time').text(formatDuration(node.totalTime));
   d3.select('#automation-impact-pct').text('100%');
@@ -1620,6 +1770,7 @@ function openFilterPanel() {
   closeInsights();
   closeAISummary();
   closeTaskDetail();
+  closeAutomationOpportunities();
   document.getElementById('filter-btn').classList.add('active');
   document.getElementById('filter-btn').setAttribute('aria-expanded', 'true');
   document.getElementById('filter-panel').classList.remove('hidden');
@@ -1826,12 +1977,14 @@ function handleUploadFile(file) {
       state.expandedBubbles = new Set();
       state.comparison = null;
       state.taskInsights = (typeof extractTaskInsights === 'function') ? extractTaskInsights(raw) : null;
+      state.expandedOpportunityIds = new Set();
       d3.select('#insight-compare-btn').classed('active', false).attr('aria-checked', 'false');
       d3.select('#pf-slider').property('value', 100);
       closeTaskMenu();
       closeSessionReplay();
       closeTaskDetail();
       closeFilterPanel();
+      closeAutomationOpportunities();
       renderFilterPanel();
       setUploadStatus(`Loaded ${cases.length} instance${cases.length === 1 ? '' : 's'} from "${file.name}".`, 'success');
       render(true);
@@ -1859,6 +2012,22 @@ d3.select('#insights-btn').on('click', () => {
   else closeInsights();
 });
 d3.select('#insights-close').on('click', closeInsights);
+
+// ---- automation opportunities drawer ----
+d3.select('#automation-opps-btn').on('click', () => {
+  const panel = document.getElementById('automation-opps-panel');
+  if (panel.classList.contains('hidden')) openAutomationOpportunities();
+  else closeAutomationOpportunities();
+});
+d3.select('#automation-opps-close').on('click', closeAutomationOpportunities);
+d3.select('#automation-opps-sort-select').on('change', function () {
+  state.opportunitySort = this.value;
+  renderAutomationOpportunities();
+});
+d3.select('#automation-opps-view-all').on('click', () => {
+  state.opportunityShowAll = !state.opportunityShowAll;
+  renderAutomationOpportunities();
+});
 
 // ---- fullscreen toggle ----
 d3.select('#fullscreen-btn').on('click', function () {
@@ -1892,6 +2061,7 @@ d3.select(document).on('keydown.sessionReplay', (event) => {
   else if (!d3.select('#task-menu').classed('hidden')) closeTaskMenu();
   else if (!d3.select('#task-detail-panel').classed('hidden')) closeTaskDetail();
   else if (!d3.select('#filter-panel').classed('hidden')) closeFilterPanel();
+  else if (!d3.select('#automation-opps-panel').classed('hidden')) closeAutomationOpportunities();
 });
 
 // ---- task "..." menu ----

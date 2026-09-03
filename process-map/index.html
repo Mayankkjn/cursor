@@ -44,6 +44,10 @@
         </svg>
         Insights
       </button>
+      <button id="automation-opps-btn" class="ai-summary-btn" type="button" aria-expanded="false">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M9 1 L3 9.5 H7.5 L6.5 15 L13 6.5 H8.5 Z" /></svg>
+        Automation
+      </button>
       <button id="ai-summary-btn" class="ai-summary-btn" type="button" aria-expanded="false">
         <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
           <path d="M8 1 L9.2 5.6 L13.5 7 L9.2 8.4 L8 13 L6.8 8.4 L2.5 7 L6.8 5.6 Z" />
@@ -247,6 +251,32 @@
             <ul id="variant-list"></ul>
           </div>
         </div>
+      </div>
+    </div>
+
+    <div id="automation-opps-panel" class="side-drawer automation-opps-panel hidden">
+      <div class="side-drawer-header">
+        <h2>Automation Opportunities</h2>
+        <button id="automation-opps-close" class="ai-summary-close" type="button" aria-label="Close automation opportunities">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+            <path d="M2 2 L10 10 M10 2 L2 10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+          </svg>
+        </button>
+      </div>
+      <div class="side-drawer-body">
+        <div class="opp-toolbar">
+          <span class="opp-count" id="automation-opps-count">0 opportunities found</span>
+          <label class="opp-sort">
+            Sort by:
+            <select id="automation-opps-sort-select">
+              <option value="impact">Impact</option>
+              <option value="score">Score</option>
+              <option value="frequency">Frequency</option>
+            </select>
+          </label>
+        </div>
+        <div id="automation-opps-list" class="opp-list"></div>
+        <button id="automation-opps-view-all" class="link-button opp-view-all hidden" type="button">View all opportunities →</button>
       </div>
     </div>
 
