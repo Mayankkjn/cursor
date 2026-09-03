@@ -463,6 +463,23 @@ body.app-fullscreen .side-drawer { top: 64px; right: 16px; }
   padding: 2px 9px;
   flex-shrink: 0;
 }
+.task-user-row-play {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--accent-ui-soft);
+  color: var(--accent-ui);
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.task-user-row-play svg { margin-left: 1px; }
+.task-user-row-play:hover { background: var(--accent-ui); color: #fff; }
 
 .subtype-count-badge {
   background: var(--accent-ui-soft);

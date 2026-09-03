@@ -427,6 +427,24 @@
           <h3 class="task-detail-section-title">Summary</h3>
           <p class="task-detail-summary-text" id="task-detail-summary-text"></p>
         </div>
+        <div class="automation-opportunity-card">
+          <div class="automation-opportunity-top">
+            <div>
+              <div class="automation-opportunity-heading">
+                Automation Opportunity
+                <span class="automation-tier-badge">–</span>
+              </div>
+              <div class="automation-score">– <span>/100</span></div>
+            </div>
+            <svg class="automation-gauge" width="96" height="56" viewBox="0 0 96 56" aria-hidden="true">
+              <path class="automation-gauge-track" d="M8 48 A40 40 0 0 1 88 48" fill="none" stroke-width="9" stroke-linecap="round" />
+              <path class="automation-gauge-fill" d="M8 48 A40 40 0 0 1 88 48" fill="none" stroke-width="9" stroke-linecap="round" />
+              <line class="automation-gauge-needle" x1="48" y1="48" x2="48" y2="48" stroke-width="2" stroke-linecap="round" />
+              <circle cx="48" cy="48" r="3" class="automation-gauge-hub" />
+            </svg>
+          </div>
+          <p class="automation-opportunity-text"></p>
+        </div>
         <div id="task-detail-io-section" class="task-detail-section hidden">
           <h3 class="task-detail-section-title">Input / Output Context</h3>
           <div class="task-io-row">
@@ -464,22 +482,22 @@
             <div>
               <div class="automation-opportunity-heading">
                 Automation Opportunity
-                <span class="automation-tier-badge" id="automation-tier-badge">–</span>
+                <span class="automation-tier-badge">–</span>
               </div>
-              <div class="automation-score" id="automation-score">– <span>/100</span></div>
+              <div class="automation-score">– <span>/100</span></div>
             </div>
-            <svg class="automation-gauge" id="automation-gauge" width="96" height="56" viewBox="0 0 96 56" aria-hidden="true">
+            <svg class="automation-gauge" width="96" height="56" viewBox="0 0 96 56" aria-hidden="true">
               <path class="automation-gauge-track" d="M8 48 A40 40 0 0 1 88 48" fill="none" stroke-width="9" stroke-linecap="round" />
-              <path class="automation-gauge-fill" id="automation-gauge-fill" d="M8 48 A40 40 0 0 1 88 48" fill="none" stroke-width="9" stroke-linecap="round" />
-              <line class="automation-gauge-needle" id="automation-gauge-needle" x1="48" y1="48" x2="48" y2="48" stroke-width="2" stroke-linecap="round" />
+              <path class="automation-gauge-fill" d="M8 48 A40 40 0 0 1 88 48" fill="none" stroke-width="9" stroke-linecap="round" />
+              <line class="automation-gauge-needle" x1="48" y1="48" x2="48" y2="48" stroke-width="2" stroke-linecap="round" />
               <circle cx="48" cy="48" r="3" class="automation-gauge-hub" />
             </svg>
           </div>
-          <p class="automation-opportunity-text" id="automation-opportunity-text"></p>
+          <p class="automation-opportunity-text"></p>
         </div>
 
         <div class="task-detail-section">
-          <h3 class="task-detail-section-title">Why automate this task?</h3>
+          <h3 class="task-detail-section-title" id="automation-why-title">Why automate this task?</h3>
           <div class="task-stat-grid automation-why-grid" id="automation-why-grid"></div>
         </div>
 

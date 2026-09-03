@@ -1181,6 +1181,12 @@ function renderTaskDetail() {
       const row = list.append('div').attr('class', 'task-user-row');
       row.append('span').attr('class', 'task-user-row-name').text(u.user);
       row.append('span').attr('class', 'task-user-row-count').text(`${u.count} execution${u.count === 1 ? '' : 's'}`);
+      row.append('button')
+        .attr('class', 'task-user-row-play')
+        .attr('type', 'button')
+        .attr('title', `Watch a replay for ${u.user}`)
+        .html('<svg width="10" height="10" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M2.5 1.5 L10 6 L2.5 10.5 Z" /></svg>')
+        .on('click', () => openSessionReplay(taskId, u.user));
     });
   } else {
     usersBody.append('p').attr('class', 'task-detail-muted-note').text('No user data available for this task.');
@@ -1287,7 +1293,7 @@ const CHECK_ICON_SVG = '<svg width="12" height="12" viewBox="0 0 12 12" fill="no
 function updateAutomationGauge(fraction, colorVar) {
   const r = 40;
   const arcLength = Math.PI * r;
-  d3.select('#automation-gauge-fill')
+  d3.selectAll('.automation-gauge-fill')
     .style('stroke-dasharray', `${arcLength}`)
     .style('stroke-dashoffset', `${arcLength * (1 - fraction)}`)
     .style('stroke', colorVar);
@@ -1295,7 +1301,7 @@ function updateAutomationGauge(fraction, colorVar) {
   const needleLength = 32;
   const cx = 48;
   const cy = 48;
-  d3.select('#automation-gauge-needle')
+  d3.selectAll('.automation-gauge-needle')
     .attr('x2', cx + needleLength * Math.cos(angleRad))
     .attr('y2', cy - needleLength * Math.sin(angleRad));
 }
@@ -1330,8 +1336,8 @@ function renderAutomationTab(node, meta, uniqueUsers) {
   const tierLabel = tier === 'high' ? 'High' : tier === 'medium' ? 'Medium' : 'Low';
   const tierColorVar = tier === 'high' ? 'var(--path-main)' : tier === 'medium' ? 'var(--rework)' : 'var(--flag-end-fg)';
 
-  d3.select('#automation-tier-badge').attr('class', `automation-tier-badge ${tier}`).text(tierLabel);
-  d3.select('#automation-score').html(`${score} <span>/100</span>`);
+  d3.selectAll('.automation-tier-badge').attr('class', `automation-tier-badge ${tier}`).text(tierLabel);
+  d3.selectAll('.automation-score').html(`${score} <span>/100</span>`);
   updateAutomationGauge(score / 100, tierColorVar);
 
   const reasonParts = [];
@@ -1340,9 +1346,11 @@ function renderAutomationTab(node, meta, uniqueUsers) {
   if (node.reworkRate < 0.05) reasonParts.push('minimal rework');
   const reasonText = reasonParts.length ? reasonParts.join(' and ') : 'a mix of moderate consistency and judgment needs';
   const verdict = tier === 'high' ? 'highly automatable' : tier === 'medium' ? 'a moderate automation candidate' : 'a weaker automation candidate';
-  d3.select('#automation-opportunity-text').text(
+  d3.selectAll('.automation-opportunity-text').text(
     `This task is ${verdict} due to ${reasonText}, potentially saving ~${formatDuration(node.totalTime)} effort.`
   );
+
+  d3.select('#automation-why-title').text(tier === 'low' ? 'Why not to automate this task?' : 'Why automate this task?');
 
   const whyGrid = d3.select('#automation-why-grid');
   whyGrid.selectAll('*').remove();
@@ -1428,7 +1436,11 @@ d3.select('#task-detail-close').on('click', closeTaskDetail);
 d3.selectAll('.task-detail-tab').on('click', function () {
   setTaskDetailTab(this.dataset.tab);
 });
-d3.select('#task-detail-view-steps').on('click', () => setTaskDetailTab('overview'));
+d3.select('#task-detail-view-steps').on('click', () => {
+  setTaskDetailTab('automation');
+  const stepsSection = document.getElementById('automation-steps-body');
+  if (stepsSection) stepsSection.closest('.task-detail-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
 d3.select('#task-detail-watch-replays').on('click', () => {
   if (state.selectedTaskId) openSessionReplay(state.selectedTaskId);
 });
@@ -2008,7 +2020,7 @@ function buildPathTimeline(path, caseObj) {
 function activePath() { return srState.paths[srState.activePathIndex]; }
 function activeCase() { return activePath().users[srState.activeUserIndex].cases[0]; }
 
-function openSessionReplay(taskId) {
+function openSessionReplay(taskId, userId) {
   const model = state.model;
   const node = model.nodes.find((n) => n.id === taskId);
   const paths = buildTaskPaths(state.cases, taskId, model);
@@ -2019,6 +2031,21 @@ function openSessionReplay(taskId) {
   srState.paths = paths;
   srState.activePathIndex = 0;
   srState.activeUserIndex = 0;
+  // A play icon on a specific user's row should jump straight to that
+  // user's replay rather than always opening on path A / user 1 — a given
+  // userId can recur across multiple variants, so take the first match.
+  if (userId) {
+    outer: for (let pi = 0; pi < paths.length; pi++) {
+      const users = paths[pi].users;
+      for (let ui = 0; ui < users.length; ui++) {
+        if (users[ui].userId === userId) {
+          srState.activePathIndex = pi;
+          srState.activeUserIndex = ui;
+          break outer;
+        }
+      }
+    }
+  }
 
   const allCases = paths.flatMap((p) => p.users.flatMap((u) => u.cases));
   const uniqueUserCount = new Set(allCases.map((c) => (c.users && c.users[0]) || 'Unknown user')).size;
