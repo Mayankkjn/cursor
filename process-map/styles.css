@@ -275,7 +275,12 @@ body.app-fullscreen .side-drawer { top: 64px; right: 16px; }
 .task-stat-value { font-size: 1.02rem; font-weight: 700; color: var(--text-primary); }
 .task-stat-value.muted { font-size: 0.8rem; font-weight: 600; color: var(--text-tertiary); }
 
-.task-io-row { margin-bottom: 10px; }
+.task-io-row {
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
 .task-io-row:last-child { margin-bottom: 0; }
 .task-io-label { display: block; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-secondary); margin-bottom: 3px; }
 .task-io-text { margin: 0; font-size: 0.85rem; line-height: 1.5; color: var(--text-primary); }
