@@ -151,6 +151,68 @@ body.app-fullscreen .side-drawer { top: 64px; right: 16px; }
 }
 .modal-close:hover { color: var(--text-primary); background: var(--bg); }
 
+/* ---- automation preview modal (opened from any "Automate with Seek" CTA) ---- */
+.automation-preview-panel { width: 480px; }
+#automation-preview-step-1.hidden, #automation-preview-step-2.hidden { display: none; }
+.preview-task-title { margin: 0 0 4px; font-size: 1rem; font-weight: 700; color: var(--text-primary); }
+.preview-lens-found { margin: 0; font-size: 0.86rem; font-weight: 600; color: var(--text-primary); }
+.preview-lens-found-sub { margin: 2px 0 16px; font-size: 0.78rem; color: var(--text-secondary); }
+
+.flow-diagram { display: flex; flex-direction: column; align-items: stretch; margin-bottom: 16px; }
+.flow-step {
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  padding: 9px 14px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: center;
+  background: var(--card-bg);
+}
+.flow-arrow { display: flex; justify-content: center; padding: 3px 0; color: var(--text-tertiary); }
+
+.preview-recommendation {
+  background: var(--accent-ui-soft);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+}
+.preview-recommendation-label { display: block; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: var(--accent-ui); margin-bottom: 4px; }
+.preview-recommendation p { margin: 0; font-size: 0.84rem; line-height: 1.5; color: var(--text-primary); }
+
+.preview-stat-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px; }
+.preview-stat { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; border-bottom: 1px solid var(--panel-border); padding-bottom: 10px; }
+.preview-stat:last-child { border-bottom: none; padding-bottom: 0; }
+.preview-stat-label { font-size: 0.78rem; font-weight: 600; color: var(--text-secondary); }
+.preview-stat-value { font-size: 0.9rem; font-weight: 700; color: var(--text-primary); text-align: right; }
+
+.preview-action-btn { width: 100%; }
+
+.preview-sent-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--path-main);
+  margin-bottom: 14px;
+}
+.preview-payload {
+  background: var(--bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  padding: 14px;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.78rem;
+  line-height: 1.6;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0 0 16px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
 /* ---- Insights side drawer (shared by index.html and decision-map.html) ---- */
 .side-drawer {
   position: absolute;
@@ -1706,6 +1768,58 @@ button:hover { filter: brightness(1.08); }
         <span>Click to upload, or drag a .json file here</span>
       </label>
       <div id="upload-status" class="upload-status"></div>
+    </div>
+  </div>
+
+  <div id="automation-preview-modal" class="modal-overlay hidden">
+    <div class="modal-panel automation-preview-panel">
+      <div class="modal-header">
+        <h2>Automation Preview</h2>
+        <button id="automation-preview-close" class="modal-close" type="button" aria-label="Close">
+          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M3 3 L13 13 M13 3 L3 13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+          </svg>
+        </button>
+      </div>
+
+      <div id="automation-preview-step-1">
+        <h3 class="preview-task-title" id="preview-task-title"></h3>
+        <p class="preview-lens-found" id="preview-lens-found"></p>
+        <p class="preview-lens-found-sub" id="preview-lens-found-sub"></p>
+
+        <div class="flow-diagram" id="preview-flow-diagram"></div>
+
+        <div class="preview-recommendation">
+          <span class="preview-recommendation-label">Lens recommendation</span>
+          <p id="preview-recommendation-text"></p>
+        </div>
+
+        <div class="preview-stat-list">
+          <div class="preview-stat">
+            <span class="preview-stat-label">Coverage</span>
+            <span class="preview-stat-value" id="preview-stat-coverage"></span>
+          </div>
+          <div class="preview-stat">
+            <span class="preview-stat-label">Expected automation</span>
+            <span class="preview-stat-value" id="preview-stat-expected"></span>
+          </div>
+          <div class="preview-stat">
+            <span class="preview-stat-label">Estimated time saved</span>
+            <span class="preview-stat-value" id="preview-stat-time-saved"></span>
+          </div>
+        </div>
+
+        <button id="automation-preview-send" class="task-detail-footer-btn primary preview-action-btn" type="button">Send to Seek →</button>
+      </div>
+
+      <div id="automation-preview-step-2" class="hidden">
+        <div class="preview-sent-check">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5 L6.5 12 L13 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+          Context sent to Seek
+        </div>
+        <pre class="preview-payload" id="preview-payload"></pre>
+        <button id="automation-preview-close-2" class="task-detail-footer-btn preview-action-btn" type="button">Close</button>
+      </div>
     </div>
   </div>
 
@@ -7873,10 +7987,8 @@ function renderAutomationOpportunities() {
     footer.append('button').attr('class', 'task-detail-footer-btn').attr('type', 'button')
       .text('Watch replay')
       .on('click', () => openSessionReplay(node.id));
-    // "Automate with Seek" is an intentionally inert placeholder CTA, same
-    // as its counterpart on the per-task Automation tab — no real
-    // automation integration sits behind this app.
-    footer.append('button').attr('class', 'task-detail-footer-btn primary').attr('type', 'button').text('Automate with Seek →');
+    footer.append('button').attr('class', 'task-detail-footer-btn primary').attr('type', 'button').text('Automate with Seek →')
+      .on('click', () => openAutomationPreview(node.id));
   });
 
   d3.select('#automation-opps-view-all')
@@ -8307,6 +8419,109 @@ function renderAutomationTab(node, meta, uniqueUsers) {
   d3.select('#automation-next-step-text').text(nextStepText);
 }
 
+const FLOW_ARROW_SVG = '<svg width="12" height="16" viewBox="0 0 12 16" fill="none" aria-hidden="true"><path d="M6 0 V11 M2 7 L6 12 L10 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg>';
+
+// The "bridge" between a task's automation score and the (inert) Seek
+// handoff: a preview of exactly what would be automated and what Seek
+// would receive, built entirely from the same real signals as the rest of
+// the Automation tab — coverage is consistency (1 - deviation rate), the
+// step list is the task's own real subtypes when the dataset has them,
+// and nothing is invented when it doesn't.
+let automationPreviewState = null;
+
+function openAutomationPreview(taskId) {
+  const model = state.model;
+  const node = model.nodes.find((n) => n.id === taskId);
+  if (!node) return;
+  const meta = state.taskInsights && state.taskInsights.byTaskName.get(taskId);
+  const m = computeAutomationMetrics(node, meta);
+  const pct = (n) => `${Math.round(n * 100)}%`;
+
+  const coverage = m.consistency;
+  const expectedAutomated = Math.round(node.visits * coverage);
+  const exceptionsPct = 1 - coverage;
+  const timeSaved = coverage * node.totalTime;
+  const steps = meta && meta.subtypes && meta.subtypes.length ? meta.subtypes.map((s) => s.name) : null;
+
+  automationPreviewState = { node, meta, coverage, expectedAutomated, exceptionsPct, timeSaved, steps };
+
+  d3.select('#preview-task-title').text(node.label);
+  const foundDominant = coverage >= 0.5;
+  d3.select('#preview-lens-found').text(
+    foundDominant ? 'Lens found 1 dominant execution pattern' : 'Lens found no single dominant execution pattern'
+  );
+  d3.select('#preview-lens-found-sub').text(
+    foundDominant
+      ? `${pct(coverage)} of executions follow this exact sequence`
+      : 'Executions are split across multiple paths — automation coverage would be lower'
+  );
+
+  const flow = d3.select('#preview-flow-diagram');
+  flow.selectAll('*').remove();
+  if (steps) {
+    steps.forEach((name, i) => {
+      if (i > 0) flow.append('div').attr('class', 'flow-arrow').html(FLOW_ARROW_SVG);
+      flow.append('div').attr('class', 'flow-step').text(name);
+    });
+  } else {
+    flow.append('p').attr('class', 'task-detail-muted-note').text('Not available — no step-level breakdown in this dataset.');
+  }
+
+  d3.select('#preview-recommendation-text').text(
+    m.tier === 'low'
+      ? 'Automation coverage is limited for this task — consider a partial or supervised approach instead.'
+      : 'Automate the primary path and route exceptions to a human.'
+  );
+
+  d3.select('#preview-stat-coverage').text(`${pct(coverage)} of executions`);
+  d3.select('#preview-stat-expected').text(`${expectedAutomated.toLocaleString()} / ${node.visits.toLocaleString()} executions`);
+  d3.select('#preview-stat-time-saved').text(`${formatDuration(timeSaved)} (total)`);
+
+  d3.select('#automation-preview-step-1').classed('hidden', false);
+  d3.select('#automation-preview-step-2').classed('hidden', true);
+  d3.select('#automation-preview-modal').classed('hidden', false);
+}
+
+function closeAutomationPreview() {
+  d3.select('#automation-preview-modal').classed('hidden', true);
+}
+
+// Renders the exact "context package" Seek would receive — no live
+// integration exists, so this is a transparent preview of the handoff
+// rather than a real API call.
+function buildSeekPayloadText() {
+  const { node, meta, coverage, exceptionsPct, steps } = automationPreviewState;
+  const pct = (n) => `${Math.round(n * 100)}%`;
+  const lines = [];
+  lines.push('Automation request generated by Lens');
+  lines.push(`Automate ${node.label}`);
+  lines.push(`Primary path: ${pct(coverage)} of executions`);
+  lines.push('');
+  lines.push(`Applications: ${meta && meta.appId ? meta.appId : 'Not tracked in this dataset'}`);
+  lines.push('');
+  if (steps) {
+    lines.push('Steps:');
+    steps.forEach((s, i) => lines.push(`${i + 1}. ${s}`));
+  } else {
+    lines.push('Steps: not available — no step-level breakdown in this dataset.');
+  }
+  lines.push('');
+  lines.push(`Exceptions: ${pct(exceptionsPct)} of executions require manual review`);
+  lines.push(`Expected coverage: ${pct(coverage)}`);
+  return lines.join('\n');
+}
+
+d3.select('#automation-preview-send').on('click', () => {
+  d3.select('#preview-payload').text(buildSeekPayloadText());
+  d3.select('#automation-preview-step-1').classed('hidden', true);
+  d3.select('#automation-preview-step-2').classed('hidden', false);
+});
+d3.select('#automation-preview-close').on('click', closeAutomationPreview);
+d3.select('#automation-preview-close-2').on('click', closeAutomationPreview);
+d3.select('#automation-preview-modal').on('click', function (event) {
+  if (event.target === this) closeAutomationPreview();
+});
+
 // Lets an instance card act as a path filter: traces that instance's exact
 // case through the map (same highlight mechanism as the Insights path
 // list), dimming everything not on its route. Clicking the same instance
@@ -8330,9 +8545,9 @@ d3.select('#task-detail-view-steps').on('click', () => {
 d3.select('#task-detail-watch-replays').on('click', () => {
   if (state.selectedTaskId) openSessionReplay(state.selectedTaskId);
 });
-// "Automate with Seek" is an intentionally inert placeholder CTA — there's
-// no real automation integration behind this app, so it deliberately has
-// no click handler rather than implying one.
+d3.select('#task-detail-automate-seek').on('click', () => {
+  if (state.selectedTaskId) openAutomationPreview(state.selectedTaskId);
+});
 
 // Keeps the panel flush against the topbar's bottom edge (0 in fullscreen,
 // where the topbar is hidden) and slides the Insights/AI Summary/fullscreen
@@ -8793,7 +9008,8 @@ d3.select(document).on('keydown', (event) => {
 });
 d3.select(document).on('keydown.sessionReplay', (event) => {
   if (event.key !== 'Escape') return;
-  if (!d3.select('#session-replay-modal').classed('hidden')) closeSessionReplay();
+  if (!d3.select('#automation-preview-modal').classed('hidden')) closeAutomationPreview();
+  else if (!d3.select('#session-replay-modal').classed('hidden')) closeSessionReplay();
   else if (!d3.select('#task-menu').classed('hidden')) closeTaskMenu();
   else if (!d3.select('#task-detail-panel').classed('hidden')) closeTaskDetail();
   else if (!d3.select('#filter-panel').classed('hidden')) closeFilterPanel();

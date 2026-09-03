@@ -105,6 +105,58 @@
     </div>
   </div>
 
+  <div id="automation-preview-modal" class="modal-overlay hidden">
+    <div class="modal-panel automation-preview-panel">
+      <div class="modal-header">
+        <h2>Automation Preview</h2>
+        <button id="automation-preview-close" class="modal-close" type="button" aria-label="Close">
+          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M3 3 L13 13 M13 3 L3 13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+          </svg>
+        </button>
+      </div>
+
+      <div id="automation-preview-step-1">
+        <h3 class="preview-task-title" id="preview-task-title"></h3>
+        <p class="preview-lens-found" id="preview-lens-found"></p>
+        <p class="preview-lens-found-sub" id="preview-lens-found-sub"></p>
+
+        <div class="flow-diagram" id="preview-flow-diagram"></div>
+
+        <div class="preview-recommendation">
+          <span class="preview-recommendation-label">Lens recommendation</span>
+          <p id="preview-recommendation-text"></p>
+        </div>
+
+        <div class="preview-stat-list">
+          <div class="preview-stat">
+            <span class="preview-stat-label">Coverage</span>
+            <span class="preview-stat-value" id="preview-stat-coverage"></span>
+          </div>
+          <div class="preview-stat">
+            <span class="preview-stat-label">Expected automation</span>
+            <span class="preview-stat-value" id="preview-stat-expected"></span>
+          </div>
+          <div class="preview-stat">
+            <span class="preview-stat-label">Estimated time saved</span>
+            <span class="preview-stat-value" id="preview-stat-time-saved"></span>
+          </div>
+        </div>
+
+        <button id="automation-preview-send" class="task-detail-footer-btn primary preview-action-btn" type="button">Send to Seek →</button>
+      </div>
+
+      <div id="automation-preview-step-2" class="hidden">
+        <div class="preview-sent-check">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5 L6.5 12 L13 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+          Context sent to Seek
+        </div>
+        <pre class="preview-payload" id="preview-payload"></pre>
+        <button id="automation-preview-close-2" class="task-detail-footer-btn preview-action-btn" type="button">Close</button>
+      </div>
+    </div>
+  </div>
+
   <main class="canvas-wrap" id="canvas-wrap">
     <svg id="graph"></svg>
     <div id="tooltip" class="tooltip"></div>
