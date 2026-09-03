@@ -1155,14 +1155,14 @@ function renderTaskDetail() {
   }
 
   // Applications Involved — only real when the raw upload's task catalog
-  // carries an app_id; most exports (including this one) leave it null,
-  // so say so plainly instead of guessing an app name out of prose.
+  // carries an app_id; most exports (including this one) leave it null, so
+  // the section is hidden entirely rather than shown with a placeholder.
+  const appsSection = d3.select('#task-detail-apps-section');
   const appsBody = d3.select('#task-detail-apps-body');
   appsBody.selectAll('*').remove();
+  appsSection.classed('hidden', !(meta && meta.appId));
   if (meta && meta.appId) {
     appsBody.append('span').attr('class', 'task-app-tag').text(meta.appId);
-  } else {
-    appsBody.append('p').attr('class', 'task-detail-muted-note').text('Not tracked in this dataset.');
   }
 
   // Users Performing This Task — real, from whichever cases (filtered view)
