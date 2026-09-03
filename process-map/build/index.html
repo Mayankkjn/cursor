@@ -327,12 +327,6 @@ body.app-fullscreen .side-drawer { top: 64px; right: 16px; }
   flex-shrink: 0;
 }
 
-.task-trend-chart { display: flex; align-items: flex-end; gap: 4px; height: 76px; }
-.task-trend-bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; min-width: 0; }
-.task-trend-bar { width: 100%; background: var(--accent-ui); border-radius: 3px 3px 0 0; min-height: 3px; }
-.task-trend-bar-count { font-size: 0.66rem; font-weight: 700; color: var(--text-primary); margin-bottom: 2px; }
-.task-trend-bar-label { font-size: 0.6rem; color: var(--text-tertiary); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-
 .subtype-count-badge {
   background: var(--accent-ui-soft);
   color: var(--accent-ui);
@@ -1829,10 +1823,6 @@ button:hover { filter: brightness(1.08); }
       <div class="task-detail-section">
         <h3 class="task-detail-section-title">Users Performing This Task</h3>
         <div id="task-detail-users-body"></div>
-      </div>
-      <div class="task-detail-section">
-        <h3 class="task-detail-section-title">Trend Over Time</h3>
-        <div id="task-detail-trend-body"></div>
       </div>
       <div class="task-detail-section" id="task-detail-instances-section">
         <div class="instance-list" id="task-detail-instance-list"></div>
@@ -7569,30 +7559,6 @@ function renderTaskDetail() {
     });
   } else {
     usersBody.append('p').attr('class', 'task-detail-muted-note').text('No user data available for this task.');
-  }
-
-  // Trend Over Time — needs real timestamps, which only the raw
-  // task-catalog upload's per-instance task_start_time provides.
-  const trendBody = d3.select('#task-detail-trend-body');
-  trendBody.selectAll('*').remove();
-  const timedInstances = richInstances && richInstances.filter((r) => r.startTime);
-  if (timedInstances && timedInstances.length) {
-    const dayCounts = new Map();
-    timedInstances.forEach((r) => {
-      const day = new Date(r.startTime).toISOString().slice(0, 10);
-      dayCounts.set(day, (dayCounts.get(day) || 0) + 1);
-    });
-    const days = Array.from(dayCounts.entries()).sort((a, b) => a[0].localeCompare(b[0]));
-    const maxCount = Math.max(...days.map(([, c]) => c));
-    const chart = trendBody.append('div').attr('class', 'task-trend-chart');
-    days.forEach(([day, count]) => {
-      const wrap = chart.append('div').attr('class', 'task-trend-bar-wrap');
-      wrap.append('span').attr('class', 'task-trend-bar-count').text(count);
-      wrap.append('div').attr('class', 'task-trend-bar').style('height', `${Math.max(6, (count / maxCount) * 100)}%`);
-      wrap.append('span').attr('class', 'task-trend-bar-label').text(day.slice(5));
-    });
-  } else {
-    trendBody.append('p').attr('class', 'task-detail-muted-note').text('Not available — this dataset has no per-instance timestamps.');
   }
 
   const MAX_SHOWN = 50;

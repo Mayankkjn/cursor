@@ -1179,30 +1179,6 @@ function renderTaskDetail() {
     usersBody.append('p').attr('class', 'task-detail-muted-note').text('No user data available for this task.');
   }
 
-  // Trend Over Time — needs real timestamps, which only the raw
-  // task-catalog upload's per-instance task_start_time provides.
-  const trendBody = d3.select('#task-detail-trend-body');
-  trendBody.selectAll('*').remove();
-  const timedInstances = richInstances && richInstances.filter((r) => r.startTime);
-  if (timedInstances && timedInstances.length) {
-    const dayCounts = new Map();
-    timedInstances.forEach((r) => {
-      const day = new Date(r.startTime).toISOString().slice(0, 10);
-      dayCounts.set(day, (dayCounts.get(day) || 0) + 1);
-    });
-    const days = Array.from(dayCounts.entries()).sort((a, b) => a[0].localeCompare(b[0]));
-    const maxCount = Math.max(...days.map(([, c]) => c));
-    const chart = trendBody.append('div').attr('class', 'task-trend-chart');
-    days.forEach(([day, count]) => {
-      const wrap = chart.append('div').attr('class', 'task-trend-bar-wrap');
-      wrap.append('span').attr('class', 'task-trend-bar-count').text(count);
-      wrap.append('div').attr('class', 'task-trend-bar').style('height', `${Math.max(6, (count / maxCount) * 100)}%`);
-      wrap.append('span').attr('class', 'task-trend-bar-label').text(day.slice(5));
-    });
-  } else {
-    trendBody.append('p').attr('class', 'task-detail-muted-note').text('Not available — this dataset has no per-instance timestamps.');
-  }
-
   const MAX_SHOWN = 50;
   const subtypeSection = d3.select('#task-detail-subtype-section');
   const subtypeCatalog = meta && meta.subtypes && meta.subtypes.length ? meta.subtypes : null;
