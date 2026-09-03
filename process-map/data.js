@@ -393,6 +393,7 @@ function extractTaskInsights(raw) {
       description: t.description || '',
       canonicalReasoning: t.canonical_reasoning || '',
       subtypes: t.canonical_subtypes || [],
+      appId: t.app_id || null,
     });
   });
 

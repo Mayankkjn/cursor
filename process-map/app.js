@@ -1082,12 +1082,106 @@ function renderTaskDetail() {
     `${pluralCases(node.caseCount)} · ${uniqueUsers.size} unique user${uniqueUsers.size === 1 ? '' : 's'} · ${pathCount} path${pathCount === 1 ? '' : 's'}`
   );
 
+  // Task Details stat grid — everything here comes straight from the
+  // process model (real, for any uploaded log); Error Rate is the one
+  // exception, since nothing in this app's data model captures task
+  // failure/success, so it's shown as explicitly untracked rather than
+  // invented from something that isn't actually an error signal.
+  const pct = (n) => `${(n * 100).toFixed(0)}%`;
+  const taskStats = [
+    { label: 'Total Executions', value: `${node.visits}` },
+    { label: 'Unique Users', value: `${uniqueUsers.size}` },
+    { label: 'Frequency', value: `${pct(node.casePct)} of instances` },
+    { label: 'Avg Duration', value: formatDuration(node.avgDuration) },
+    { label: 'Median Duration', value: formatDuration(node.medianDuration) },
+    { label: 'Min / Max Duration', value: `${formatDuration(node.minDuration)} – ${formatDuration(node.maxDuration)}` },
+    { label: 'Rework Rate', value: pct(node.reworkRate) },
+    { label: 'Deviation Rate', value: pct(node.deviationRate) },
+    { label: 'Error Rate', value: 'Not tracked in this data', muted: true },
+  ];
+  const statSel = d3.select('#task-detail-stats').selectAll('.task-stat').data(taskStats, (d) => d.label);
+  statSel.exit().remove();
+  const statEnter = statSel.enter().append('div').attr('class', 'task-stat');
+  statEnter.append('span').attr('class', 'task-stat-label');
+  statEnter.append('span').attr('class', 'task-stat-value');
+  const statMerged = statEnter.merge(statSel);
+  statMerged.select('.task-stat-label').text((d) => d.label);
+  statMerged.select('.task-stat-value').attr('class', (d) => `task-stat-value${d.muted ? ' muted' : ''}`).text((d) => d.value);
+
   const summarySection = d3.select('#task-detail-summary-section');
   if (meta && meta.canonicalReasoning) {
     summarySection.classed('hidden', false);
     d3.select('#task-detail-summary-text').text(meta.canonicalReasoning);
   } else {
     summarySection.classed('hidden', true);
+  }
+
+  // Input/Output context: the raw upload's canonical_reasoning is prose,
+  // but it consistently narrates "The trigger is X; the output is Y." —
+  // pull those two clauses out rather than dumping the same paragraph
+  // twice. Hidden (not "not available") when the pattern doesn't match,
+  // since the Summary section above already covers this ground in prose.
+  const ioMatch = meta && meta.canonicalReasoning && meta.canonicalReasoning.match(/trigger is (.+?);\s*the output is (.+?)\.\s*$/i);
+  d3.select('#task-detail-io-section').classed('hidden', !ioMatch);
+  if (ioMatch) {
+    d3.select('#task-detail-io-trigger').text(ioMatch[1]);
+    d3.select('#task-detail-io-output').text(ioMatch[2]);
+  }
+
+  // Applications Involved — only real when the raw upload's task catalog
+  // carries an app_id; most exports (including this one) leave it null,
+  // so say so plainly instead of guessing an app name out of prose.
+  const appsBody = d3.select('#task-detail-apps-body');
+  appsBody.selectAll('*').remove();
+  if (meta && meta.appId) {
+    appsBody.append('span').attr('class', 'task-app-tag').text(meta.appId);
+  } else {
+    appsBody.append('p').attr('class', 'task-detail-muted-note').text('Not tracked in this dataset.');
+  }
+
+  // Users Performing This Task — real, from whichever cases (filtered view)
+  // actually pass through this task, generic or rich upload alike.
+  const userCounts = new Map();
+  rows.forEach((r) => (r.users || []).forEach((u) => userCounts.set(u, (userCounts.get(u) || 0) + 1)));
+  const topUsers = Array.from(userCounts.entries())
+    .map(([user, count]) => ({ user, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
+  const usersBody = d3.select('#task-detail-users-body');
+  usersBody.selectAll('*').remove();
+  if (topUsers.length) {
+    const list = usersBody.append('div').attr('class', 'task-user-list');
+    topUsers.forEach((u) => {
+      const row = list.append('div').attr('class', 'task-user-row');
+      row.append('span').attr('class', 'task-user-row-name').text(u.user);
+      row.append('span').attr('class', 'task-user-row-count').text(`${u.count} execution${u.count === 1 ? '' : 's'}`);
+    });
+  } else {
+    usersBody.append('p').attr('class', 'task-detail-muted-note').text('No user data available for this task.');
+  }
+
+  // Trend Over Time — needs real timestamps, which only the raw
+  // task-catalog upload's per-instance task_start_time provides.
+  const trendBody = d3.select('#task-detail-trend-body');
+  trendBody.selectAll('*').remove();
+  const timedInstances = richInstances && richInstances.filter((r) => r.startTime);
+  if (timedInstances && timedInstances.length) {
+    const dayCounts = new Map();
+    timedInstances.forEach((r) => {
+      const day = new Date(r.startTime).toISOString().slice(0, 10);
+      dayCounts.set(day, (dayCounts.get(day) || 0) + 1);
+    });
+    const days = Array.from(dayCounts.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+    const maxCount = Math.max(...days.map(([, c]) => c));
+    const chart = trendBody.append('div').attr('class', 'task-trend-chart');
+    days.forEach(([day, count]) => {
+      const wrap = chart.append('div').attr('class', 'task-trend-bar-wrap');
+      wrap.append('span').attr('class', 'task-trend-bar-count').text(count);
+      wrap.append('div').attr('class', 'task-trend-bar').style('height', `${Math.max(6, (count / maxCount) * 100)}%`);
+      wrap.append('span').attr('class', 'task-trend-bar-label').text(day.slice(5));
+    });
+  } else {
+    trendBody.append('p').attr('class', 'task-detail-muted-note').text('Not available — this dataset has no per-instance timestamps.');
   }
 
   const subtypeSection = d3.select('#task-detail-subtype-section');

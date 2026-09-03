@@ -408,9 +408,24 @@
       </button>
     </div>
     <div class="task-detail-body">
+      <div class="task-detail-section">
+        <h3 class="task-detail-section-title">Task Details</h3>
+        <div class="task-stat-grid" id="task-detail-stats"></div>
+      </div>
       <div id="task-detail-summary-section" class="task-detail-section hidden">
         <h3 class="task-detail-section-title">Summary</h3>
         <p class="task-detail-summary-text" id="task-detail-summary-text"></p>
+      </div>
+      <div id="task-detail-io-section" class="task-detail-section hidden">
+        <h3 class="task-detail-section-title">Input / Output Context</h3>
+        <div class="task-io-row">
+          <span class="task-io-label">Trigger (input)</span>
+          <p class="task-io-text" id="task-detail-io-trigger"></p>
+        </div>
+        <div class="task-io-row">
+          <span class="task-io-label">Output</span>
+          <p class="task-io-text" id="task-detail-io-output"></p>
+        </div>
       </div>
       <div id="task-detail-subtype-section" class="task-detail-section hidden">
         <h3 class="task-detail-section-title">
@@ -418,6 +433,18 @@
           <span class="subtype-count-badge" id="task-detail-subtype-count">0</span>
         </h3>
         <div class="subtype-list" id="task-detail-subtype-list"></div>
+      </div>
+      <div class="task-detail-section">
+        <h3 class="task-detail-section-title">Applications Involved</h3>
+        <div id="task-detail-apps-body"></div>
+      </div>
+      <div class="task-detail-section">
+        <h3 class="task-detail-section-title">Users Performing This Task</h3>
+        <div id="task-detail-users-body"></div>
+      </div>
+      <div class="task-detail-section">
+        <h3 class="task-detail-section-title">Trend Over Time</h3>
+        <div id="task-detail-trend-body"></div>
       </div>
       <div class="task-detail-section">
         <h3 class="task-detail-section-title hidden" id="task-detail-instances-title"></h3>

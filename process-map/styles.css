@@ -262,6 +262,65 @@ body.app-fullscreen .side-drawer { top: 64px; right: 16px; }
 }
 .task-detail-summary-text { margin: 0; font-size: 0.85rem; line-height: 1.6; color: var(--text-primary); }
 
+.task-stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.task-stat {
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.task-stat-label { font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-secondary); }
+.task-stat-value { font-size: 1.02rem; font-weight: 700; color: var(--text-primary); }
+.task-stat-value.muted { font-size: 0.8rem; font-weight: 600; color: var(--text-tertiary); }
+
+.task-io-row { margin-bottom: 10px; }
+.task-io-row:last-child { margin-bottom: 0; }
+.task-io-label { display: block; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-secondary); margin-bottom: 3px; }
+.task-io-text { margin: 0; font-size: 0.85rem; line-height: 1.5; color: var(--text-primary); }
+
+.task-detail-muted-note { font-size: 0.82rem; color: var(--text-secondary); font-style: italic; margin: 0; }
+
+.task-app-tag {
+  display: inline-block;
+  background: var(--path-main-soft);
+  color: var(--path-main);
+  font-size: 0.76rem;
+  font-weight: 700;
+  border-radius: 100px;
+  padding: 4px 12px;
+  margin: 0 6px 6px 0;
+}
+
+.task-user-list { display: flex; flex-direction: column; gap: 6px; }
+.task-user-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 0.82rem;
+}
+.task-user-row-name { font-weight: 600; color: var(--text-primary); }
+.task-user-row-count {
+  font-weight: 500;
+  font-size: 0.74rem;
+  color: var(--text-secondary);
+  background: var(--bg);
+  border-radius: 100px;
+  padding: 2px 9px;
+  flex-shrink: 0;
+}
+
+.task-trend-chart { display: flex; align-items: flex-end; gap: 4px; height: 76px; }
+.task-trend-bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; min-width: 0; }
+.task-trend-bar { width: 100%; background: var(--accent-ui); border-radius: 3px 3px 0 0; min-height: 3px; }
+.task-trend-bar-count { font-size: 0.66rem; font-weight: 700; color: var(--text-primary); margin-bottom: 2px; }
+.task-trend-bar-label { font-size: 0.6rem; color: var(--text-tertiary); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+
 .subtype-count-badge {
   background: var(--accent-ui-soft);
   color: var(--accent-ui);

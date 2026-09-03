@@ -727,6 +727,7 @@ function extractTaskInsights(raw) {
       description: t.description || '',
       canonicalReasoning: t.canonical_reasoning || '',
       subtypes: t.canonical_subtypes || [],
+      appId: t.app_id || null,
     });
   });
 
@@ -844,6 +845,8 @@ function buildProcessModel(cases) {
       casePct: stat.cases.size / totalCases,
       avgDuration: stat.totalDuration / stat.visits,
       medianDuration: median(stat.durations),
+      minDuration: Math.min(...stat.durations),
+      maxDuration: Math.max(...stat.durations),
       totalTime: stat.totalDuration,
       reworkCaseCount: rework ? rework.caseCount : 0,
       reworkExtraVisits: rework ? rework.extraVisits : 0,
@@ -880,6 +883,20 @@ function buildProcessModel(cases) {
   }
   edges.forEach((e) => {
     e.onHappyPath = happyPathEdgeKeys.has(`${e.from}||${e.to}`);
+  });
+
+  // Deviation rate per task: of the cases that pass through this task, what
+  // share aren't following the happy path overall? Every happy-path case
+  // that visits this task counts as "on path"; anything else — a different
+  // variant, whether or not it happens to visit this same task — is a
+  // deviation, since a task the happy path never touches at all is a
+  // deviation 100% of the time it's hit.
+  const happyPathTaskSet = new Set(happyPath ? happyPath.path : []);
+  nodes.forEach((n) => {
+    if (n.virtual) return;
+    const onPathCaseCount = happyPathTaskSet.has(n.id) ? happyPath.count : 0;
+    n.deviationCaseCount = Math.max(0, n.caseCount - onPathCaseCount);
+    n.deviationRate = n.caseCount ? n.deviationCaseCount / n.caseCount : 0;
   });
 
   // Where is the most time being spent? Rank real tasks by their aggregate

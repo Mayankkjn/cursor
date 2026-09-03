@@ -269,6 +269,65 @@ body.app-fullscreen .side-drawer { top: 64px; right: 16px; }
 }
 .task-detail-summary-text { margin: 0; font-size: 0.85rem; line-height: 1.6; color: var(--text-primary); }
 
+.task-stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.task-stat {
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.task-stat-label { font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-secondary); }
+.task-stat-value { font-size: 1.02rem; font-weight: 700; color: var(--text-primary); }
+.task-stat-value.muted { font-size: 0.8rem; font-weight: 600; color: var(--text-tertiary); }
+
+.task-io-row { margin-bottom: 10px; }
+.task-io-row:last-child { margin-bottom: 0; }
+.task-io-label { display: block; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-secondary); margin-bottom: 3px; }
+.task-io-text { margin: 0; font-size: 0.85rem; line-height: 1.5; color: var(--text-primary); }
+
+.task-detail-muted-note { font-size: 0.82rem; color: var(--text-secondary); font-style: italic; margin: 0; }
+
+.task-app-tag {
+  display: inline-block;
+  background: var(--path-main-soft);
+  color: var(--path-main);
+  font-size: 0.76rem;
+  font-weight: 700;
+  border-radius: 100px;
+  padding: 4px 12px;
+  margin: 0 6px 6px 0;
+}
+
+.task-user-list { display: flex; flex-direction: column; gap: 6px; }
+.task-user-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 0.82rem;
+}
+.task-user-row-name { font-weight: 600; color: var(--text-primary); }
+.task-user-row-count {
+  font-weight: 500;
+  font-size: 0.74rem;
+  color: var(--text-secondary);
+  background: var(--bg);
+  border-radius: 100px;
+  padding: 2px 9px;
+  flex-shrink: 0;
+}
+
+.task-trend-chart { display: flex; align-items: flex-end; gap: 4px; height: 76px; }
+.task-trend-bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; min-width: 0; }
+.task-trend-bar { width: 100%; background: var(--accent-ui); border-radius: 3px 3px 0 0; min-height: 3px; }
+.task-trend-bar-count { font-size: 0.66rem; font-weight: 700; color: var(--text-primary); margin-bottom: 2px; }
+.task-trend-bar-label { font-size: 0.6rem; color: var(--text-tertiary); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+
 .subtype-count-badge {
   background: var(--accent-ui-soft);
   color: var(--accent-ui);
@@ -1715,9 +1774,24 @@ button:hover { filter: brightness(1.08); }
       </button>
     </div>
     <div class="task-detail-body">
+      <div class="task-detail-section">
+        <h3 class="task-detail-section-title">Task Details</h3>
+        <div class="task-stat-grid" id="task-detail-stats"></div>
+      </div>
       <div id="task-detail-summary-section" class="task-detail-section hidden">
         <h3 class="task-detail-section-title">Summary</h3>
         <p class="task-detail-summary-text" id="task-detail-summary-text"></p>
+      </div>
+      <div id="task-detail-io-section" class="task-detail-section hidden">
+        <h3 class="task-detail-section-title">Input / Output Context</h3>
+        <div class="task-io-row">
+          <span class="task-io-label">Trigger (input)</span>
+          <p class="task-io-text" id="task-detail-io-trigger"></p>
+        </div>
+        <div class="task-io-row">
+          <span class="task-io-label">Output</span>
+          <p class="task-io-text" id="task-detail-io-output"></p>
+        </div>
       </div>
       <div id="task-detail-subtype-section" class="task-detail-section hidden">
         <h3 class="task-detail-section-title">
@@ -1725,6 +1799,18 @@ button:hover { filter: brightness(1.08); }
           <span class="subtype-count-badge" id="task-detail-subtype-count">0</span>
         </h3>
         <div class="subtype-list" id="task-detail-subtype-list"></div>
+      </div>
+      <div class="task-detail-section">
+        <h3 class="task-detail-section-title">Applications Involved</h3>
+        <div id="task-detail-apps-body"></div>
+      </div>
+      <div class="task-detail-section">
+        <h3 class="task-detail-section-title">Users Performing This Task</h3>
+        <div id="task-detail-users-body"></div>
+      </div>
+      <div class="task-detail-section">
+        <h3 class="task-detail-section-title">Trend Over Time</h3>
+        <div id="task-detail-trend-body"></div>
       </div>
       <div class="task-detail-section">
         <h3 class="task-detail-section-title hidden" id="task-detail-instances-title"></h3>
@@ -6045,6 +6131,7 @@ function extractTaskInsights(raw) {
       description: t.description || '',
       canonicalReasoning: t.canonical_reasoning || '',
       subtypes: t.canonical_subtypes || [],
+      appId: t.app_id || null,
     });
   });
 
@@ -6162,6 +6249,8 @@ function buildProcessModel(cases) {
       casePct: stat.cases.size / totalCases,
       avgDuration: stat.totalDuration / stat.visits,
       medianDuration: median(stat.durations),
+      minDuration: Math.min(...stat.durations),
+      maxDuration: Math.max(...stat.durations),
       totalTime: stat.totalDuration,
       reworkCaseCount: rework ? rework.caseCount : 0,
       reworkExtraVisits: rework ? rework.extraVisits : 0,
@@ -6198,6 +6287,20 @@ function buildProcessModel(cases) {
   }
   edges.forEach((e) => {
     e.onHappyPath = happyPathEdgeKeys.has(`${e.from}||${e.to}`);
+  });
+
+  // Deviation rate per task: of the cases that pass through this task, what
+  // share aren't following the happy path overall? Every happy-path case
+  // that visits this task counts as "on path"; anything else — a different
+  // variant, whether or not it happens to visit this same task — is a
+  // deviation, since a task the happy path never touches at all is a
+  // deviation 100% of the time it's hit.
+  const happyPathTaskSet = new Set(happyPath ? happyPath.path : []);
+  nodes.forEach((n) => {
+    if (n.virtual) return;
+    const onPathCaseCount = happyPathTaskSet.has(n.id) ? happyPath.count : 0;
+    n.deviationCaseCount = Math.max(0, n.caseCount - onPathCaseCount);
+    n.deviationRate = n.caseCount ? n.deviationCaseCount / n.caseCount : 0;
   });
 
   // Where is the most time being spent? Rank real tasks by their aggregate
@@ -7350,12 +7453,106 @@ function renderTaskDetail() {
     `${pluralCases(node.caseCount)} · ${uniqueUsers.size} unique user${uniqueUsers.size === 1 ? '' : 's'} · ${pathCount} path${pathCount === 1 ? '' : 's'}`
   );
 
+  // Task Details stat grid — everything here comes straight from the
+  // process model (real, for any uploaded log); Error Rate is the one
+  // exception, since nothing in this app's data model captures task
+  // failure/success, so it's shown as explicitly untracked rather than
+  // invented from something that isn't actually an error signal.
+  const pct = (n) => `${(n * 100).toFixed(0)}%`;
+  const taskStats = [
+    { label: 'Total Executions', value: `${node.visits}` },
+    { label: 'Unique Users', value: `${uniqueUsers.size}` },
+    { label: 'Frequency', value: `${pct(node.casePct)} of instances` },
+    { label: 'Avg Duration', value: formatDuration(node.avgDuration) },
+    { label: 'Median Duration', value: formatDuration(node.medianDuration) },
+    { label: 'Min / Max Duration', value: `${formatDuration(node.minDuration)} – ${formatDuration(node.maxDuration)}` },
+    { label: 'Rework Rate', value: pct(node.reworkRate) },
+    { label: 'Deviation Rate', value: pct(node.deviationRate) },
+    { label: 'Error Rate', value: 'Not tracked in this data', muted: true },
+  ];
+  const statSel = d3.select('#task-detail-stats').selectAll('.task-stat').data(taskStats, (d) => d.label);
+  statSel.exit().remove();
+  const statEnter = statSel.enter().append('div').attr('class', 'task-stat');
+  statEnter.append('span').attr('class', 'task-stat-label');
+  statEnter.append('span').attr('class', 'task-stat-value');
+  const statMerged = statEnter.merge(statSel);
+  statMerged.select('.task-stat-label').text((d) => d.label);
+  statMerged.select('.task-stat-value').attr('class', (d) => `task-stat-value${d.muted ? ' muted' : ''}`).text((d) => d.value);
+
   const summarySection = d3.select('#task-detail-summary-section');
   if (meta && meta.canonicalReasoning) {
     summarySection.classed('hidden', false);
     d3.select('#task-detail-summary-text').text(meta.canonicalReasoning);
   } else {
     summarySection.classed('hidden', true);
+  }
+
+  // Input/Output context: the raw upload's canonical_reasoning is prose,
+  // but it consistently narrates "The trigger is X; the output is Y." —
+  // pull those two clauses out rather than dumping the same paragraph
+  // twice. Hidden (not "not available") when the pattern doesn't match,
+  // since the Summary section above already covers this ground in prose.
+  const ioMatch = meta && meta.canonicalReasoning && meta.canonicalReasoning.match(/trigger is (.+?);\s*the output is (.+?)\.\s*$/i);
+  d3.select('#task-detail-io-section').classed('hidden', !ioMatch);
+  if (ioMatch) {
+    d3.select('#task-detail-io-trigger').text(ioMatch[1]);
+    d3.select('#task-detail-io-output').text(ioMatch[2]);
+  }
+
+  // Applications Involved — only real when the raw upload's task catalog
+  // carries an app_id; most exports (including this one) leave it null,
+  // so say so plainly instead of guessing an app name out of prose.
+  const appsBody = d3.select('#task-detail-apps-body');
+  appsBody.selectAll('*').remove();
+  if (meta && meta.appId) {
+    appsBody.append('span').attr('class', 'task-app-tag').text(meta.appId);
+  } else {
+    appsBody.append('p').attr('class', 'task-detail-muted-note').text('Not tracked in this dataset.');
+  }
+
+  // Users Performing This Task — real, from whichever cases (filtered view)
+  // actually pass through this task, generic or rich upload alike.
+  const userCounts = new Map();
+  rows.forEach((r) => (r.users || []).forEach((u) => userCounts.set(u, (userCounts.get(u) || 0) + 1)));
+  const topUsers = Array.from(userCounts.entries())
+    .map(([user, count]) => ({ user, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
+  const usersBody = d3.select('#task-detail-users-body');
+  usersBody.selectAll('*').remove();
+  if (topUsers.length) {
+    const list = usersBody.append('div').attr('class', 'task-user-list');
+    topUsers.forEach((u) => {
+      const row = list.append('div').attr('class', 'task-user-row');
+      row.append('span').attr('class', 'task-user-row-name').text(u.user);
+      row.append('span').attr('class', 'task-user-row-count').text(`${u.count} execution${u.count === 1 ? '' : 's'}`);
+    });
+  } else {
+    usersBody.append('p').attr('class', 'task-detail-muted-note').text('No user data available for this task.');
+  }
+
+  // Trend Over Time — needs real timestamps, which only the raw
+  // task-catalog upload's per-instance task_start_time provides.
+  const trendBody = d3.select('#task-detail-trend-body');
+  trendBody.selectAll('*').remove();
+  const timedInstances = richInstances && richInstances.filter((r) => r.startTime);
+  if (timedInstances && timedInstances.length) {
+    const dayCounts = new Map();
+    timedInstances.forEach((r) => {
+      const day = new Date(r.startTime).toISOString().slice(0, 10);
+      dayCounts.set(day, (dayCounts.get(day) || 0) + 1);
+    });
+    const days = Array.from(dayCounts.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+    const maxCount = Math.max(...days.map(([, c]) => c));
+    const chart = trendBody.append('div').attr('class', 'task-trend-chart');
+    days.forEach(([day, count]) => {
+      const wrap = chart.append('div').attr('class', 'task-trend-bar-wrap');
+      wrap.append('span').attr('class', 'task-trend-bar-count').text(count);
+      wrap.append('div').attr('class', 'task-trend-bar').style('height', `${Math.max(6, (count / maxCount) * 100)}%`);
+      wrap.append('span').attr('class', 'task-trend-bar-label').text(day.slice(5));
+    });
+  } else {
+    trendBody.append('p').attr('class', 'task-detail-muted-note').text('Not available — this dataset has no per-instance timestamps.');
   }
 
   const subtypeSection = d3.select('#task-detail-subtype-section');
