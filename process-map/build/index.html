@@ -253,10 +253,153 @@ body.app-fullscreen .side-drawer { top: 64px; right: 16px; }
   padding: 18px 20px;
   display: flex;
   flex-direction: column;
-  gap: 22px;
 }
+.task-detail-tab-panel { display: flex; flex-direction: column; gap: 22px; }
+.task-detail-tab-panel.hidden { display: none; }
 .task-detail-section.hidden { display: none; }
 .task-detail-section-title.hidden { display: none; }
+
+/* ---- task detail tabs + sticky CTA footer ---- */
+.task-detail-tabs {
+  display: flex;
+  gap: 22px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--panel-border);
+  flex-shrink: 0;
+}
+.task-detail-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 12px 0;
+  margin-bottom: -1px;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.task-detail-tab:hover { color: var(--text-primary); }
+.task-detail-tab.active { color: var(--accent-ui); border-bottom-color: var(--accent-ui); }
+
+.task-detail-footer {
+  flex-shrink: 0;
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--panel-border);
+  background: var(--card-bg);
+}
+.task-detail-footer-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  background: var(--card-bg);
+  color: var(--text-primary);
+  padding: 9px 10px;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.task-detail-footer-btn:hover { border-color: var(--accent-ui); }
+.task-detail-footer-btn.primary { background: var(--accent-ui); border-color: var(--accent-ui); color: #ffffff; flex: 1.3; }
+.task-detail-footer-btn.primary:hover { filter: brightness(1.08); }
+
+/* ---- automation tab ---- */
+.automation-opportunity-card {
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  padding: 16px;
+}
+.automation-opportunity-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.automation-opportunity-heading { display: flex; align-items: center; gap: 8px; font-size: 0.92rem; font-weight: 700; color: var(--text-primary); margin-bottom: 6px; }
+.automation-tier-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  border-radius: 100px;
+  padding: 2px 10px;
+}
+.automation-tier-badge.high { background: var(--path-main-soft); color: var(--path-main); }
+.automation-tier-badge.medium { background: var(--rework-soft); color: var(--rework); }
+.automation-tier-badge.low { background: var(--flag-end-bg); color: var(--flag-end-fg); }
+.automation-score { font-size: 1.9rem; font-weight: 700; color: var(--text-primary); }
+.automation-score span { font-size: 1rem; font-weight: 600; color: var(--text-tertiary); }
+.automation-gauge { flex-shrink: 0; }
+.automation-gauge-track { stroke: var(--panel-border); }
+.automation-gauge-fill { stroke: var(--path-main); transition: stroke-dashoffset 0.3s ease, stroke 0.3s ease; }
+.automation-gauge-needle { stroke: var(--text-primary); transition: x2 0.3s ease, y2 0.3s ease; }
+.automation-gauge-hub { fill: var(--text-primary); }
+.automation-opportunity-text { margin: 10px 0 0; font-size: 0.82rem; line-height: 1.5; color: var(--text-secondary); }
+
+.automation-why-grid .task-stat-value { font-size: 0.95rem; }
+
+.automation-impact-card {
+  background: var(--path-main-soft);
+  border-radius: 12px;
+  padding: 16px;
+}
+.automation-impact-heading { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; font-weight: 700; color: var(--text-primary); margin-bottom: 10px; }
+.automation-impact-row { display: flex; align-items: center; gap: 20px; }
+.automation-impact-sep { width: 1px; align-self: stretch; background: rgba(31, 157, 92, 0.25); }
+.automation-impact-value { font-size: 1.4rem; font-weight: 700; color: var(--path-main); }
+.automation-impact-label { font-size: 0.72rem; color: var(--text-secondary); margin-top: 2px; }
+.automation-impact-text { margin: 12px 0 0; font-size: 0.8rem; line-height: 1.5; color: var(--text-secondary); }
+
+.automation-steps-list { display: flex; flex-direction: column; gap: 0; border: 1px solid var(--panel-border); border-radius: 12px; overflow: hidden; }
+.automation-step-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--panel-border);
+  font-size: 0.84rem;
+  color: var(--text-primary);
+}
+.automation-step-row:last-child { border-bottom: none; }
+.automation-step-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--path-main-soft);
+  color: var(--path-main);
+  font-size: 0.72rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.automation-next-step-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  padding: 14px;
+}
+.automation-next-step-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--path-main-soft);
+  color: var(--path-main);
+  flex-shrink: 0;
+}
+.automation-next-step-title { font-size: 0.86rem; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; }
+.automation-next-step-text { margin: 0; font-size: 0.8rem; line-height: 1.5; color: var(--text-secondary); }
 
 .task-detail-section-title {
   margin: 0 0 10px;
@@ -281,6 +424,7 @@ body.app-fullscreen .side-drawer { top: 64px; right: 16px; }
 .task-stat-label { font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-secondary); }
 .task-stat-value { font-size: 1.02rem; font-weight: 700; color: var(--text-primary); }
 .task-stat-value.muted { font-size: 0.8rem; font-weight: 600; color: var(--text-tertiary); }
+.task-stat-sub { font-size: 0.7rem; color: var(--text-secondary); margin-top: 1px; }
 
 .task-io-row {
   border: 1px solid var(--panel-border);
@@ -1789,44 +1933,128 @@ button:hover { filter: brightness(1.08); }
         </svg>
       </button>
     </div>
+    <div class="task-detail-tabs">
+      <button class="task-detail-tab active" id="task-detail-tab-overview" type="button" data-tab="overview">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="5.8" stroke="currentColor" stroke-width="1.3" /><path d="M8 5 V8 L10 9.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" /></svg>
+        Overview
+      </button>
+      <button class="task-detail-tab" id="task-detail-tab-automation" type="button" data-tab="automation">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M9 1 L3 9.5 H7.5 L6.5 15 L13 6.5 H8.5 Z" /></svg>
+        Automation
+      </button>
+    </div>
     <div class="task-detail-body">
-      <div class="task-detail-section">
-        <h3 class="task-detail-section-title">Task Details</h3>
-        <div class="task-stat-grid" id="task-detail-stats"></div>
-      </div>
-      <div id="task-detail-summary-section" class="task-detail-section hidden">
-        <h3 class="task-detail-section-title">Summary</h3>
-        <p class="task-detail-summary-text" id="task-detail-summary-text"></p>
-      </div>
-      <div id="task-detail-io-section" class="task-detail-section hidden">
-        <h3 class="task-detail-section-title">Input / Output Context</h3>
-        <div class="task-io-row">
-          <span class="task-io-label">Trigger (input)</span>
-          <p class="task-io-text" id="task-detail-io-trigger"></p>
+      <div class="task-detail-tab-panel" id="task-detail-overview-tab">
+        <div class="task-detail-section">
+          <h3 class="task-detail-section-title">Task Details</h3>
+          <div class="task-stat-grid" id="task-detail-stats"></div>
         </div>
-        <div class="task-io-row">
-          <span class="task-io-label">Output</span>
-          <p class="task-io-text" id="task-detail-io-output"></p>
+        <div id="task-detail-summary-section" class="task-detail-section hidden">
+          <h3 class="task-detail-section-title">Summary</h3>
+          <p class="task-detail-summary-text" id="task-detail-summary-text"></p>
+        </div>
+        <div id="task-detail-io-section" class="task-detail-section hidden">
+          <h3 class="task-detail-section-title">Input / Output Context</h3>
+          <div class="task-io-row">
+            <span class="task-io-label">Trigger (input)</span>
+            <p class="task-io-text" id="task-detail-io-trigger"></p>
+          </div>
+          <div class="task-io-row">
+            <span class="task-io-label">Output</span>
+            <p class="task-io-text" id="task-detail-io-output"></p>
+          </div>
+        </div>
+        <div id="task-detail-subtype-section" class="task-detail-section hidden">
+          <h3 class="task-detail-section-title">
+            Task Subtype
+            <span class="subtype-count-badge" id="task-detail-subtype-count">0</span>
+          </h3>
+          <div class="subtype-accordion-list" id="task-detail-subtype-list"></div>
+        </div>
+        <div class="task-detail-section">
+          <h3 class="task-detail-section-title">Applications Involved</h3>
+          <div id="task-detail-apps-body"></div>
+        </div>
+        <div class="task-detail-section">
+          <h3 class="task-detail-section-title">Users Performing This Task</h3>
+          <div id="task-detail-users-body"></div>
+        </div>
+        <div class="task-detail-section" id="task-detail-instances-section">
+          <div class="instance-list" id="task-detail-instance-list"></div>
         </div>
       </div>
-      <div id="task-detail-subtype-section" class="task-detail-section hidden">
-        <h3 class="task-detail-section-title">
-          Task Subtype
-          <span class="subtype-count-badge" id="task-detail-subtype-count">0</span>
-        </h3>
-        <div class="subtype-accordion-list" id="task-detail-subtype-list"></div>
+
+      <div class="task-detail-tab-panel hidden" id="task-detail-automation-tab">
+        <div class="automation-opportunity-card">
+          <div class="automation-opportunity-top">
+            <div>
+              <div class="automation-opportunity-heading">
+                Automation Opportunity
+                <span class="automation-tier-badge" id="automation-tier-badge">–</span>
+              </div>
+              <div class="automation-score" id="automation-score">– <span>/100</span></div>
+            </div>
+            <svg class="automation-gauge" id="automation-gauge" width="96" height="56" viewBox="0 0 96 56" aria-hidden="true">
+              <path class="automation-gauge-track" d="M8 48 A40 40 0 0 1 88 48" fill="none" stroke-width="9" stroke-linecap="round" />
+              <path class="automation-gauge-fill" id="automation-gauge-fill" d="M8 48 A40 40 0 0 1 88 48" fill="none" stroke-width="9" stroke-linecap="round" />
+              <line class="automation-gauge-needle" id="automation-gauge-needle" x1="48" y1="48" x2="48" y2="48" stroke-width="2" stroke-linecap="round" />
+              <circle cx="48" cy="48" r="3" class="automation-gauge-hub" />
+            </svg>
+          </div>
+          <p class="automation-opportunity-text" id="automation-opportunity-text"></p>
+        </div>
+
+        <div class="task-detail-section">
+          <h3 class="task-detail-section-title">Why automate this task?</h3>
+          <div class="task-stat-grid automation-why-grid" id="automation-why-grid"></div>
+        </div>
+
+        <div class="automation-impact-card">
+          <div class="automation-impact-heading">Estimated Impact</div>
+          <div class="automation-impact-row">
+            <div>
+              <div class="automation-impact-value" id="automation-impact-time">–</div>
+              <div class="automation-impact-label">time saved (total)</div>
+            </div>
+            <div class="automation-impact-sep"></div>
+            <div>
+              <div class="automation-impact-value" id="automation-impact-pct">–</div>
+              <div class="automation-impact-label">of task time</div>
+            </div>
+          </div>
+          <p class="automation-impact-text" id="automation-impact-text"></p>
+        </div>
+
+        <div class="task-detail-section">
+          <h3 class="task-detail-section-title">What will be automated?</h3>
+          <div id="automation-steps-body"></div>
+        </div>
+
+        <div class="task-detail-section">
+          <h3 class="task-detail-section-title">Next Step</h3>
+          <div class="automation-next-step-card">
+            <span class="automation-next-step-icon" id="automation-next-step-icon"></span>
+            <div>
+              <div class="automation-next-step-title" id="automation-next-step-title"></div>
+              <p class="automation-next-step-text" id="automation-next-step-text"></p>
+            </div>
+          </div>
+        </div>
       </div>
-      <div class="task-detail-section">
-        <h3 class="task-detail-section-title">Applications Involved</h3>
-        <div id="task-detail-apps-body"></div>
-      </div>
-      <div class="task-detail-section">
-        <h3 class="task-detail-section-title">Users Performing This Task</h3>
-        <div id="task-detail-users-body"></div>
-      </div>
-      <div class="task-detail-section" id="task-detail-instances-section">
-        <div class="instance-list" id="task-detail-instance-list"></div>
-      </div>
+    </div>
+    <div class="task-detail-footer">
+      <button class="task-detail-footer-btn" id="task-detail-view-steps" type="button">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2 12 L6 6 L9.5 9 L14 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" /></svg>
+        View steps
+      </button>
+      <button class="task-detail-footer-btn" id="task-detail-watch-replays" type="button">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M4 2.5 L13 8 L4 13.5 Z" /></svg>
+        Watch replays
+      </button>
+      <button class="task-detail-footer-btn primary" id="task-detail-automate-seek" type="button">
+        Automate with Seek
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8 H13 M9 4 L13 8 L9 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg>
+      </button>
     </div>
   </div>
 
@@ -7446,10 +7674,17 @@ function openTaskDetail(taskId) {
   closeInsights();
   closeAISummary();
   closeFilterPanel();
+  setTaskDetailTab('overview');
   d3.select('#task-detail-panel').classed('hidden', false);
   renderTaskDetail();
   syncTaskDetailLayout();
   render();
+}
+
+function setTaskDetailTab(tab) {
+  d3.selectAll('.task-detail-tab').classed('active', function () { return this.dataset.tab === tab; });
+  d3.select('#task-detail-overview-tab').classed('hidden', tab !== 'overview');
+  d3.select('#task-detail-automation-tab').classed('hidden', tab !== 'automation');
 }
 
 function closeTaskDetail() {
@@ -7649,6 +7884,143 @@ function renderTaskDetail() {
       instanceListSel.append('p').attr('class', 'hint').text('No instance data available for this task.');
     }
   }
+
+  renderAutomationTab(node, meta, uniqueUsers);
+}
+
+const CHECK_ICON_SVG = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2.5 6.5 L5 9 L9.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" /></svg>';
+
+// Draws the semicircular gauge: a fixed background track plus a foreground
+// arc whose visible length is set via stroke-dasharray/dashoffset, and a
+// needle rotated to match. Geometry (cx=48, cy=48, r=40) matches the fixed
+// path data in the SVG markup, so this is pure arithmetic, not measurement.
+function updateAutomationGauge(fraction, colorVar) {
+  const r = 40;
+  const arcLength = Math.PI * r;
+  d3.select('#automation-gauge-fill')
+    .style('stroke-dasharray', `${arcLength}`)
+    .style('stroke-dashoffset', `${arcLength * (1 - fraction)}`)
+    .style('stroke', colorVar);
+  const angleRad = (180 - fraction * 180) * (Math.PI / 180);
+  const needleLength = 32;
+  const cx = 48;
+  const cy = 48;
+  d3.select('#automation-gauge-needle')
+    .attr('x2', cx + needleLength * Math.cos(angleRad))
+    .attr('y2', cy - needleLength * Math.sin(angleRad));
+}
+
+function buildStatTile(container, { label, value, sub, muted }) {
+  const tile = container.append('div').attr('class', 'task-stat');
+  tile.append('span').attr('class', 'task-stat-label').text(label);
+  tile.append('span').attr('class', `task-stat-value${muted ? ' muted' : ''}`).text(value);
+  if (sub) tile.append('span').attr('class', 'task-stat-sub').text(sub);
+}
+
+// Automation Opportunity: a transparent, deterministic blend of signals
+// already shown as real stats elsewhere in this panel (frequency,
+// consistency = 1 - deviation rate, rework rate) — nothing here is
+// invented. The one soft signal is "human judgment", proxied by how many
+// distinct ways the task gets carried out: more subtypes (or, lacking
+// subtype data, more deviation) implies more situational judgment.
+function renderAutomationTab(node, meta, uniqueUsers) {
+  const pct = (n) => `${(n * 100).toFixed(0)}%`;
+  const consistency = 1 - node.deviationRate;
+  const frequency = node.casePct;
+  const reworkFactor = 1 - node.reworkRate;
+
+  const subtypeCount = meta && meta.subtypes ? meta.subtypes.length : 0;
+  let judgment;
+  if (subtypeCount > 0) judgment = subtypeCount <= 1 ? 'Low' : subtypeCount <= 3 ? 'Medium' : 'High';
+  else judgment = node.deviationRate < 0.1 ? 'Low' : node.deviationRate < 0.3 ? 'Medium' : 'High';
+  const judgmentFactor = judgment === 'Low' ? 1 : judgment === 'Medium' ? 0.6 : 0.25;
+
+  const score = Math.round(100 * (0.3 * frequency + 0.3 * consistency + 0.2 * reworkFactor + 0.2 * judgmentFactor));
+  const tier = score >= 70 ? 'high' : score >= 40 ? 'medium' : 'low';
+  const tierLabel = tier === 'high' ? 'High' : tier === 'medium' ? 'Medium' : 'Low';
+  const tierColorVar = tier === 'high' ? 'var(--path-main)' : tier === 'medium' ? 'var(--rework)' : 'var(--flag-end-fg)';
+
+  d3.select('#automation-tier-badge').attr('class', `automation-tier-badge ${tier}`).text(tierLabel);
+  d3.select('#automation-score').html(`${score} <span>/100</span>`);
+  updateAutomationGauge(score / 100, tierColorVar);
+
+  const reasonParts = [];
+  if (consistency >= 0.8) reasonParts.push('its consistency');
+  if (judgment === 'Low') reasonParts.push('low need for human judgement');
+  if (node.reworkRate < 0.05) reasonParts.push('minimal rework');
+  const reasonText = reasonParts.length ? reasonParts.join(' and ') : 'a mix of moderate consistency and judgment needs';
+  const verdict = tier === 'high' ? 'highly automatable' : tier === 'medium' ? 'a moderate automation candidate' : 'a weaker automation candidate';
+  d3.select('#automation-opportunity-text').text(
+    `This task is ${verdict} due to ${reasonText}, potentially saving ~${formatDuration(node.totalTime)} effort.`
+  );
+
+  const whyGrid = d3.select('#automation-why-grid');
+  whyGrid.selectAll('*').remove();
+  buildStatTile(whyGrid, { label: 'Frequency', value: pct(frequency), sub: 'of all instances' });
+  buildStatTile(whyGrid, { label: 'Consistency', value: pct(consistency), sub: 'same pattern' });
+  buildStatTile(whyGrid, { label: 'Executions', value: `${node.visits}`, sub: 'total' });
+  buildStatTile(whyGrid, { label: 'Avg Duration', value: formatDuration(node.avgDuration), sub: 'per execution' });
+  buildStatTile(whyGrid, {
+    label: 'Rework Rate',
+    value: pct(node.reworkRate),
+    sub: node.reworkCaseCount ? `${pluralCases(node.reworkCaseCount)} reworked` : 'no rework',
+  });
+  buildStatTile(whyGrid, {
+    label: 'Human Judgment',
+    value: judgment,
+    sub: judgment === 'Low' ? 'rules based' : judgment === 'Medium' ? 'some judgment needed' : 'case-by-case',
+  });
+  buildStatTile(whyGrid, meta && meta.appId
+    ? { label: 'Applications', value: '1', sub: meta.appId }
+    : { label: 'Applications', value: 'Not tracked', sub: 'in this dataset', muted: true });
+  buildStatTile(whyGrid, { label: 'Error Rate', value: 'Not tracked', sub: 'in this data', muted: true });
+  buildStatTile(whyGrid, {
+    label: 'Deviation Rate',
+    value: pct(node.deviationRate),
+    sub: node.deviationCaseCount ? `${pluralCases(node.deviationCaseCount)} deviate` : 'no deviations',
+  });
+
+  d3.select('#automation-impact-time').text(formatDuration(node.totalTime));
+  d3.select('#automation-impact-pct').text('100%');
+  const impactVerdict = tier === 'high'
+    ? 'a strong candidate for automation'
+    : tier === 'medium'
+      ? 'a moderate candidate for automation'
+      : 'not a strong candidate for full automation right now';
+  d3.select('#automation-impact-text').text(
+    `This task is ${impactVerdict} and can save ~${formatDuration(node.totalTime)} of effort across all instances.`
+  );
+
+  // "What will be automated?" uses the task's own real subtype names as the
+  // step list when available — it's real content, just re-presented as
+  // steps, not a fabricated click-by-click breakdown. Nothing stands in for
+  // that when a dataset has no subtype catalog at all.
+  const stepsBody = d3.select('#automation-steps-body');
+  stepsBody.selectAll('*').remove();
+  if (meta && meta.subtypes && meta.subtypes.length) {
+    const list = stepsBody.append('div').attr('class', 'automation-steps-list');
+    meta.subtypes.forEach((s, i) => {
+      const row = list.append('div').attr('class', 'automation-step-row');
+      row.append('span').attr('class', 'automation-step-number').text(i + 1);
+      row.append('span').text(s.name);
+    });
+  } else {
+    stepsBody.append('p').attr('class', 'task-detail-muted-note').text('Not available — no step-level breakdown in this dataset.');
+  }
+
+  const nextStepTitle = tier === 'high'
+    ? 'Automate this task'
+    : tier === 'medium'
+      ? 'Consider automating this task'
+      : 'Manual review recommended';
+  const nextStepText = tier === 'high'
+    ? 'High consistency and low complexity make this task ideal for automation.'
+    : tier === 'medium'
+      ? 'Moderate consistency suggests partial automation could help, with review for exceptions.'
+      : 'Lower consistency or higher judgment needs make this task a weaker automation candidate for now.';
+  d3.select('#automation-next-step-icon').html(CHECK_ICON_SVG);
+  d3.select('#automation-next-step-title').text(nextStepTitle);
+  d3.select('#automation-next-step-text').text(nextStepText);
 }
 
 // Lets an instance card act as a path filter: traces that instance's exact
@@ -7662,6 +8034,17 @@ function selectInstance(caseId) {
 }
 
 d3.select('#task-detail-close').on('click', closeTaskDetail);
+
+d3.selectAll('.task-detail-tab').on('click', function () {
+  setTaskDetailTab(this.dataset.tab);
+});
+d3.select('#task-detail-view-steps').on('click', () => setTaskDetailTab('overview'));
+d3.select('#task-detail-watch-replays').on('click', () => {
+  if (state.selectedTaskId) openSessionReplay(state.selectedTaskId);
+});
+// "Automate with Seek" is an intentionally inert placeholder CTA — there's
+// no real automation integration behind this app, so it deliberately has
+// no click handler rather than implying one.
 
 // Keeps the panel flush against the topbar's bottom edge (0 in fullscreen,
 // where the topbar is hidden) and slides the Insights/AI Summary/fullscreen

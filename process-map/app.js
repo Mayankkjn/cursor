@@ -1064,10 +1064,17 @@ function openTaskDetail(taskId) {
   closeInsights();
   closeAISummary();
   closeFilterPanel();
+  setTaskDetailTab('overview');
   d3.select('#task-detail-panel').classed('hidden', false);
   renderTaskDetail();
   syncTaskDetailLayout();
   render();
+}
+
+function setTaskDetailTab(tab) {
+  d3.selectAll('.task-detail-tab').classed('active', function () { return this.dataset.tab === tab; });
+  d3.select('#task-detail-overview-tab').classed('hidden', tab !== 'overview');
+  d3.select('#task-detail-automation-tab').classed('hidden', tab !== 'automation');
 }
 
 function closeTaskDetail() {
@@ -1267,6 +1274,143 @@ function renderTaskDetail() {
       instanceListSel.append('p').attr('class', 'hint').text('No instance data available for this task.');
     }
   }
+
+  renderAutomationTab(node, meta, uniqueUsers);
+}
+
+const CHECK_ICON_SVG = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2.5 6.5 L5 9 L9.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" /></svg>';
+
+// Draws the semicircular gauge: a fixed background track plus a foreground
+// arc whose visible length is set via stroke-dasharray/dashoffset, and a
+// needle rotated to match. Geometry (cx=48, cy=48, r=40) matches the fixed
+// path data in the SVG markup, so this is pure arithmetic, not measurement.
+function updateAutomationGauge(fraction, colorVar) {
+  const r = 40;
+  const arcLength = Math.PI * r;
+  d3.select('#automation-gauge-fill')
+    .style('stroke-dasharray', `${arcLength}`)
+    .style('stroke-dashoffset', `${arcLength * (1 - fraction)}`)
+    .style('stroke', colorVar);
+  const angleRad = (180 - fraction * 180) * (Math.PI / 180);
+  const needleLength = 32;
+  const cx = 48;
+  const cy = 48;
+  d3.select('#automation-gauge-needle')
+    .attr('x2', cx + needleLength * Math.cos(angleRad))
+    .attr('y2', cy - needleLength * Math.sin(angleRad));
+}
+
+function buildStatTile(container, { label, value, sub, muted }) {
+  const tile = container.append('div').attr('class', 'task-stat');
+  tile.append('span').attr('class', 'task-stat-label').text(label);
+  tile.append('span').attr('class', `task-stat-value${muted ? ' muted' : ''}`).text(value);
+  if (sub) tile.append('span').attr('class', 'task-stat-sub').text(sub);
+}
+
+// Automation Opportunity: a transparent, deterministic blend of signals
+// already shown as real stats elsewhere in this panel (frequency,
+// consistency = 1 - deviation rate, rework rate) — nothing here is
+// invented. The one soft signal is "human judgment", proxied by how many
+// distinct ways the task gets carried out: more subtypes (or, lacking
+// subtype data, more deviation) implies more situational judgment.
+function renderAutomationTab(node, meta, uniqueUsers) {
+  const pct = (n) => `${(n * 100).toFixed(0)}%`;
+  const consistency = 1 - node.deviationRate;
+  const frequency = node.casePct;
+  const reworkFactor = 1 - node.reworkRate;
+
+  const subtypeCount = meta && meta.subtypes ? meta.subtypes.length : 0;
+  let judgment;
+  if (subtypeCount > 0) judgment = subtypeCount <= 1 ? 'Low' : subtypeCount <= 3 ? 'Medium' : 'High';
+  else judgment = node.deviationRate < 0.1 ? 'Low' : node.deviationRate < 0.3 ? 'Medium' : 'High';
+  const judgmentFactor = judgment === 'Low' ? 1 : judgment === 'Medium' ? 0.6 : 0.25;
+
+  const score = Math.round(100 * (0.3 * frequency + 0.3 * consistency + 0.2 * reworkFactor + 0.2 * judgmentFactor));
+  const tier = score >= 70 ? 'high' : score >= 40 ? 'medium' : 'low';
+  const tierLabel = tier === 'high' ? 'High' : tier === 'medium' ? 'Medium' : 'Low';
+  const tierColorVar = tier === 'high' ? 'var(--path-main)' : tier === 'medium' ? 'var(--rework)' : 'var(--flag-end-fg)';
+
+  d3.select('#automation-tier-badge').attr('class', `automation-tier-badge ${tier}`).text(tierLabel);
+  d3.select('#automation-score').html(`${score} <span>/100</span>`);
+  updateAutomationGauge(score / 100, tierColorVar);
+
+  const reasonParts = [];
+  if (consistency >= 0.8) reasonParts.push('its consistency');
+  if (judgment === 'Low') reasonParts.push('low need for human judgement');
+  if (node.reworkRate < 0.05) reasonParts.push('minimal rework');
+  const reasonText = reasonParts.length ? reasonParts.join(' and ') : 'a mix of moderate consistency and judgment needs';
+  const verdict = tier === 'high' ? 'highly automatable' : tier === 'medium' ? 'a moderate automation candidate' : 'a weaker automation candidate';
+  d3.select('#automation-opportunity-text').text(
+    `This task is ${verdict} due to ${reasonText}, potentially saving ~${formatDuration(node.totalTime)} effort.`
+  );
+
+  const whyGrid = d3.select('#automation-why-grid');
+  whyGrid.selectAll('*').remove();
+  buildStatTile(whyGrid, { label: 'Frequency', value: pct(frequency), sub: 'of all instances' });
+  buildStatTile(whyGrid, { label: 'Consistency', value: pct(consistency), sub: 'same pattern' });
+  buildStatTile(whyGrid, { label: 'Executions', value: `${node.visits}`, sub: 'total' });
+  buildStatTile(whyGrid, { label: 'Avg Duration', value: formatDuration(node.avgDuration), sub: 'per execution' });
+  buildStatTile(whyGrid, {
+    label: 'Rework Rate',
+    value: pct(node.reworkRate),
+    sub: node.reworkCaseCount ? `${pluralCases(node.reworkCaseCount)} reworked` : 'no rework',
+  });
+  buildStatTile(whyGrid, {
+    label: 'Human Judgment',
+    value: judgment,
+    sub: judgment === 'Low' ? 'rules based' : judgment === 'Medium' ? 'some judgment needed' : 'case-by-case',
+  });
+  buildStatTile(whyGrid, meta && meta.appId
+    ? { label: 'Applications', value: '1', sub: meta.appId }
+    : { label: 'Applications', value: 'Not tracked', sub: 'in this dataset', muted: true });
+  buildStatTile(whyGrid, { label: 'Error Rate', value: 'Not tracked', sub: 'in this data', muted: true });
+  buildStatTile(whyGrid, {
+    label: 'Deviation Rate',
+    value: pct(node.deviationRate),
+    sub: node.deviationCaseCount ? `${pluralCases(node.deviationCaseCount)} deviate` : 'no deviations',
+  });
+
+  d3.select('#automation-impact-time').text(formatDuration(node.totalTime));
+  d3.select('#automation-impact-pct').text('100%');
+  const impactVerdict = tier === 'high'
+    ? 'a strong candidate for automation'
+    : tier === 'medium'
+      ? 'a moderate candidate for automation'
+      : 'not a strong candidate for full automation right now';
+  d3.select('#automation-impact-text').text(
+    `This task is ${impactVerdict} and can save ~${formatDuration(node.totalTime)} of effort across all instances.`
+  );
+
+  // "What will be automated?" uses the task's own real subtype names as the
+  // step list when available — it's real content, just re-presented as
+  // steps, not a fabricated click-by-click breakdown. Nothing stands in for
+  // that when a dataset has no subtype catalog at all.
+  const stepsBody = d3.select('#automation-steps-body');
+  stepsBody.selectAll('*').remove();
+  if (meta && meta.subtypes && meta.subtypes.length) {
+    const list = stepsBody.append('div').attr('class', 'automation-steps-list');
+    meta.subtypes.forEach((s, i) => {
+      const row = list.append('div').attr('class', 'automation-step-row');
+      row.append('span').attr('class', 'automation-step-number').text(i + 1);
+      row.append('span').text(s.name);
+    });
+  } else {
+    stepsBody.append('p').attr('class', 'task-detail-muted-note').text('Not available — no step-level breakdown in this dataset.');
+  }
+
+  const nextStepTitle = tier === 'high'
+    ? 'Automate this task'
+    : tier === 'medium'
+      ? 'Consider automating this task'
+      : 'Manual review recommended';
+  const nextStepText = tier === 'high'
+    ? 'High consistency and low complexity make this task ideal for automation.'
+    : tier === 'medium'
+      ? 'Moderate consistency suggests partial automation could help, with review for exceptions.'
+      : 'Lower consistency or higher judgment needs make this task a weaker automation candidate for now.';
+  d3.select('#automation-next-step-icon').html(CHECK_ICON_SVG);
+  d3.select('#automation-next-step-title').text(nextStepTitle);
+  d3.select('#automation-next-step-text').text(nextStepText);
 }
 
 // Lets an instance card act as a path filter: traces that instance's exact
@@ -1280,6 +1424,17 @@ function selectInstance(caseId) {
 }
 
 d3.select('#task-detail-close').on('click', closeTaskDetail);
+
+d3.selectAll('.task-detail-tab').on('click', function () {
+  setTaskDetailTab(this.dataset.tab);
+});
+d3.select('#task-detail-view-steps').on('click', () => setTaskDetailTab('overview'));
+d3.select('#task-detail-watch-replays').on('click', () => {
+  if (state.selectedTaskId) openSessionReplay(state.selectedTaskId);
+});
+// "Automate with Seek" is an intentionally inert placeholder CTA — there's
+// no real automation integration behind this app, so it deliberately has
+// no click handler rather than implying one.
 
 // Keeps the panel flush against the topbar's bottom edge (0 in fullscreen,
 // where the topbar is hidden) and slides the Insights/AI Summary/fullscreen

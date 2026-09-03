@@ -253,10 +253,153 @@ body.app-fullscreen .side-drawer { top: 64px; right: 16px; }
   padding: 18px 20px;
   display: flex;
   flex-direction: column;
-  gap: 22px;
 }
+.task-detail-tab-panel { display: flex; flex-direction: column; gap: 22px; }
+.task-detail-tab-panel.hidden { display: none; }
 .task-detail-section.hidden { display: none; }
 .task-detail-section-title.hidden { display: none; }
+
+/* ---- task detail tabs + sticky CTA footer ---- */
+.task-detail-tabs {
+  display: flex;
+  gap: 22px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--panel-border);
+  flex-shrink: 0;
+}
+.task-detail-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 12px 0;
+  margin-bottom: -1px;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.task-detail-tab:hover { color: var(--text-primary); }
+.task-detail-tab.active { color: var(--accent-ui); border-bottom-color: var(--accent-ui); }
+
+.task-detail-footer {
+  flex-shrink: 0;
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--panel-border);
+  background: var(--card-bg);
+}
+.task-detail-footer-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  background: var(--card-bg);
+  color: var(--text-primary);
+  padding: 9px 10px;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.task-detail-footer-btn:hover { border-color: var(--accent-ui); }
+.task-detail-footer-btn.primary { background: var(--accent-ui); border-color: var(--accent-ui); color: #ffffff; flex: 1.3; }
+.task-detail-footer-btn.primary:hover { filter: brightness(1.08); }
+
+/* ---- automation tab ---- */
+.automation-opportunity-card {
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  padding: 16px;
+}
+.automation-opportunity-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.automation-opportunity-heading { display: flex; align-items: center; gap: 8px; font-size: 0.92rem; font-weight: 700; color: var(--text-primary); margin-bottom: 6px; }
+.automation-tier-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  border-radius: 100px;
+  padding: 2px 10px;
+}
+.automation-tier-badge.high { background: var(--path-main-soft); color: var(--path-main); }
+.automation-tier-badge.medium { background: var(--rework-soft); color: var(--rework); }
+.automation-tier-badge.low { background: var(--flag-end-bg); color: var(--flag-end-fg); }
+.automation-score { font-size: 1.9rem; font-weight: 700; color: var(--text-primary); }
+.automation-score span { font-size: 1rem; font-weight: 600; color: var(--text-tertiary); }
+.automation-gauge { flex-shrink: 0; }
+.automation-gauge-track { stroke: var(--panel-border); }
+.automation-gauge-fill { stroke: var(--path-main); transition: stroke-dashoffset 0.3s ease, stroke 0.3s ease; }
+.automation-gauge-needle { stroke: var(--text-primary); transition: x2 0.3s ease, y2 0.3s ease; }
+.automation-gauge-hub { fill: var(--text-primary); }
+.automation-opportunity-text { margin: 10px 0 0; font-size: 0.82rem; line-height: 1.5; color: var(--text-secondary); }
+
+.automation-why-grid .task-stat-value { font-size: 0.95rem; }
+
+.automation-impact-card {
+  background: var(--path-main-soft);
+  border-radius: 12px;
+  padding: 16px;
+}
+.automation-impact-heading { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; font-weight: 700; color: var(--text-primary); margin-bottom: 10px; }
+.automation-impact-row { display: flex; align-items: center; gap: 20px; }
+.automation-impact-sep { width: 1px; align-self: stretch; background: rgba(31, 157, 92, 0.25); }
+.automation-impact-value { font-size: 1.4rem; font-weight: 700; color: var(--path-main); }
+.automation-impact-label { font-size: 0.72rem; color: var(--text-secondary); margin-top: 2px; }
+.automation-impact-text { margin: 12px 0 0; font-size: 0.8rem; line-height: 1.5; color: var(--text-secondary); }
+
+.automation-steps-list { display: flex; flex-direction: column; gap: 0; border: 1px solid var(--panel-border); border-radius: 12px; overflow: hidden; }
+.automation-step-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--panel-border);
+  font-size: 0.84rem;
+  color: var(--text-primary);
+}
+.automation-step-row:last-child { border-bottom: none; }
+.automation-step-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--path-main-soft);
+  color: var(--path-main);
+  font-size: 0.72rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.automation-next-step-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  padding: 14px;
+}
+.automation-next-step-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--path-main-soft);
+  color: var(--path-main);
+  flex-shrink: 0;
+}
+.automation-next-step-title { font-size: 0.86rem; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; }
+.automation-next-step-text { margin: 0; font-size: 0.8rem; line-height: 1.5; color: var(--text-secondary); }
 
 .task-detail-section-title {
   margin: 0 0 10px;
@@ -281,6 +424,7 @@ body.app-fullscreen .side-drawer { top: 64px; right: 16px; }
 .task-stat-label { font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-secondary); }
 .task-stat-value { font-size: 1.02rem; font-weight: 700; color: var(--text-primary); }
 .task-stat-value.muted { font-size: 0.8rem; font-weight: 600; color: var(--text-tertiary); }
+.task-stat-sub { font-size: 0.7rem; color: var(--text-secondary); margin-top: 1px; }
 
 .task-io-row {
   border: 1px solid var(--panel-border);
