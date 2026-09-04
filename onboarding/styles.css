@@ -11,6 +11,7 @@
   --green-foreground: #f6f2e6;
   --orange: #d98c3d;
   --orange-soft: #efd9bd;
+  --blue: #4a7fa8;
   --radius-lg: 1.4rem;
   --radius-md: 0.9rem;
   --radius-sm: 0.6rem;
@@ -62,7 +63,7 @@ body {
   width: 375px;
   max-width: 92vw;
   height: 812px;
-  max-height: 82vh;
+  max-height: 84vh;
   background: #0e0e0c;
   border-radius: 2.8rem;
   padding: 12px;
@@ -160,10 +161,15 @@ body {
 
 .eyebrow {
   font-size: 0.74rem;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--ink-soft);
   margin: 0 0 0.5rem;
-  text-transform: none;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.eyebrow.center {
+  text-align: center;
 }
 
 .eyebrow.accent {
@@ -194,6 +200,7 @@ body {
   line-height: 1.25;
   margin: 0 0 0.6rem;
   color: var(--ink);
+  text-wrap: balance;
 }
 
 .headline.small {
@@ -204,18 +211,9 @@ body {
   text-align: center;
 }
 
-.headline.serif-only {
-  font-size: 1.4rem;
-}
-
 .accent {
   color: var(--orange);
   font-style: normal;
-}
-
-.accent-italic {
-  color: var(--orange);
-  font-style: italic;
 }
 
 .subtext {
@@ -229,29 +227,30 @@ body {
   text-align: center;
 }
 
-/* ---------- Icon grid (screen 1) ---------- */
-.icon-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 0.7rem;
-  margin-top: 0.6rem;
-}
-
-.icon-card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 1.1rem 0.8rem;
+/* ---------- Word cascade (splash 1) ---------- */
+.word-cascade {
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.82rem;
-  font-weight: 600;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.7rem;
 }
 
-.icon-badge {
-  font-size: 1.4rem;
+.word-cascade li {
+  font-family: var(--font-serif);
+  font-size: 1.9rem;
+  font-weight: 600;
+  opacity: 0;
+  transform: translateY(8px);
+  animation: cascadeIn 0.5s ease forwards;
+}
+
+@keyframes cascadeIn {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* ---------- Illustrations ---------- */
@@ -268,16 +267,6 @@ body {
   height: auto;
 }
 
-.illustration-safe svg,
-.illustration-coins svg {
-  max-width: 190px;
-}
-
-.illustration-piggy svg,
-.illustration-cake svg {
-  max-width: 170px;
-}
-
 /* ---------- Checklists ---------- */
 .check-list.plain {
   list-style: none;
@@ -288,10 +277,6 @@ body {
   gap: 0.75rem;
   font-size: 0.95rem;
   font-weight: 600;
-}
-
-.check-list.plain.center {
-  align-items: center;
 }
 
 .check-dot {
@@ -311,7 +296,33 @@ body {
   margin-bottom: 0.8rem;
 }
 
-/* ---------- Row lists (screen 8, 12) ---------- */
+.stagger-list li {
+  opacity: 0;
+  animation: fadeUp 0.5s ease forwards;
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.celebrate-line {
+  margin-top: auto;
+  text-align: center;
+  font-weight: 700;
+  font-family: var(--font-serif);
+  font-size: 1.1rem;
+  opacity: 0;
+  animation: fadeUp 0.6s ease forwards 1.7s;
+}
+
+/* ---------- Row lists ---------- */
 .row-list {
   list-style: none;
   margin: 0.4rem 0 1.2rem;
@@ -359,16 +370,6 @@ body {
   color: var(--ink-soft);
 }
 
-.check-rows li {
-  padding: 0.55rem 0.85rem;
-}
-
-.row-check {
-  margin-left: auto;
-  color: #2e9e5b;
-  font-weight: 700;
-}
-
 /* ---------- Fields ---------- */
 .field {
   display: flex;
@@ -398,25 +399,35 @@ body {
   color: var(--ink);
 }
 
-.link {
+.field-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  margin: 0 0 0.6rem;
+}
+
+.link-btn {
+  border: none;
+  background: transparent;
+  padding: 0;
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--ink);
   text-decoration: underline;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  align-self: flex-start;
+}
+
+.hint-text {
+  margin-top: 0.5rem;
 }
 
 /* ---------- OTP ---------- */
-.otp-label {
-  text-align: center;
-  font-weight: 700;
-  margin: 1.6rem 0 0.8rem;
-}
-
 .otp-row {
   display: flex;
   gap: 0.7rem;
   justify-content: center;
-  margin-bottom: 2rem;
+  margin: 1.6rem 0 2rem;
 }
 
 .otp-box {
@@ -430,8 +441,9 @@ body {
   font-family: var(--font-sans);
 }
 
-.otp-box:focus {
+.otp-box:focus-visible {
   outline: 2px solid var(--green);
+  outline-offset: 1px;
 }
 
 /* ---------- Buttons ---------- */
@@ -445,6 +457,14 @@ body {
 
 .screen-footer.center {
   align-items: center;
+}
+
+.choice-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  margin-top: auto;
+  padding-top: 1.2rem;
 }
 
 .btn-primary {
@@ -470,6 +490,18 @@ body {
 
 .btn-primary:active {
   transform: scale(0.98);
+}
+
+.btn-primary:focus-visible,
+.btn-outline:focus-visible,
+.btn-circle:focus-visible,
+.option-card:focus-visible,
+.ctrl-btn:focus-visible,
+.btn-back:focus-visible,
+.chip:focus-visible,
+.pill:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
 }
 
 .btn-primary.block {
@@ -511,12 +543,6 @@ body {
   transform: scale(0.94);
 }
 
-.btn-circle.dashed {
-  background: transparent;
-  color: var(--green);
-  border: 2px dashed var(--green);
-}
-
 .fineprint {
   font-size: 0.74rem;
   color: var(--ink-soft);
@@ -528,126 +554,424 @@ body {
   text-align: center;
 }
 
-/* ---------- Confetti / celebration screen ---------- */
-.confetti-wrap {
-  position: relative;
-  height: 6.5rem;
+/* ---------- Reveal / magic words screen ---------- */
+.reveal-screen {
+  justify-content: center;
+}
+
+.reveal-hero {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 0.6rem;
+  padding: 2rem 0;
 }
 
-.wave-emoji {
+.reveal-text {
+  font-family: var(--font-serif);
+  font-weight: 700;
   font-size: 2.6rem;
+  text-align: center;
+  line-height: 1.15;
+  color: var(--green);
+  background: linear-gradient(100deg, var(--green) 30%, var(--orange) 70%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: revealPop 0.7s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
 }
 
-.confetti {
-  position: absolute;
-  font-size: 0.9rem;
+@keyframes revealPop {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
-.confetti.c1 { color: var(--orange); top: 4px; left: 30%; }
-.confetti.c2 { color: #2e9e5b; top: 20px; left: 68%; }
-.confetti.c3 { color: #4a90d9; top: 50px; left: 20%; }
-.confetti.c4 { color: var(--orange); top: 8px; left: 78%; }
-.confetti.c5 { color: #2e9e5b; top: 46px; left: 82%; }
-.confetti.c6 { color: #4a90d9; top: 60px; left: 46%; }
+/* ---------- Definition card ---------- */
+.definition-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.1rem;
+  margin-bottom: 1.2rem;
+}
 
-/* ---------- Stat list (screen 14) ---------- */
-.stat-list {
+.definition-term {
+  font-family: var(--font-serif);
+  font-weight: 700;
+  font-size: 1rem;
+  margin: 0 0 0.5rem;
+  color: var(--green);
+}
+
+.definition-body {
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* ---------- Numbered list (three things) ---------- */
+.numbered-list {
   list-style: none;
-  margin: 0.5rem 0 1.2rem;
+  margin: 0.6rem 0 1.4rem;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
+  gap: 0.8rem;
 }
 
-.stat-list li {
+.numbered-list li {
   display: flex;
-  align-items: center;
-  gap: 0.6rem;
+  align-items: flex-start;
+  gap: 0.9rem;
+}
+
+.num {
+  font-family: var(--font-serif);
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--orange-soft);
+  -webkit-text-stroke: 1px var(--orange);
+  flex-shrink: 0;
+  width: 2rem;
+}
+
+.numbered-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding-top: 0.05rem;
+}
+
+.numbered-text strong {
+  font-size: 0.95rem;
+}
+
+.numbered-text small {
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+}
+
+/* ---------- Group list (wealth / liabilities / cashflow) ---------- */
+.group-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  margin-bottom: 1rem;
+}
+
+.group-block {
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   padding: 0.75rem 0.9rem;
 }
 
-.stat-check {
-  color: #2e9e5b;
-  font-weight: 700;
-}
-
-.stat-text {
+.group-title {
+  margin: 0 0 0.35rem;
   font-size: 0.82rem;
-  color: var(--ink-soft);
-  font-weight: 600;
-}
-
-.stat-value {
-  margin-left: auto;
   font-weight: 700;
-  font-size: 0.9rem;
+  color: var(--green);
 }
 
-.stat-icon {
-  font-size: 1rem;
-}
-
-/* ---------- Option list (screen 15) ---------- */
-.option-list {
+.group-block ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
   display: flex;
-  flex-direction: column;
-  gap: 0.8rem;
-  margin-top: 0.6rem;
-}
-
-.option-card {
-  position: relative;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 1rem 1rem 1rem;
-  text-align: left;
-  cursor: pointer;
-  font-family: var(--font-sans);
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-}
-
-.option-card strong {
-  font-size: 0.95rem;
-}
-
-.option-card small {
+  flex-wrap: wrap;
+  gap: 0.3rem 0.6rem;
   font-size: 0.78rem;
   color: var(--ink-soft);
 }
 
-.option-card .badge {
-  position: absolute;
-  top: -0.6rem;
-  left: 0.9rem;
-  background: var(--green);
-  color: var(--green-foreground);
-  font-size: 0.62rem;
-  font-weight: 700;
-  padding: 0.2rem 0.5rem;
-  border-radius: 999px;
+.group-block li::after {
+  content: "·";
+  margin-left: 0.6rem;
+  color: var(--border);
 }
 
-.option-card .chev {
+.group-block li:last-child::after {
+  content: "";
+}
+
+/* ---------- Checkbox list ---------- */
+.checkbox-list {
+  list-style: none;
+  margin: 0.4rem 0 1.2rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.checkbox-list label {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 0.9rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.checkbox-list input {
   position: absolute;
-  right: 1rem;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 1.1rem;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+
+.checkbox-box {
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 0.35rem;
+  border: 2px solid var(--border);
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.checkbox-list input:checked + .checkbox-box {
+  background: var(--green);
+  border-color: var(--green);
+}
+
+.checkbox-list input:checked + .checkbox-box::after {
+  content: "✓";
+  color: var(--green-foreground);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.checkbox-list input:focus-visible + .checkbox-box {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+}
+
+/* ---------- Connect rows (slide to connect) ---------- */
+.connect-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  margin-bottom: 1rem;
+}
+
+.connect-row {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0.85rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.connect-info strong {
+  display: block;
+  font-size: 0.9rem;
+}
+
+.connect-info small {
+  font-size: 0.75rem;
   color: var(--ink-soft);
 }
 
-/* ---------- Amount display + keypad (screens 16, 17) ---------- */
+.slide-connect {
+  position: relative;
+  width: 100%;
+  height: 2.6rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--cream-soft);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 0.2rem;
+  font-family: var(--font-sans);
+  overflow: hidden;
+}
+
+.slide-knob {
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 999px;
+  background: var(--green);
+  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.3, 1);
+  flex-shrink: 0;
+}
+
+.slide-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+  pointer-events: none;
+}
+
+.slide-connect.connected {
+  background: var(--green);
+  border-color: var(--green);
+}
+
+.slide-connect.connected .slide-knob {
+  transform: translateX(calc(100% * 5.4));
+  background: var(--green-foreground);
+}
+
+.slide-connect.connected .slide-label {
+  color: var(--green-foreground);
+}
+
+/* ---------- Chip grid (assets) ---------- */
+.chip-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.6rem;
+  margin: 0.6rem 0 1rem;
+}
+
+.chip {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0.9rem 0.6rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-align: center;
+  font-family: var(--font-sans);
+}
+
+.chip-grid.selectable .chip {
+  cursor: pointer;
+}
+
+.chip-grid.selectable .chip.selected {
+  border-color: var(--green);
+  background: var(--cream-soft);
+  box-shadow: inset 0 0 0 1px var(--green);
+}
+
+/* ---------- Pills ---------- */
+.pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.pill {
+  border: 1px solid var(--border);
+  background: var(--card);
+  border-radius: 999px;
+  padding: 0.5rem 0.9rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font-sans);
+}
+
+.pill.selected {
+  background: var(--green);
+  color: var(--green-foreground);
+  border-color: var(--green);
+}
+
+/* ---------- Stat duo / net worth (snapshot) ---------- */
+.stat-duo {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.6rem;
+  margin-bottom: 0.7rem;
+}
+
+.stat-duo-item {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.stat-duo-item small {
+  font-size: 0.76rem;
+  color: var(--ink-soft);
+  font-weight: 600;
+}
+
+.stat-duo-item strong {
+  font-size: 1.05rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.net-worth-band {
+  background: var(--green);
+  color: var(--green-foreground);
+  border-radius: var(--radius-md);
+  padding: 0.95rem 1rem;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.net-worth-band small {
+  font-size: 0.78rem;
+  opacity: 0.85;
+}
+
+.net-worth-band strong {
+  font-family: var(--font-serif);
+  font-size: 1.3rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Summary list (one last check) ---------- */
+.summary-list {
+  list-style: none;
+  margin: 0.4rem 0 1.2rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.summary-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 0.9rem;
+  font-size: 0.85rem;
+}
+
+.summary-list li strong {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Amount display + keypad ---------- */
 .amount-display {
   text-align: center;
   margin: 1.4rem 0;
@@ -658,6 +982,7 @@ body {
   font-family: var(--font-serif);
   font-size: 2.4rem;
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 .amount-unit {
@@ -704,31 +1029,186 @@ body {
   transition: width 0.4s ease;
 }
 
-.progress-percent {
-  text-align: right;
-  font-size: 0.75rem;
+/* ---------- FIRE duo (age + number) ---------- */
+.fire-duo {
+  display: flex;
+  gap: 0.7rem;
+  margin: 1rem 0 1.4rem;
+}
+
+.fire-duo-item {
+  flex: 1;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 1.1rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.fire-duo-item small {
+  font-size: 0.76rem;
   color: var(--ink-soft);
-  margin: 0.35rem 0 0;
+  font-weight: 600;
 }
 
-/* ---------- FIRE number / age ---------- */
-.fire-number {
+.fire-duo-item strong {
   font-family: var(--font-serif);
-  font-size: 3rem;
-  font-weight: 700;
-  margin: 0.6rem 0;
+  font-size: 1.9rem;
+  font-variant-numeric: tabular-nums;
 }
 
-.fire-age {
+/* ---------- Sliders ---------- */
+.slider-field {
+  margin-bottom: 1.1rem;
+}
+
+.slider-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.4rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.slider-head strong {
+  font-variant-numeric: tabular-nums;
+  color: var(--green);
+}
+
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--border);
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 1.3rem;
+  height: 1.3rem;
+  border-radius: 999px;
+  background: var(--green);
+  border: 3px solid var(--cream);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 1.3rem;
+  height: 1.3rem;
+  border-radius: 999px;
+  background: var(--green);
+  border: 3px solid var(--cream);
+  cursor: pointer;
+}
+
+.fire-age-live {
+  background: var(--cream-soft);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0.9rem 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 0.4rem 0 1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.fire-age-live strong {
   font-family: var(--font-serif);
-  font-size: 1.5rem;
-  font-weight: 700;
-  margin: 0.9rem 0 0.4rem;
-  text-align: center;
+  font-size: 1.3rem;
+  font-variant-numeric: tabular-nums;
 }
 
-.illustration-cake {
-  margin: 0.8rem 0 0.2rem;
+.arrow-shift {
+  font-size: 1.1rem;
+}
+
+/* ---------- Influence list ---------- */
+.influence-list {
+  list-style: none;
+  margin: 0.6rem 0 1.2rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.influence-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 0.9rem;
+}
+
+.influence-icon {
+  font-size: 1.3rem;
+}
+
+.influence-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.influence-text small {
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+}
+
+.influence-text strong {
+  font-size: 0.88rem;
+}
+
+/* ---------- Plan / advisor cards ---------- */
+.plan-card,
+.advisor-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.1rem;
+  margin-bottom: 0.8rem;
+}
+
+.plan-title {
+  font-weight: 700;
+  font-size: 0.92rem;
+  margin: 0 0 0.3rem;
+}
+
+.plan-sub {
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  margin: 0 0 0.5rem;
+}
+
+.bullet-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.7rem;
+  font-size: 0.8rem;
+}
+
+.bullet-list li {
+  background: var(--cream-soft);
+  border-radius: 999px;
+  padding: 0.3rem 0.7rem;
+}
+
+.advisor-card .btn-outline {
+  margin-top: 0.3rem;
 }
 
 /* ---------- Prototype controls (outside phone) ---------- */
@@ -759,21 +1239,28 @@ body {
   background: var(--border);
 }
 
+.ctrl-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .progress-dots {
   display: flex;
-  gap: 0.28rem;
+  gap: 0.22rem;
+  flex-wrap: wrap;
+  max-width: 12rem;
 }
 
 .progress-dots span {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   border-radius: 999px;
   background: var(--border);
 }
 
 .progress-dots span.active {
   background: var(--green);
-  width: 14px;
+  width: 12px;
 }
 
 .screen-counter {
@@ -785,5 +1272,21 @@ body {
 @media (max-width: 480px) {
   .phone {
     height: 78vh;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-primary,
+  .btn-circle,
+  .progress-fill,
+  .word-cascade li,
+  .stagger-list li,
+  .celebrate-line,
+  .reveal-text,
+  .slide-knob {
+    animation: none !important;
+    transition: none !important;
+    opacity: 1 !important;
+    transform: none !important;
   }
 }
