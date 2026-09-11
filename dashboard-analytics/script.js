@@ -41,6 +41,7 @@ const dom = {
   copilotExpandBtn: document.getElementById("copilotExpandBtn"),
   copilotMoreBtn: document.getElementById("copilotMoreBtn"),
   copilotAttachBtn: document.getElementById("copilotAttachBtn"),
+  headerCopilotToggle: document.getElementById("headerCopilotToggle"),
 };
 
 const extraSuggestions = ["Compare usage across segments", "Understand where users drop off", "Track flow completion rates"];
@@ -384,12 +385,25 @@ function showResultStage(stage) {
   dom.canvas.classList.toggle("hidden", stage !== "canvas");
 }
 
+function syncCopilotToggleState() {
+  const isOpen = dom.copilotPanel.classList.contains("open");
+  dom.headerCopilotToggle.classList.toggle("active", isOpen);
+  dom.headerCopilotToggle.setAttribute("aria-pressed", String(isOpen));
+}
+
 function openCopilotPanel() {
   dom.copilotPanel.classList.add("open");
+  syncCopilotToggleState();
 }
 
 function closeCopilotPanel() {
   dom.copilotPanel.classList.remove("open", "wide");
+  syncCopilotToggleState();
+}
+
+function toggleCopilotPanel() {
+  dom.copilotPanel.classList.toggle("open");
+  syncCopilotToggleState();
 }
 
 function deriveTitle(promptText) {
@@ -773,7 +787,11 @@ dom.closeBtn.addEventListener("click", () => {
 });
 
 dom.copilotToggle.addEventListener("click", () => {
-  dom.copilotPanel.classList.toggle("open");
+  toggleCopilotPanel();
+});
+
+dom.headerCopilotToggle.addEventListener("click", () => {
+  toggleCopilotPanel();
 });
 
 dom.copilotCloseBtn.addEventListener("click", () => {

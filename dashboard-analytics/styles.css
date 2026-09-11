@@ -208,6 +208,31 @@ body {
   flex-shrink: 0;
 }
 
+.copilot-header-toggle {
+  width: 2.3rem;
+  height: 2.3rem;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 0.6rem;
+  background: transparent;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.copilot-header-toggle:hover {
+  background: var(--bg);
+}
+
+.copilot-header-toggle.active {
+  background: linear-gradient(135deg, #ffe1ea, #ffe8d6);
+}
+
+.copilot-header-toggle.active:hover {
+  background: linear-gradient(135deg, #ffd6e2, #ffdec5);
+}
+
 /* Conversation header */
 .conversation-heading {
   display: flex;
