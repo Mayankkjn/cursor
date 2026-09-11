@@ -100,6 +100,268 @@ function widgetTemplate(label) {
   `;
 }
 
+const TREND_ICON_SVG = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 16 10 10l4 4 6-7" stroke-linecap="round" stroke-linejoin="round" /><path d="M15 7h5v5" stroke-linecap="round" stroke-linejoin="round" /></svg>`;
+const INFO_ICON_SVG = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9" /><path d="M12 11v5.5M12 8v.01" stroke-linecap="round" /></svg>`;
+const KEBAB_ICON_SVG = `<svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><circle cx="12" cy="5.5" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="12" cy="18.5" r="1.5" /></svg>`;
+
+function randomInt(min, max) {
+  return Math.floor(min + Math.random() * (max - min + 1));
+}
+
+function randomSeries(points, min, max) {
+  return Array.from({ length: points }, () => randomInt(min, max));
+}
+
+function lineChartSVG(series, xLabels) {
+  const width = 460;
+  const height = 150;
+  const padLeft = 26;
+  const padRight = 8;
+  const padTop = 8;
+  const padBottom = 20;
+  const plotWidth = width - padLeft - padRight;
+  const plotHeight = height - padTop - padBottom;
+  const maxVal = 100;
+
+  const toPath = (data) =>
+    data
+      .map((value, index) => {
+        const x = padLeft + (index / (data.length - 1)) * plotWidth;
+        const y = padTop + plotHeight - (value / maxVal) * plotHeight;
+        return `${index === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`;
+      })
+      .join(" ");
+
+  const gridLines = [0, 50, 100]
+    .map((value) => {
+      const y = padTop + plotHeight - (value / maxVal) * plotHeight;
+      return `
+        <line x1="${padLeft}" x2="${width - padRight}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}" stroke="var(--border)" stroke-width="1" />
+        <text x="${padLeft - 8}" y="${(y + 3.5).toFixed(1)}" font-size="10" fill="currentColor" text-anchor="end">${value}</text>
+      `;
+    })
+    .join("");
+
+  const xTicks = xLabels
+    .map((label, index) => {
+      const x = padLeft + (index / (xLabels.length - 1)) * plotWidth;
+      const anchor = index === 0 ? "start" : index === xLabels.length - 1 ? "end" : "middle";
+      return `<text x="${x.toFixed(1)}" y="${height - 3}" font-size="10" fill="currentColor" text-anchor="${anchor}">${label}</text>`;
+    })
+    .join("");
+
+  const paths = series
+    .map((s) => `<path d="${toPath(s.data)}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />`)
+    .join("");
+
+  return `<svg class="trend-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="Trend chart">${gridLines}${paths}${xTicks}</svg>`;
+}
+
+function widgetHeaderHtml(title) {
+  return `
+    <div class="widget-card-header">
+      <span class="widget-icon">${TREND_ICON_SVG}</span>
+      <h3>${title}</h3>
+      <span class="widget-card-actions">
+        <button type="button" class="widget-icon-btn" aria-label="Info">${INFO_ICON_SVG}</button>
+        <button type="button" class="widget-icon-btn" aria-label="More options">${KEBAB_ICON_SVG}</button>
+      </span>
+    </div>
+  `;
+}
+
+function statCardTemplate({ title, legendColor, legendLabel, value }) {
+  return `
+    <div class="widget stat-card">
+      ${widgetHeaderHtml(title)}
+      <p class="widget-subtitle">Last 30 days &bull; Measured weekly</p>
+      <div class="widget-legend"><span class="legend-dot" style="background:${legendColor}"></span>${legendLabel}</div>
+      <div class="widget-big-number">${value}</div>
+      <div class="widget-caption">Total events</div>
+    </div>
+  `;
+}
+
+function chartCardTemplate({ title, stats, series, xLabels }) {
+  const statsHtml = stats
+    .map(
+      (s) => `
+        <div class="chart-stat">
+          <span class="chart-stat-value">${s.value}</span>
+          <span class="chart-stat-change ${s.trend}">${s.trend === "up" ? "↗" : "↘"} ${s.change}%</span>
+          <span class="chart-stat-label">${s.label}</span>
+        </div>
+      `,
+    )
+    .join("");
+
+  const legendHtml = series
+    .map((s) => `<span><span class="legend-dot" style="background:${s.color}"></span>${s.name}</span>`)
+    .join("");
+
+  return `
+    <div class="widget chart-card">
+      ${widgetHeaderHtml(title)}
+      <p class="widget-subtitle">Last 30 days &bull; Measured weekly</p>
+      <div class="chart-stats-row">${statsHtml}</div>
+      ${lineChartSVG(series, xLabels)}
+      <div class="chart-legend-row">${legendHtml}</div>
+    </div>
+  `;
+}
+
+function buildDashboardData(promptText) {
+  const text = promptText.toLowerCase();
+  let noun;
+  if (text.includes("adopt") || text.includes("feature")) noun = "feature";
+  else if (text.includes("usage") || text.includes("product")) noun = "session";
+  else if (text.includes("content") || text.includes("performance")) noun = "content view";
+  else noun = "action";
+  const Noun = noun.charAt(0).toUpperCase() + noun.slice(1);
+  const changeUp = () => (Math.random() * 15 + 5).toFixed(2);
+  const changeDown = () => (Math.random() * 6 + 1).toFixed(2);
+  const xLabels = ["Day 1", "Day 10", "Day 20", "Day 30"];
+
+  return {
+    sectionTitle: `${Noun} start vs completion trend`,
+    sectionSubtitle: `This section shows how ${noun}s have been initiated and completed by various user roles within your product`,
+    xLabels,
+    statCards: [
+      { title: `Total ${noun}s started`, legendColor: "#3b82f6", legendLabel: `${Noun}-Start`, value: randomInt(280, 420) },
+      { title: `Total ${noun}s completed`, legendColor: "#f97316", legendLabel: `${Noun}-Finish`, value: randomInt(150, 280) },
+      { title: `Total ${noun}s overdue`, legendColor: "#eab308", legendLabel: `Overdue ${Noun}`, value: randomInt(40, 140) },
+    ],
+    chartCards: [
+      {
+        title: `${Noun} completion trend`,
+        stats: [
+          { value: randomInt(700, 1100), trend: "up", change: changeUp(), label: "Total events" },
+          { value: randomInt(80, 150), trend: "down", change: changeDown(), label: "Monthly avg" },
+        ],
+        series: [{ name: `${Noun} initiated`, color: "#3b82f6", data: randomSeries(10, 20, 95) }],
+      },
+      {
+        title: `${Noun} trend - started vs completed`,
+        stats: [
+          { value: randomInt(400, 650), trend: "up", change: changeUp(), label: "Total events" },
+          { value: randomInt(80, 150), trend: "down", change: changeDown(), label: "Monthly avg" },
+        ],
+        series: [
+          { name: `${Noun}-Start`, color: "#3b82f6", data: randomSeries(10, 20, 95) },
+          { name: `${Noun}-Finish`, color: "#f97316", data: randomSeries(10, 15, 85) },
+        ],
+      },
+      {
+        title: `${Noun} completed by persona`,
+        stats: [
+          { value: randomInt(400, 650), trend: "up", change: changeUp(), label: "Total events" },
+          { value: randomInt(80, 150), trend: "down", change: changeDown(), label: "Monthly avg" },
+        ],
+        series: [{ name: `${Noun} completed`, color: "#3b82f6", data: randomSeries(10, 20, 95) }],
+      },
+    ],
+  };
+}
+
+function renderGeneratedDashboard(promptText) {
+  const data = buildDashboardData(promptText);
+
+  const toolbarHtml = `
+    <div class="dashboard-toolbar">
+      <button type="button" class="toolbar-dropdown">
+        Daily
+        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6" stroke-linecap="round" stroke-linejoin="round" /></svg>
+      </button>
+      <div class="segmented">
+        <button type="button" class="seg-btn" data-range="default">Default</button>
+        <button type="button" class="seg-btn" data-range="7d">7D</button>
+        <button type="button" class="seg-btn active" data-range="30d">30D</button>
+        <button type="button" class="seg-btn" data-range="90d">90D</button>
+      </div>
+      <button type="button" class="toolbar-date">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3.5" y="4.5" width="17" height="16" rx="2" /><path d="M3.5 9.5h17M8 3v3M16 3v3" stroke-linecap="round" /></svg>
+        <span id="dateRangeLabel">Last 30 days</span>
+      </button>
+      <button type="button" class="toolbar-filter">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 5h16l-6 7.5V19l-4 2v-8.5Z" stroke-linejoin="round" /></svg>
+        Filter
+      </button>
+    </div>
+  `;
+
+  const headerHtml = `
+    <div class="dashboard-section-header">
+      <h3>${data.sectionTitle}</h3>
+      <p>${data.sectionSubtitle}</p>
+    </div>
+  `;
+
+  const statRowHtml = `<div class="stat-row">${data.statCards.map(statCardTemplate).join("")}</div>`;
+  const chartRowHtml = `<div class="chart-row">${data.chartCards
+    .map((card) => chartCardTemplate({ ...card, xLabels: data.xLabels }))
+    .join("")}</div>`;
+
+  dom.canvas.innerHTML = toolbarHtml + headerHtml + statRowHtml + chartRowHtml;
+}
+
+function ensureManualRow() {
+  let row = document.getElementById("manualRow");
+  if (!row) {
+    row = document.createElement("div");
+    row.id = "manualRow";
+    row.className = "stat-row";
+    dom.canvas.appendChild(row);
+  }
+  return row;
+}
+
+function assistantLineHtml(text) {
+  return `
+    <div class="assistant-line">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 2.5c.7 2.9 1.4 4.4 2.4 5.5 1.1 1 2.6 1.7 5.1 2.3-2.5.6-4 1.3-5.1 2.3-1 1.1-1.7 2.6-2.4 5.4-.7-2.8-1.4-4.3-2.4-5.4-1.1-1-2.6-1.7-5.1-2.3 2.5-.6 4-1.3 5.1-2.3 1-1.1 1.7-2.6 2.4-5.5Z" /></svg>
+      <p>${text}</p>
+    </div>
+  `;
+}
+
+function dashboardCardHtml(name) {
+  return `
+    <div class="dashboard-card">
+      <span class="dc-icon">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="3.5" width="7" height="7" rx="1.2" /><rect x="13.5" y="3.5" width="7" height="7" rx="1.2" /><rect x="3.5" y="13.5" width="7" height="7" rx="1.2" /><rect x="13.5" y="13.5" width="7" height="7" rx="1.2" /></svg>
+      </span>
+      <span class="dc-text"><strong>${name}</strong><span>Dashboard</span></span>
+    </div>
+  `;
+}
+
+const FOLLOWUP_REPLIES = {
+  "Summarise this dashboard":
+    "Adoption is trending up about 12% week over week, with a dip over weekends and steady completion rates across teams.",
+  "Breakdown by countries":
+    "Top usage comes from the US, India, and the UK, together accounting for over 60% of tracked events this period.",
+};
+
+function digFurtherHtml() {
+  const chips = Object.keys(FOLLOWUP_REPLIES)
+    .map(
+      (text) => `
+        <button type="button" class="dig-chip" data-followup="${text}">
+          ${text}
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17 17 7M9 7h8v8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+        </button>
+      `,
+    )
+    .join("");
+  return `
+    <div class="dig-further-label">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 3.5h9l3.5 3.5V19a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1Z" stroke-linejoin="round" /><path d="M8 10h8M8 13.5h8M8 17h5" stroke-linecap="round" /></svg>
+      Want to dig further?
+    </div>
+    ${chips}
+  `;
+}
+
 function setMode(mode) {
   dom.builder.classList.toggle("hidden", mode !== "builder");
   dom.conversation.classList.toggle("hidden", mode !== "conversation");
@@ -114,6 +376,7 @@ function setMode(mode) {
   dom.conversationActions.classList.toggle("hidden", mode !== "conversation");
 
   dom.content.classList.toggle("mode-conversation", mode === "conversation");
+  dom.content.classList.toggle("mode-canvas", mode === "result");
 }
 
 function showResultStage(stage) {
@@ -288,7 +551,7 @@ function finishConversation() {
   // dashboard workspace is free to show generation progress.
   dom.copilotLog.innerHTML = `
     <div class="chat-bubble-user"><span>${conversation.promptText}</span></div>
-    <p class="assistant-text">Please answer few question to know more about the dashboard</p>
+    ${assistantLineHtml("Please answer few question to know more about the dashboard")}
     ${buildSummaryHtml()}
     <div class="building-row" id="buildingRow">
       <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
@@ -314,23 +577,18 @@ function finishConversation() {
 
   setTimeout(() => {
     showResultStage("canvas");
-    dom.canvas.innerHTML = [
-      widgetTemplate("Feature adoption"),
-      widgetTemplate("Overall usage"),
-      widgetTemplate("Content performance"),
-    ].join("");
+    renderGeneratedDashboard(conversation.promptText);
 
     const buildingRow = document.getElementById("buildingRow");
-    if (buildingRow) {
-      buildingRow.innerHTML = `
-        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4">
-          <path d="M4 12.5 9.5 18 20 6" stroke-linecap="round" stroke-linejoin="round" />
-        </svg>
-        Your dashboard is ready
-      `;
-    }
+    if (buildingRow) buildingRow.remove();
     const skeletonBars = document.getElementById("skeletonBars");
     if (skeletonBars) skeletonBars.remove();
+
+    dom.copilotLog.insertAdjacentHTML(
+      "beforeend",
+      assistantLineHtml("Your dashboard has been generated.") + dashboardCardHtml(dashboardName) + digFurtherHtml(),
+    );
+    dom.copilotLog.scrollTop = dom.copilotLog.scrollHeight;
 
     showToast("Dashboard generated from your prompt");
   }, 1400);
@@ -465,18 +723,45 @@ dom.existingInsightBtn.addEventListener("click", () => {
 dom.newInsightBtn.addEventListener("click", () => {
   setMode("result");
   showResultStage("canvas");
-  dom.canvas.insertAdjacentHTML("beforeend", widgetTemplate("New insight"));
+  ensureManualRow().insertAdjacentHTML("beforeend", widgetTemplate("New insight"));
   showToast("New insight added");
 });
 
 dom.addTextBtn.addEventListener("click", () => {
   setMode("result");
   showResultStage("canvas");
-  dom.canvas.insertAdjacentHTML(
+  ensureManualRow().insertAdjacentHTML(
     "beforeend",
     `<div class="widget text-widget"><textarea placeholder="Add a note or heading..."></textarea></div>`,
   );
   showToast("Text block added");
+});
+
+dom.canvas.addEventListener("click", (event) => {
+  const seg = event.target.closest(".seg-btn");
+  if (seg) {
+    seg.parentElement.querySelectorAll(".seg-btn").forEach((btn) => btn.classList.remove("active"));
+    seg.classList.add("active");
+    const labelMap = { default: "Custom range", "7d": "Last 7 days", "30d": "Last 30 days", "90d": "Last 90 days" };
+    const label = document.getElementById("dateRangeLabel");
+    if (label) label.textContent = labelMap[seg.dataset.range] || "Last 30 days";
+    return;
+  }
+
+  if (event.target.closest(".toolbar-date, .toolbar-filter, .toolbar-dropdown, .widget-icon-btn")) {
+    showToast("Coming soon");
+  }
+});
+
+dom.copilotLog.addEventListener("click", (event) => {
+  const chip = event.target.closest(".dig-chip");
+  if (!chip) return;
+  const question = chip.dataset.followup;
+  dom.copilotLog.insertAdjacentHTML(
+    "beforeend",
+    `<div class="chat-bubble-user"><span>${question}</span></div>${assistantLineHtml(FOLLOWUP_REPLIES[question] || "Let me look into that.")}`,
+  );
+  dom.copilotLog.scrollTop = dom.copilotLog.scrollHeight;
 });
 
 dom.saveBtn.addEventListener("click", () => {
