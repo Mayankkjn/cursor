@@ -1,24 +1,90 @@
 :root {
+  /* light palette (default / un-stamped "system" state) */
+  --page-bg: #f8f7f5;
+  --surface: #ffffff;
+  --surface-sunken: #faf9f7;
+  --border: #e6e4e0;
+  --border-soft: #eeece8;
+  --text: #1c1b1f;
+  --text-muted: #6c6a72;
+  --text-soft: #9a97a0;
+  --link: #2e6be6;
+
   --orange: #ff5a1f;
   --orange-soft: #fff1ea;
+  --orange-border: #ffe0cc;
   --gradient: linear-gradient(135deg, #ff7a3d, #ff3d77);
   --purple: #5b4fe0;
   --purple-dark: #4c3fd1;
-  --sidebar-bg: #15172b;
-  --sidebar-icon: #9296b5;
-  --sidebar-icon-active: #ffffff;
-  --border: #e5e7eb;
-  --border-soft: #edeef2;
-  --text: #1a1d29;
-  --text-muted: #6b7280;
-  --text-soft: #9aa0ac;
-  --link: #2e6be6;
-  --bg-page: #ffffff;
-  --card-bg: #ffffff;
-  --field-bg: #fafafb;
+
+  --success-bg: #eafaf0;
+  --success-border: #c9f0d6;
+  --success-text: #1f8a4c;
+
+  --hover-surface: #f4f3f1;
+  --icon-fill: #1a1d29;
+
+  --rail-bg: #15172b;
+  --rail-icon: #9296b5;
+  --rail-icon-active: #ffffff;
+  --rail-divider: rgba(255, 255, 255, 0.08);
+  --rail-hover: rgba(255, 255, 255, 0.06);
+  --rail-avatar: #4c5175;
 }
 
-* ,
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --page-bg: #0d0e12;
+    --surface: #17181f;
+    --surface-sunken: #1e1f28;
+    --border: #2b2c36;
+    --border-soft: #24252e;
+    --text: #eef0f4;
+    --text-muted: #a3a2ab;
+    --text-soft: #75737d;
+    --link: #85a8ff;
+
+    --orange: #ff7a45;
+    --orange-soft: rgba(255, 122, 69, 0.14);
+    --orange-border: rgba(255, 122, 69, 0.32);
+    --purple: #8378f2;
+    --purple-dark: #6f63ec;
+
+    --success-bg: rgba(46, 204, 113, 0.12);
+    --success-border: rgba(46, 204, 113, 0.32);
+    --success-text: #4ade80;
+
+    --hover-surface: #1f2029;
+    --icon-fill: #eef0f4;
+  }
+}
+
+:root[data-theme="dark"] {
+  --page-bg: #0d0e12;
+  --surface: #17181f;
+  --surface-sunken: #1e1f28;
+  --border: #2b2c36;
+  --border-soft: #24252e;
+  --text: #eef0f4;
+  --text-muted: #a3a2ab;
+  --text-soft: #75737d;
+  --link: #85a8ff;
+
+  --orange: #ff7a45;
+  --orange-soft: rgba(255, 122, 69, 0.14);
+  --orange-border: rgba(255, 122, 69, 0.32);
+  --purple: #8378f2;
+  --purple-dark: #6f63ec;
+
+  --success-bg: rgba(46, 204, 113, 0.12);
+  --success-border: rgba(46, 204, 113, 0.32);
+  --success-text: #4ade80;
+
+  --hover-surface: #1f2029;
+  --icon-fill: #eef0f4;
+}
+
+*,
 *::before,
 *::after {
   box-sizing: border-box;
@@ -31,10 +97,11 @@ body {
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   color: var(--text);
-  background: var(--bg-page);
+  background: var(--page-bg);
   font-size: 14px;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
 }
 
 button {
@@ -56,11 +123,11 @@ a:hover {
   overflow: hidden;
 }
 
-/* Rail */
+/* Rail — a fixed dark instrument panel in both themes, like the product's own nav */
 .ic-rail {
   width: 56px;
   flex: none;
-  background: var(--sidebar-bg);
+  background: var(--rail-bg);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -74,7 +141,7 @@ a:hover {
   gap: 10px;
   padding-bottom: 14px;
   margin-bottom: 10px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--rail-divider);
   width: 100%;
 }
 
@@ -94,7 +161,7 @@ a:hover {
 }
 
 .ic-org {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--rail-hover);
 }
 
 .ic-rail-nav {
@@ -115,7 +182,7 @@ a:hover {
   height: 38px;
   border: none;
   background: transparent;
-  color: var(--sidebar-icon);
+  color: var(--rail-icon);
   border-radius: 9px;
   display: grid;
   place-items: center;
@@ -124,8 +191,8 @@ a:hover {
 }
 
 .ic-rail-nav button:hover {
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--sidebar-icon-active);
+  background: var(--rail-hover);
+  color: var(--rail-icon-active);
 }
 
 .ic-rail-nav button.active {
@@ -144,7 +211,7 @@ a:hover {
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  background: #4c5175;
+  background: var(--rail-avatar);
   color: #fff;
   font-size: 11px;
   font-weight: 600;
@@ -155,7 +222,16 @@ a:hover {
 }
 
 .ic-rail-bottom button:not(.ic-avatar):hover {
-  color: var(--sidebar-icon-active);
+  color: var(--rail-icon-active);
+}
+
+button:focus-visible,
+a:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[contenteditable]:focus-visible {
+  outline: 2px solid var(--orange);
+  outline-offset: 2px;
 }
 
 /* Main */
@@ -164,7 +240,7 @@ a:hover {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  background: #fbfbfc;
+  background: var(--page-bg);
 }
 
 .ic-topbar {
@@ -173,7 +249,7 @@ a:hover {
   justify-content: space-between;
   gap: 16px;
   padding: 14px 24px;
-  background: #fff;
+  background: var(--surface);
   border-bottom: 1px solid var(--border);
   flex: none;
 }
@@ -189,7 +265,7 @@ a:hover {
   width: 30px;
   height: 30px;
   border: 1px solid var(--border);
-  background: #fff;
+  background: var(--surface);
   border-radius: 7px;
   display: grid;
   place-items: center;
@@ -199,7 +275,7 @@ a:hover {
 }
 
 .ic-back:hover {
-  background: #f5f5f6;
+  background: var(--hover-surface);
 }
 
 .ic-title-block {
@@ -237,7 +313,7 @@ a:hover {
   height: 32px;
   border-radius: 7px;
   border: 1px solid var(--border);
-  background: #fff;
+  background: var(--surface);
   color: var(--text-muted);
   display: grid;
   place-items: center;
@@ -245,12 +321,12 @@ a:hover {
 }
 
 .ic-icon-btn:hover {
-  background: #f5f5f6;
+  background: var(--hover-surface);
 }
 
 .ic-sparkle-btn {
   background: var(--orange-soft);
-  border-color: #ffe3d3;
+  border-color: var(--orange-border);
 }
 
 .ic-btn {
@@ -267,13 +343,13 @@ a:hover {
 }
 
 .ic-btn-ghost {
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--border);
   color: var(--text);
 }
 
 .ic-btn-ghost:hover {
-  background: #f5f5f6;
+  background: var(--hover-surface);
 }
 
 .ic-btn-primary {
@@ -286,16 +362,21 @@ a:hover {
   background: var(--purple-dark);
 }
 
+.ic-btn-primary:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
 .ic-btn-outline {
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--border);
   color: var(--text);
   font-weight: 500;
 }
 
 .ic-btn-outline:hover {
-  border-color: #d5d7dd;
-  background: #f9f9fa;
+  border-color: var(--text-soft);
+  background: var(--hover-surface);
 }
 
 .ic-btn-outline svg {
@@ -313,7 +394,7 @@ a:hover {
 }
 
 .ic-card {
-  background: var(--card-bg);
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 10px;
   overflow: hidden;
@@ -379,7 +460,6 @@ a:hover {
 
 .ic-card-body {
   overflow: hidden;
-  transition: grid-template-rows 0.2s ease;
 }
 
 .ic-setup-grid {
@@ -414,7 +494,7 @@ a:hover {
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: var(--field-bg);
+  background: var(--surface-sunken);
   border: 1px solid var(--border);
   color: var(--text-muted);
   font-size: 11px;
@@ -453,7 +533,7 @@ a:hover {
   padding: 0 30px 0 12px;
   border-radius: 7px;
   border: 1px solid var(--border);
-  background: #fff;
+  background: var(--surface);
   font-size: 13px;
   color: var(--text);
   cursor: pointer;
@@ -494,7 +574,7 @@ a:hover {
   padding: 6px 8px 6px 12px;
   border-radius: 7px;
   background: var(--orange-soft);
-  border: 1px solid #ffe3d3;
+  border: 1px solid var(--orange-border);
   font-size: 13px;
   font-weight: 500;
   color: var(--text);
@@ -558,6 +638,7 @@ a:hover {
   margin: 0 0 8px;
   font-size: 16px;
   font-weight: 700;
+  text-wrap: balance;
 }
 
 .ic-muted {
@@ -573,7 +654,7 @@ a:hover {
   color: var(--text-soft);
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   width: 100%;
   margin: 22px 0;
 }
@@ -624,7 +705,7 @@ a:hover {
 .ic-ai-panel {
   width: 420px;
   flex: none;
-  background: #fff;
+  background: var(--surface);
   border-left: 1px solid var(--border);
   display: flex;
   flex-direction: column;
@@ -701,6 +782,7 @@ a:hover {
   font-weight: 700;
   line-height: 1.3;
   color: var(--text);
+  text-wrap: balance;
 }
 
 .ic-ai-getting-started {
@@ -730,7 +812,7 @@ a:hover {
   padding: 12px 14px;
   border-radius: 9px;
   border: 1px solid var(--border);
-  background: #fff;
+  background: var(--surface);
   color: var(--text);
   font-size: 13.5px;
   text-align: left;
@@ -738,8 +820,8 @@ a:hover {
 }
 
 .ic-prompt:hover {
-  border-color: #d5d7dd;
-  background: #f9f9fa;
+  border-color: var(--text-soft);
+  background: var(--hover-surface);
 }
 
 .ic-prompt svg {
@@ -794,7 +876,7 @@ a:hover {
 }
 
 .ic-msg-ai .ic-msg-bubble {
-  background: var(--field-bg);
+  background: var(--surface-sunken);
   color: var(--text);
   border: 1px solid var(--border-soft);
   border-bottom-left-radius: 3px;
@@ -855,9 +937,9 @@ a:hover {
   margin-top: 8px;
   padding: 5px 10px;
   border-radius: 999px;
-  background: #eafaf0;
-  border: 1px solid #c9f0d6;
-  color: #1f8a4c;
+  background: var(--success-bg);
+  border: 1px solid var(--success-border);
+  color: var(--success-text);
   font-size: 12px;
   font-weight: 600;
 }
@@ -878,7 +960,7 @@ a:hover {
 
 .ic-composer-box:focus-within {
   border-color: var(--orange);
-  box-shadow: 0 0 0 3px rgba(255, 90, 31, 0.12);
+  box-shadow: 0 0 0 3px var(--orange-soft);
 }
 
 .ic-composer-box textarea {
@@ -886,6 +968,7 @@ a:hover {
   border: none;
   outline: none;
   resize: none;
+  background: transparent;
   font-family: inherit;
   font-size: 13.5px;
   color: var(--text);
@@ -908,7 +991,7 @@ a:hover {
   height: 26px;
   border-radius: 50%;
   border: 1px solid var(--border);
-  background: #fff;
+  background: var(--surface);
   color: var(--text-muted);
   display: grid;
   place-items: center;
@@ -920,14 +1003,14 @@ a:hover {
   height: 26px;
   border-radius: 50%;
   border: none;
-  background: #1a1d29;
+  background: var(--icon-fill);
   display: grid;
   place-items: center;
   cursor: pointer;
 }
 
 .ic-composer-send:hover {
-  background: #000;
+  opacity: 0.85;
 }
 
 .ic-disclaimer {
@@ -935,6 +1018,15 @@ a:hover {
   text-align: center;
   font-size: 11px;
   color: var(--text-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
 }
 
 @media (max-width: 1180px) {
