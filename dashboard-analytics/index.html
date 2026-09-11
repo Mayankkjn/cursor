@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Analytics</title>
+    <meta name="description" content="Build an analytics dashboard using a prompt or by adding widgets manually." />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <nav class="rail" aria-label="Primary">
+        <button class="rail-logo" type="button" aria-label="Home">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+            <path d="M3 13.5 11 4l3 3.2L21 4l-6.2 9.6L11 10.4 3 13.5Z" fill="currentColor" />
+            <path d="M3 19.5 9 12l3 3 4-5 5-3-4 7.2-4.2 2.8-3-3-6.8 5.5Z" fill="currentColor" opacity=".55" />
+          </svg>
+        </button>
+
+        <button class="rail-item app-tile" type="button" aria-label="Connected app">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+            <path
+              d="M17 18a3.5 3.5 0 0 0 0-7 4.5 4.5 0 0 0-8.7-1.6A3.8 3.8 0 0 0 6.5 18H17Z"
+              fill="currentColor"
+            />
+          </svg>
+        </button>
+
+        <div class="rail-group">
+          <button class="rail-item" type="button" aria-label="Reports">
+            <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.6">
+              <rect x="4" y="3.5" width="16" height="17" rx="2" />
+              <path d="M8 8h8M8 12h8M8 16h5" stroke-linecap="round" />
+            </svg>
+          </button>
+
+          <button class="rail-item active" type="button" aria-label="Analytics" aria-current="page">
+            <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.6">
+              <path
+                d="M9 2.8a6.7 6.7 0 1 0 4.6 11.6l2.9 2.9a1 1 0 0 0 1.4-1.4l-2.9-2.9A6.7 6.7 0 0 0 9 2.8Z"
+              />
+              <path d="M9 6.2v3.1l2.4 1.6" stroke-linecap="round" stroke-linejoin="round" />
+              <path d="M9 17.4V20M6.2 20h5.6" stroke-linecap="round" />
+            </svg>
+          </button>
+
+          <button class="rail-item" type="button" aria-label="Trends">
+            <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.6">
+              <path d="M3.5 17 9 11l4 3 7-7.5" stroke-linecap="round" stroke-linejoin="round" />
+              <path d="M14.5 6h5.5v5.5" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+
+          <button class="rail-item" type="button" aria-label="People">
+            <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.6">
+              <circle cx="8.5" cy="8" r="2.6" />
+              <circle cx="16" cy="9.5" r="2.2" />
+              <path d="M3.2 19c.6-3 2.6-4.6 5.3-4.6s4.7 1.6 5.3 4.6" stroke-linecap="round" />
+              <path d="M14.8 14.9c2.2.2 3.7 1.7 4.2 4.1" stroke-linecap="round" />
+            </svg>
+          </button>
+        </div>
+
+        <button class="rail-item rail-bottom" type="button" aria-label="Settings">
+          <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.6">
+            <circle cx="12" cy="12" r="3" />
+            <path
+              d="M19.4 13.5a7.6 7.6 0 0 0 0-3l1.9-1.5-2-3.4-2.3.7a7.6 7.6 0 0 0-2.6-1.5L14 2h-4l-.4 2.3a7.6 7.6 0 0 0-2.6 1.5l-2.3-.7-2 3.4L4.6 10.5a7.6 7.6 0 0 0 0 3L2.7 15l2 3.4 2.3-.7c.75.66 1.63 1.18 2.6 1.5L10 22h4l.4-2.3a7.6 7.6 0 0 0 2.6-1.5l2.3.7 2-3.4-1.9-1.5Z"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+      </nav>
+
+      <div class="main">
+        <header class="top-header">
+          <div class="heading">
+            <h1 id="dashboardTitle" class="dashboard-title" contenteditable="true" spellcheck="false">
+              Untitled dashboard
+            </h1>
+            <p
+              id="dashboardDesc"
+              class="dashboard-desc"
+              contenteditable="true"
+              spellcheck="false"
+              data-placeholder="What is this dashboard about? Add a description"
+            ></p>
+          </div>
+          <div class="header-actions">
+            <button id="closeBtn" class="btn btn-ghost" type="button">Close</button>
+            <button id="saveBtn" class="btn btn-primary" type="button">
+              Save
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2">
+                <path d="M4 12.5 9.5 18 20 6" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
+          </div>
+        </header>
+
+        <main class="content">
+          <div id="builder" class="builder">
+            <div class="illustration" aria-hidden="true">
+              <div class="illustration-card">
+                <div class="i-topbar">
+                  <span class="i-pill i-pill-wide"></span>
+                  <span class="i-pill"></span>
+                  <span class="i-pill"></span>
+                  <span class="i-pill"></span>
+                </div>
+                <div class="i-grid">
+                  <span class="i-block i-block-tall"></span>
+                  <span class="i-block i-block-small"></span>
+                </div>
+                <div class="i-grid">
+                  <span class="i-block i-block-mid"></span>
+                  <span class="i-block i-block-mid"></span>
+                </div>
+              </div>
+            </div>
+
+            <h2 class="builder-title">Lets build your dashboard</h2>
+            <p class="builder-subtitle">Create using a prompt or add widgets manually</p>
+
+            <form id="promptForm" class="prompt-box">
+              <input
+                id="promptInput"
+                type="text"
+                placeholder="Describe what the dashboard is about..."
+                autocomplete="off"
+              />
+              <button class="prompt-submit" type="submit" aria-label="Generate dashboard">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4">
+                  <path d="M12 19V5M6 11l6-6 6 6" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </button>
+            </form>
+
+            <div id="suggestions" class="suggestions">
+              <button class="chip" type="button" data-prompt="Track adoption of my key features">
+                Track adoption of my key features
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M7 17 17 7M9 7h8v8" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </button>
+              <button class="chip" type="button" data-prompt="Monitor overall product usage">
+                Monitor overall product usage
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M7 17 17 7M9 7h8v8" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </button>
+              <button class="chip" type="button" data-prompt="Track performance of my content">
+                Track performance of my content
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M7 17 17 7M9 7h8v8" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </button>
+              <button id="moreChip" class="chip chip-more" type="button">
+                more
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
+                  <circle cx="5" cy="12" r="1.6" />
+                  <circle cx="12" cy="12" r="1.6" />
+                  <circle cx="19" cy="12" r="1.6" />
+                </svg>
+              </button>
+            </div>
+
+            <div class="divider"><span>or start with</span></div>
+
+            <div class="start-actions">
+              <button id="existingInsightBtn" class="start-btn" type="button">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <path d="M3.5 7a1.5 1.5 0 0 1 1.5-1.5h4l1.7 2H19A1.5 1.5 0 0 1 20.5 9v8A1.5 1.5 0 0 1 19 18.5H5A1.5 1.5 0 0 1 3.5 17V7Z" />
+                </svg>
+                Existing Insight
+              </button>
+              <button id="newInsightBtn" class="start-btn" type="button">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <path d="M12 3a5.5 5.5 0 0 0-3 10.1c.6.4 1 1 1 1.7V16h4v-1.2c0-.7.4-1.3 1-1.7A5.5 5.5 0 0 0 12 3Z" />
+                  <path d="M10 19h4M10.6 21h2.8" stroke-linecap="round" />
+                </svg>
+                New Insight
+              </button>
+              <button id="addTextBtn" class="start-btn" type="button">
+                <span class="text-icon">A</span>
+                Add Text
+              </button>
+            </div>
+          </div>
+
+          <div id="canvas" class="canvas hidden"></div>
+        </main>
+      </div>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script src="./script.js"></script>
+  </body>
+</html>
