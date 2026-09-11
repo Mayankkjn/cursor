@@ -6,6 +6,7 @@ const dom = {
   content: document.querySelector(".content"),
   builder: document.getElementById("builder"),
   canvas: document.getElementById("canvas"),
+  generatingState: document.getElementById("generatingState"),
   promptForm: document.getElementById("promptForm"),
   promptInput: document.getElementById("promptInput"),
   suggestions: document.getElementById("suggestions"),
@@ -31,8 +32,15 @@ const dom = {
   chatInput: document.getElementById("chatInput"),
   chatSendBtn: document.getElementById("chatSendBtn"),
 
-  railAssistant: document.getElementById("railAssistant"),
-  railAnalytics: document.getElementById("railAnalytics"),
+  copilotToggle: document.getElementById("copilotToggle"),
+  copilotPanel: document.getElementById("copilotPanel"),
+  copilotLog: document.getElementById("copilotLog"),
+  copilotForm: document.getElementById("copilotForm"),
+  copilotInput: document.getElementById("copilotInput"),
+  copilotCloseBtn: document.getElementById("copilotCloseBtn"),
+  copilotExpandBtn: document.getElementById("copilotExpandBtn"),
+  copilotMoreBtn: document.getElementById("copilotMoreBtn"),
+  copilotAttachBtn: document.getElementById("copilotAttachBtn"),
 };
 
 const extraSuggestions = ["Compare usage across segments", "Understand where users drop off", "Track flow completion rates"];
@@ -40,6 +48,7 @@ const extraSuggestions = ["Compare usage across segments", "Understand where use
 const QUESTIONS = [
   {
     title: "What is your goal?",
+    summaryLabel: "Selected goal",
     options: [
       { key: "A", label: "To track usage and find areas of improvement" },
       { key: "B", label: "To collect data for quarterly review" },
@@ -48,6 +57,7 @@ const QUESTIONS = [
   },
   {
     title: "Who is this dashboard for?",
+    summaryLabel: "Audience",
     options: [
       { key: "A", label: "Product & growth team" },
       { key: "B", label: "Leadership & executives" },
@@ -56,6 +66,7 @@ const QUESTIONS = [
   },
   {
     title: "What time range should it cover?",
+    summaryLabel: "Date range",
     options: [
       { key: "A", label: "Last 30 days" },
       { key: "B", label: "Last quarter" },
@@ -92,16 +103,30 @@ function widgetTemplate(label) {
 function setMode(mode) {
   dom.builder.classList.toggle("hidden", mode !== "builder");
   dom.conversation.classList.toggle("hidden", mode !== "conversation");
-  dom.canvas.classList.toggle("hidden", mode !== "canvas");
+  if (mode !== "result") {
+    dom.generatingState.classList.add("hidden");
+    dom.canvas.classList.add("hidden");
+  }
 
-  dom.builderHeading.classList.toggle("hidden", mode !== "builder");
-  dom.builderActions.classList.toggle("hidden", mode !== "builder");
-  dom.conversationHeading.classList.toggle("hidden", mode === "builder");
-  dom.conversationActions.classList.toggle("hidden", mode === "builder");
+  dom.builderHeading.classList.toggle("hidden", mode === "conversation");
+  dom.builderActions.classList.toggle("hidden", mode === "conversation");
+  dom.conversationHeading.classList.toggle("hidden", mode !== "conversation");
+  dom.conversationActions.classList.toggle("hidden", mode !== "conversation");
 
   dom.content.classList.toggle("mode-conversation", mode === "conversation");
-  dom.railAssistant.classList.toggle("active", mode !== "builder");
-  dom.railAnalytics.classList.toggle("active", mode === "builder");
+}
+
+function showResultStage(stage) {
+  dom.generatingState.classList.toggle("hidden", stage !== "generating");
+  dom.canvas.classList.toggle("hidden", stage !== "canvas");
+}
+
+function openCopilotPanel() {
+  dom.copilotPanel.classList.add("open");
+}
+
+function closeCopilotPanel() {
+  dom.copilotPanel.classList.remove("open", "wide");
 }
 
 function deriveTitle(promptText) {
@@ -110,6 +135,14 @@ function deriveTitle(promptText) {
   if (text.includes("usage") || text.includes("product")) return "Create new product usage trend";
   if (text.includes("content") || text.includes("performance")) return "Create new content performance trend";
   return "Create new opportunity trend";
+}
+
+function deriveDashboardName(promptText) {
+  const text = promptText.toLowerCase();
+  if (text.includes("adopt") || text.includes("feature")) return "Feature adoption dashboard";
+  if (text.includes("usage") || text.includes("product")) return "Product usage dashboard";
+  if (text.includes("content") || text.includes("performance")) return "Content performance dashboard";
+  return "New dashboard";
 }
 
 function appendToLog(html) {
@@ -240,22 +273,67 @@ function advanceQuestion() {
   }
 }
 
+function buildSummaryHtml() {
+  const items = QUESTIONS.map((question, index) => {
+    const answer = conversation.answers[index];
+    return `<li>${question.summaryLabel}: <strong>${answer.label}</strong></li>`;
+  }).join("");
+  return `<div class="summary-card"><ol>${items}</ol></div>`;
+}
+
 function finishConversation() {
-  const card = document.getElementById("questionCard");
-  if (card) card.remove();
-  appendToLog(`<p class="assistant-text">Great! Generating your dashboard based on your answers...</p>`);
-  dom.chatForm.classList.add("hidden");
-  document.querySelector(".chat-disclaimer").classList.add("hidden");
+  const dashboardName = deriveDashboardName(conversation.promptText);
+
+  // Dock the conversation into the "Ask Whatfix AI" copilot panel so the
+  // dashboard workspace is free to show generation progress.
+  dom.copilotLog.innerHTML = `
+    <div class="chat-bubble-user"><span>${conversation.promptText}</span></div>
+    <p class="assistant-text">Please answer few question to know more about the dashboard</p>
+    ${buildSummaryHtml()}
+    <div class="building-row" id="buildingRow">
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
+        <path d="M12 2.5c.7 2.9 1.4 4.4 2.4 5.5 1.1 1 2.6 1.7 5.1 2.3-2.5.6-4 1.3-5.1 2.3-1 1.1-1.7 2.6-2.4 5.4-.7-2.8-1.4-4.3-2.4-5.4-1.1-1-2.6-1.7-5.1-2.3 2.5-.6 4-1.3 5.1-2.3 1-1.1 1.7-2.6 2.4-5.5Z" />
+      </svg>
+      Building your dashboard...
+    </div>
+    <div class="skeleton-bars" id="skeletonBars">
+      <div class="skeleton-bar"></div>
+      <div class="skeleton-bar"></div>
+      <div class="skeleton-bar"></div>
+    </div>
+  `;
+
+  dom.title.textContent = dashboardName;
+  if (!dom.desc.textContent.trim()) {
+    dom.desc.textContent = conversation.promptText;
+  }
+
+  setMode("result");
+  showResultStage("generating");
+  openCopilotPanel();
 
   setTimeout(() => {
-    setMode("canvas");
+    showResultStage("canvas");
     dom.canvas.innerHTML = [
       widgetTemplate("Feature adoption"),
       widgetTemplate("Overall usage"),
       widgetTemplate("Content performance"),
     ].join("");
+
+    const buildingRow = document.getElementById("buildingRow");
+    if (buildingRow) {
+      buildingRow.innerHTML = `
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4">
+          <path d="M4 12.5 9.5 18 20 6" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        Your dashboard is ready
+      `;
+    }
+    const skeletonBars = document.getElementById("skeletonBars");
+    if (skeletonBars) skeletonBars.remove();
+
     showToast("Dashboard generated from your prompt");
-  }, 900);
+  }, 1400);
 }
 
 function startConversation(promptText) {
@@ -268,6 +346,8 @@ function startConversation(promptText) {
   dom.chatForm.classList.remove("hidden");
   document.querySelector(".chat-disclaimer").classList.remove("hidden");
   dom.chatInput.value = "";
+  closeCopilotPanel();
+  dom.copilotLog.innerHTML = "";
 
   setMode("conversation");
   appendUserBubble(promptText);
@@ -362,6 +442,8 @@ dom.backBtn.addEventListener("click", () => {
   dom.canvas.innerHTML = "";
   dom.chatLog.innerHTML = "";
   dom.promptInput.value = "";
+  closeCopilotPanel();
+  dom.copilotLog.innerHTML = "";
 });
 
 dom.renameBtn.addEventListener("click", () => {
@@ -381,13 +463,15 @@ dom.existingInsightBtn.addEventListener("click", () => {
 });
 
 dom.newInsightBtn.addEventListener("click", () => {
-  setMode("canvas");
+  setMode("result");
+  showResultStage("canvas");
   dom.canvas.insertAdjacentHTML("beforeend", widgetTemplate("New insight"));
   showToast("New insight added");
 });
 
 dom.addTextBtn.addEventListener("click", () => {
-  setMode("canvas");
+  setMode("result");
+  showResultStage("canvas");
   dom.canvas.insertAdjacentHTML(
     "beforeend",
     `<div class="widget text-widget"><textarea placeholder="Add a note or heading..."></textarea></div>`,
@@ -401,6 +485,38 @@ dom.saveBtn.addEventListener("click", () => {
 
 dom.closeBtn.addEventListener("click", () => {
   showToast("Draft discarded");
+});
+
+dom.copilotToggle.addEventListener("click", () => {
+  dom.copilotPanel.classList.toggle("open");
+});
+
+dom.copilotCloseBtn.addEventListener("click", () => {
+  closeCopilotPanel();
+});
+
+dom.copilotExpandBtn.addEventListener("click", () => {
+  dom.copilotPanel.classList.toggle("wide");
+});
+
+dom.copilotMoreBtn.addEventListener("click", () => {
+  showToast("More options coming soon");
+});
+
+dom.copilotAttachBtn.addEventListener("click", () => {
+  showToast("Attachments coming soon");
+});
+
+dom.copilotForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const value = dom.copilotInput.value.trim();
+  if (!value) return;
+  dom.copilotLog.insertAdjacentHTML(
+    "beforeend",
+    `<div class="chat-bubble-user"><span>${value}</span></div><p class="assistant-text">Got it — I'll factor that into the dashboard.</p>`,
+  );
+  dom.copilotLog.scrollTop = dom.copilotLog.scrollHeight;
+  dom.copilotInput.value = "";
 });
 
 [dom.title, dom.desc, dom.conversationTitle].forEach((el) => {
