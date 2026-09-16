@@ -1264,6 +1264,14 @@ function renderTaskDetail() {
   statMerged.select('.task-stat-label').text((d) => d.label);
   statMerged.select('.task-stat-value').attr('class', (d) => `task-stat-value${d.muted ? ' muted' : ''}`).text((d) => d.value);
 
+  const descriptionSection = d3.select('#task-detail-description-section');
+  if (meta && meta.description) {
+    descriptionSection.classed('hidden', false);
+    d3.select('#task-detail-description-text').text(meta.description);
+  } else {
+    descriptionSection.classed('hidden', true);
+  }
+
   const summarySection = d3.select('#task-detail-summary-section');
   if (meta && meta.canonicalReasoning) {
     summarySection.classed('hidden', false);
@@ -2040,7 +2048,7 @@ function regenerate(numCases) {
   state.baseModel = buildProcessModel(state.allCases);
   resetFilters();
   state.highlight = null;
-  state.taskInsights = null;
+  state.taskInsights = (typeof buildDemoTaskInsights === 'function') ? buildDemoTaskInsights(state.allCases) : null;
   closeTaskDetail();
   closeFilterPanel();
   setUploadStatus('');

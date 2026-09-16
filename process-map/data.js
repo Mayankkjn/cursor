@@ -146,6 +146,164 @@ function generateEventLog(numCases = 500) {
   return cases;
 }
 
+// Task Description + Task Subtype catalog for the sample "Purchase Order
+// to Payment" process, so the demo dataset shows the same kind of task
+// metadata a real task-catalog upload would — rather than the "Not
+// available" placeholders a demo with no catalog at all would show.
+const DEMO_TASK_CATALOG = {
+  'Create Request': {
+    description: 'The requester submits a new purchase request, specifying the item, quantity, and business justification.',
+    subtypes: [
+      { id: 'standard-purchase', name: 'Standard Purchase', weight: 70, reasoning: 'Routine purchase submitted through the standard request form.' },
+      { id: 'rush-request', name: 'Rush Request', weight: 20, reasoning: 'Marked urgent by the requester, requiring expedited handling.' },
+      { id: 'recurring-order', name: 'Recurring Order', weight: 10, reasoning: 'Auto-generated from a recurring supply schedule.' },
+    ],
+  },
+  'Manager Approval': {
+    description: "The requester's manager reviews the request and approves or rejects it based on budget authority and business need.",
+    subtypes: [
+      { id: 'standard-approval', name: 'Standard Approval', weight: 65, reasoning: "Approved directly by the requester's manager." },
+      { id: 'delegated-approval', name: 'Delegated Approval', weight: 20, reasoning: 'Manager was unavailable; approval delegated to a backup approver.' },
+      { id: 'conditional-approval', name: 'Conditional Approval', weight: 15, reasoning: 'Approved with a note requesting follow-up on vendor terms.' },
+    ],
+  },
+  'Budget Check': {
+    description: 'Finance verifies that sufficient budget is available in the relevant cost center before the purchase proceeds.',
+    subtypes: [
+      { id: 'within-budget', name: 'Within Budget', weight: 75, reasoning: 'Cost center had sufficient budget headroom.' },
+      { id: 'requires-reallocation', name: 'Requires Reallocation', weight: 25, reasoning: 'Budget was reallocated from an underspent cost center to cover the request.' },
+    ],
+  },
+  'Vendor Selection': {
+    description: 'The buyer selects a vendor to fulfill the request, using an existing preferred vendor or sourcing a new one.',
+    subtypes: [
+      { id: 'preferred-vendor', name: 'Preferred Vendor', weight: 60, reasoning: 'Fulfilled through an existing preferred-vendor contract.' },
+      { id: 'competitive-bid', name: 'Competitive Bid', weight: 25, reasoning: 'Multiple vendors were quoted before selection.' },
+      { id: 'new-vendor-onboarding', name: 'New Vendor Onboarding', weight: 15, reasoning: 'Required onboarding a vendor not previously used.' },
+    ],
+  },
+  'PO Creation': {
+    description: 'A formal purchase order is generated and issued to the selected vendor.',
+    subtypes: [
+      { id: 'standard-po', name: 'Standard PO', weight: 80, reasoning: 'One-time purchase order issued for this request.' },
+      { id: 'blanket-po', name: 'Blanket PO', weight: 20, reasoning: 'Issued against an existing blanket purchase order agreement.' },
+    ],
+  },
+  'Goods Receipt': {
+    description: 'The ordered goods or services are received and logged against the purchase order.',
+    subtypes: [
+      { id: 'full-delivery', name: 'Full Delivery', weight: 70, reasoning: 'Entire order received in a single shipment.' },
+      { id: 'partial-delivery', name: 'Partial Delivery', weight: 20, reasoning: 'Order arrived split across multiple shipments.' },
+      { id: 'delayed-delivery', name: 'Delayed Delivery', weight: 10, reasoning: 'Delivery arrived after the expected date.' },
+    ],
+  },
+  'Invoice Match': {
+    description: "The vendor's invoice is matched against the purchase order and goods receipt before payment is authorized.",
+    subtypes: [
+      { id: '3-way-match', name: '3-Way Match', weight: 75, reasoning: 'Invoice, PO, and goods receipt all matched automatically.' },
+      { id: '2-way-match', name: '2-Way Match', weight: 25, reasoning: 'Matched against the PO only, for a service with no physical receipt.' },
+    ],
+  },
+  'Invoice Mismatch': {
+    description: 'A discrepancy between the invoice, purchase order, or goods receipt is flagged for resolution before payment.',
+    subtypes: [
+      { id: 'price-discrepancy', name: 'Price Discrepancy', weight: 55, reasoning: 'Invoiced unit price differed from the PO price.' },
+      { id: 'quantity-discrepancy', name: 'Quantity Discrepancy', weight: 45, reasoning: "Invoiced quantity didn't match the quantity received." },
+    ],
+  },
+  'Payment': {
+    description: 'The vendor is paid according to the agreed terms once the invoice is cleared.',
+    subtypes: [
+      { id: 'standard-payment-run', name: 'Standard Payment Run', weight: 70, reasoning: 'Paid in the next scheduled payment batch.' },
+      { id: 'expedited-payment', name: 'Expedited Payment', weight: 20, reasoning: 'Paid outside the normal cycle to meet an early-payment discount or vendor deadline.' },
+      { id: 'wire-transfer', name: 'Wire Transfer', weight: 10, reasoning: "Paid via wire transfer at the vendor's request." },
+    ],
+  },
+  'Rejected': {
+    description: 'The request is declined by the approver and the process ends without a purchase being made.',
+    subtypes: [
+      { id: 'budget-exceeded', name: 'Budget Exceeded', weight: 50, reasoning: 'Rejected because the request exceeded available budget.' },
+      { id: 'policy-violation', name: 'Policy Violation', weight: 30, reasoning: 'Rejected for not complying with procurement policy.' },
+      { id: 'insufficient-justification', name: 'Insufficient Justification', weight: 20, reasoning: 'Rejected pending a clearer business justification.' },
+    ],
+  },
+  'Escalated to Finance Review': {
+    description: "A high-value or non-standard request is routed to finance for additional review beyond the manager's approval authority.",
+    subtypes: [
+      { id: 'high-value-exception', name: 'High-Value Exception', weight: 60, reasoning: "Request value exceeded the manager's approval limit." },
+      { id: 'non-standard-terms', name: 'Non-Standard Terms', weight: 40, reasoning: 'Payment or contract terms fell outside standard policy.' },
+    ],
+  },
+  'Escalated to Legal Review': {
+    description: 'The request is routed to legal for review of contract or compliance terms before proceeding.',
+    subtypes: [
+      { id: 'contract-terms-review', name: 'Contract Terms Review', weight: 65, reasoning: 'Vendor contract included non-standard terms requiring legal sign-off.' },
+      { id: 'compliance-flag', name: 'Compliance Flag', weight: 35, reasoning: 'Request was flagged by a compliance rule for manual review.' },
+    ],
+  },
+  'Flagged as Duplicate Request': {
+    description: 'The request is identified as a likely duplicate of an existing request and held for confirmation.',
+    subtypes: [
+      { id: 'system-auto-flag', name: 'System Auto-Flag', weight: 70, reasoning: 'Automatically flagged by duplicate-detection matching against a recent request.' },
+      { id: 'manual-flag', name: 'Manual Flag by Approver', weight: 30, reasoning: 'Flagged manually by the approver as a possible duplicate.' },
+    ],
+  },
+};
+
+function pickWeighted(options) {
+  const total = options.reduce((s, o) => s + o.weight, 0);
+  let r = Math.random() * total;
+  for (const o of options) {
+    if (r < o.weight) return o;
+    r -= o.weight;
+  }
+  return options[options.length - 1];
+}
+
+// Builds the same { byTaskName, instancesByTaskName } shape
+// extractTaskInsights() produces for a real task-catalog upload, populated
+// from DEMO_TASK_CATALOG — so the sample dataset's Task Detail panel shows
+// real Task Description / Task Subtype content instead of "Not available"
+// placeholders. canonicalReasoning/appId are left empty since this catalog
+// doesn't have real input/output prose or application data to back them.
+function buildDemoTaskInsights(cases) {
+  const byTaskName = new Map();
+  Object.keys(DEMO_TASK_CATALOG).forEach((name) => {
+    const entry = DEMO_TASK_CATALOG[name];
+    byTaskName.set(name, {
+      description: entry.description,
+      canonicalReasoning: '',
+      subtypes: entry.subtypes.map((s) => ({ id: s.id, name: s.name })),
+      appId: null,
+    });
+  });
+
+  const instancesByTaskName = new Map();
+  let seq = 0;
+  cases.forEach((c) => {
+    c.steps.forEach((s) => {
+      const catalog = DEMO_TASK_CATALOG[s.task];
+      if (!catalog) return;
+      const subtype = pickWeighted(catalog.subtypes);
+      const list = instancesByTaskName.get(s.task) || [];
+      list.push({
+        caseId: c.caseId,
+        userId: (c.users && c.users[0]) || null,
+        ticketId: null,
+        subtypeId: subtype.id,
+        subtypeName: subtype.name,
+        reasoning: subtype.reasoning,
+        durationMinutes: s.duration,
+        startTime: Date.now() - seq * 60000,
+      });
+      seq += 1;
+      instancesByTaskName.set(s.task, list);
+    });
+  });
+
+  return { byTaskName, instancesByTaskName };
+}
+
 function median(numbers) {
   if (!numbers.length) return 0;
   const sorted = numbers.slice().sort((a, b) => a - b);
