@@ -1,0 +1,1995 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Product Analytics — Home</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/feather-icons/4.29.0/feather.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&display=swap');
+
+  :root{
+    --bg:#F6F6F9;
+    --surface:#FFFFFF;
+    --surface-tint:#FFF3EC;
+    --ink:#181B24;
+    --ink-soft:#666C7A;
+    --ink-faint:#9BA1AD;
+    --line:#E9E5DD;
+    --accent:#EA5B2F;
+    --accent-ink:#B8431C;
+    --accent-soft:#FDE3D6;
+    --blue:#3B63D4;
+    --blue-soft:#E4EAFB;
+    --purple:#7A5CC0;
+    --purple-soft:#EFE8FA;
+    --green:#1F9254;
+    --green-soft:#E1F5E8;
+    --red:#D6483F;
+    --red-soft:#FBE6E4;
+    --yellow:#D98A1D;
+    --yellow-soft:#FDF0DC;
+    --sidebar:#14161F;
+    --radius-s:8px;
+    --radius-m:12px;
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'IBM Plex Sans', sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .num{font-family:'IBM Plex Mono', monospace;}
+  h1,h2,.headline{font-family:'Space Grotesk', sans-serif;}
+
+  a{color:inherit;text-decoration:none;}
+  button{font-family:inherit;}
+
+  /* ---------- layout shell ---------- */
+  .shell{display:flex;min-height:100vh;}
+
+  .rail{
+    width:64px;
+    background:var(--sidebar);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:20px 0;
+    flex-shrink:0;
+  }
+  .rail .mark{
+    width:32px;height:32px;border-radius:8px;
+    background:var(--accent);
+    display:flex;align-items:center;justify-content:center;
+    color:white;font-weight:700;font-size:15px;
+    margin-bottom:28px;
+    font-family:'Space Grotesk',sans-serif;
+  }
+  .rail nav{display:flex;flex-direction:column;gap:6px;flex:1;}
+  .rail .item{
+    width:40px;height:40px;border-radius:var(--radius-s);
+    display:flex;align-items:center;justify-content:center;
+    color:#8A8F9E;cursor:pointer;position:relative;
+    border:none;background:transparent;
+  }
+  .rail .item svg{width:18px;height:18px;}
+  .rail .item:hover{background:rgba(255,255,255,.06);color:#fff;}
+  .rail .item.active{color:var(--accent);}
+  .rail .item.active::before{
+    content:'';position:absolute;left:-14px;top:50%;transform:translateY(-50%);
+    width:3px;height:18px;border-radius:2px;background:var(--accent);
+  }
+  .rail .foot{margin-top:auto;display:flex;flex-direction:column;gap:14px;align-items:center;}
+  .rail .avatar{
+    width:30px;height:30px;border-radius:50%;
+    background:var(--accent-soft);color:var(--accent-ink);
+    display:flex;align-items:center;justify-content:center;
+    font-size:12px;font-weight:600;
+  }
+
+  .main{flex:1;min-width:0;}
+  .topbar{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:22px 40px 0 40px;
+  }
+  .brand{display:flex;align-items:center;gap:10px;}
+  .brand-mark{width:22px;height:22px;flex-shrink:0;}
+  .brand span{font-size:19px;font-weight:700;color:var(--ink);}
+  .btn-create{
+    display:flex;align-items:center;gap:8px;background:var(--accent);color:#fff;border:none;
+    padding:11px 18px;border-radius:10px;font-size:13.5px;font-weight:600;cursor:pointer;
+  }
+  .btn-create svg{width:14px;height:14px;}
+  .btn-create:hover{background:var(--accent-ink);}
+
+  .content{max-width:1180px;margin:0 auto;padding:0 40px 80px 40px;}
+
+  /* ---------- Ask AI hero ---------- */
+  .hero{
+    margin-top:70px;
+    text-align:center;
+  }
+  .hero h1{
+    font-family:'Source Serif 4', Georgia, serif;
+    font-size:42px;font-weight:600;margin:0 0 10px 0;color:var(--ink);
+    letter-spacing:-0.01em;
+  }
+  .hero-sub{font-size:15px;color:var(--ink-soft);margin:0 0 30px 0;}
+
+  .ask-bar-wrap{
+    max-width:764px;margin:0 auto;padding:2px;border-radius:24px;
+    background:transparent;transition:background .2s ease;
+  }
+  .ask-bar-wrap:focus-within{
+    background:linear-gradient(90deg, #7A5CC0, var(--accent) 55%, #D6488B);
+  }
+  .ask-bar{
+    display:flex;align-items:center;gap:10px;
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:22px;
+    padding:14px 14px 14px 10px;
+    box-shadow:0 4px 16px rgba(20,15,10,.05);
+  }
+  .ask-bar-wrap:focus-within .ask-bar{border-color:transparent;}
+  .ask-plus,.ask-mic{
+    width:38px;height:38px;border-radius:50%;border:none;flex-shrink:0;
+    background:var(--bg);color:var(--ink-soft);display:flex;align-items:center;justify-content:center;cursor:pointer;
+  }
+  .ask-plus svg,.ask-mic svg{width:16px;height:16px;}
+  .ask-plus:hover,.ask-mic:hover{background:var(--line);}
+  .ask-bar input{
+    flex:1;border:none;outline:none;background:transparent;
+    font-size:15px;color:var(--ink);font-family:inherit;padding:8px 0;
+  }
+  .ask-bar input::placeholder{color:var(--ink-faint);}
+  .ask-send{
+    width:38px;height:38px;border-radius:50%;border:none;
+    background:var(--ink-faint);color:#fff;display:flex;align-items:center;justify-content:center;
+    cursor:pointer;flex-shrink:0;transition:background .15s ease;
+  }
+  .ask-send.ready{background:var(--accent);}
+  .ask-send svg{width:16px;height:16px;}
+
+  .ask-answer{
+    max-width:680px;margin:18px auto 0 auto;text-align:left;
+    background:var(--surface);border:1px solid var(--line);border-radius:12px;
+    padding:16px 18px;font-size:13.5px;color:var(--ink-soft);
+    display:none;
+  }
+  .ask-answer.show{display:block;animation:rise .25s ease;}
+  .ask-answer .q{font-size:13px;color:var(--ink-faint);margin-bottom:8px;}
+  .ask-answer .a{color:var(--ink);line-height:1.55;}
+  @keyframes rise{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
+
+  /* -- rotating suggestion chips, shown while the ask-bar is focused -- */
+  .ask-suggest-wrap{display:none;}
+  .ask-suggest-wrap.show{display:block;animation:rise .2s ease;}
+  .suggest-label{margin:20px 0 14px 0;font-size:13px;color:var(--ink-faint);display:flex;align-items:center;justify-content:center;gap:5px;}
+  .shuffle-btn{
+    display:inline-flex;align-items:center;gap:4px;background:none;border:none;color:var(--ink-faint);
+    font-size:13px;font-family:inherit;cursor:pointer;padding:0;text-decoration:underline;text-underline-offset:2px;
+  }
+  .shuffle-btn svg{width:12px;height:12px;}
+  .shuffle-btn:hover{color:var(--accent);}
+  .chips{display:flex;flex-wrap:wrap;gap:9px;justify-content:center;max-width:800px;margin:0 auto;}
+  .ask-chip{
+    display:flex;align-items:center;gap:7px;
+    border:1px solid var(--line);background:var(--surface);
+    padding:10px 18px;border-radius:20px;font-size:13.5px;color:var(--ink);
+    cursor:pointer;transition:border-color .15s ease, transform .1s ease;
+  }
+  .ask-chip svg{width:13px;height:13px;color:var(--accent);flex-shrink:0;}
+  .ask-chip:hover{border-color:var(--accent);}
+  .ask-chip:active{transform:scale(.98);}
+  .ask-chip.more{color:var(--ink-soft);}
+  .ask-chip.more svg{color:var(--ink-faint);}
+
+  /* -- or create new (hidden while the suggestions row is shown) -- */
+  .or-create-wrap{display:block;}
+  .or-create-wrap.hide{display:none;}
+  .or-divider{display:flex;align-items:center;gap:14px;max-width:600px;margin:34px auto 0 auto;color:var(--ink-faint);font-size:13px;}
+  .or-divider::before,.or-divider::after{content:'';flex:1;height:1px;background:var(--line);}
+
+  .create-row{display:flex;justify-content:center;gap:12px;margin-top:20px;}
+  .create-pill{
+    display:flex;align-items:center;gap:8px;
+    border:1px solid var(--line);background:var(--surface);
+    padding:9px 18px;border-radius:20px;font-size:13.5px;font-weight:500;cursor:pointer;
+  }
+  .create-pill svg{width:15px;height:15px;}
+  .create-pill.insight svg{color:var(--accent);}
+  .create-pill.dashboard svg{color:var(--blue);}
+  .create-pill.cohort svg{color:var(--yellow);}
+  .create-pill:hover{border-color:#D8D3C9;}
+
+  /* ---------- generic section ---------- */
+  .section{margin-top:44px;}
+  .section-head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:18px;}
+  .section-head h2{font-size:18px;font-weight:600;margin:0;}
+  .wn-sub{font-size:12.5px;color:var(--ink-faint);margin:3px 0 0 0;}
+  .wn-meta{font-size:12px;color:var(--ink-faint);}
+  .wn-meta b{color:var(--ink-soft);font-weight:600;}
+
+  /* ---------- What's new / AI insights feed ---------- */
+  .wn-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;align-items:stretch;}
+  .wn-card{
+    background:var(--surface);border:1px solid var(--line);
+    border-bottom:3px solid var(--wn-accent, var(--line));border-radius:var(--radius-m);
+    padding:20px;cursor:pointer;height:190px;display:flex;flex-direction:column;
+  }
+  .wn-card:hover{border-color:#D8D3C9;}
+  .wn-card.type-anomaly,.wn-modal.type-anomaly{--wn-accent:var(--red);--wn-accent-soft:var(--red-soft);}
+  .wn-card.type-finding,.wn-modal.type-finding{--wn-accent:var(--blue);--wn-accent-soft:var(--blue-soft);}
+  .wn-card.type-opportunity,.wn-modal.type-opportunity{--wn-accent:var(--yellow);--wn-accent-soft:var(--yellow-soft);}
+  .wn-card.type-stable,.wn-modal.type-stable{--wn-accent:var(--green);--wn-accent-soft:var(--green-soft);}
+
+  .wn-tagpill{
+    display:inline-flex;align-items:center;gap:6px;width:fit-content;
+    background:var(--wn-accent-soft);color:var(--wn-accent);
+    font-size:11.5px;font-weight:700;padding:6px 12px;border-radius:20px;margin-bottom:13px;flex-shrink:0;
+  }
+  .wn-tagpill svg{width:12px;height:12px;}
+  .wn-title{font-size:15px;font-weight:700;color:var(--ink);line-height:1.32;margin-bottom:10px;flex-shrink:0;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+
+  /* -- collapsed card body: big stat + subtitle/delta + View button -- */
+  .wn-collapsed{flex:1;display:flex;align-items:flex-end;justify-content:space-between;gap:10px;min-height:0;}
+  .wn-big{font-size:26px;font-weight:700;color:var(--ink);line-height:1;margin-bottom:6px;}
+  .wn-unit{font-size:12px;color:var(--ink-faint);}
+  .wn-stat-delta{font-size:12px;color:var(--ink-faint);display:flex;align-items:center;gap:4px;}
+  .wn-stat-delta svg{width:12px;height:12px;color:var(--red);flex-shrink:0;}
+  .wn-stat-delta b{color:var(--red);font-weight:700;}
+  .wn-view-btn{
+    border:1px solid var(--line);background:var(--surface);color:var(--ink);
+    padding:9px 20px;border-radius:20px;font-size:13px;font-weight:500;cursor:pointer;flex-shrink:0;
+  }
+  .wn-view-btn:hover{border-color:var(--wn-accent);color:var(--wn-accent);}
+
+
+  /* -- expanded content: rendered inside the detail modal, not inline in the card -- */
+  .wn-para{font-size:12.5px;color:var(--ink-soft);line-height:1.55;margin-bottom:14px;}
+  .wn-fullchart{width:100%;height:150px;display:block;margin-bottom:6px;}
+  .wn-fullchart text{font-family:'IBM Plex Sans',sans-serif;}
+
+  .wn-legend-row{display:flex;align-items:center;gap:8px;font-size:12.5px;margin-bottom:10px;}
+  .wn-legend-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  .wn-legend-name{width:90px;flex-shrink:0;color:var(--ink-soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .wn-legend-track{flex:1;height:6px;background:var(--bg);border-radius:4px;overflow:hidden;}
+  .wn-legend-fill{height:100%;border-radius:4px;}
+  .wn-legend-pct{width:36px;text-align:right;font-weight:600;color:var(--ink);flex-shrink:0;}
+
+  .wn-weekchart{display:flex;gap:10px;height:120px;margin-bottom:6px;}
+  .wn-weekchart-axis{display:flex;flex-direction:column;justify-content:space-between;font-size:10.5px;color:var(--ink-faint);padding-bottom:20px;}
+  .wn-weekchart-bars{flex:1;display:flex;align-items:flex-end;gap:8px;height:96px;}
+  .wn-weekchart-col{flex:1;display:flex;flex-direction:column;align-items:center;height:100%;justify-content:flex-end;}
+  .wn-weekchart-bar{width:100%;max-width:30px;border-radius:3px 3px 0 0;background:var(--green);opacity:.85;}
+  .wn-weekchart-lbl{font-size:10.5px;color:var(--ink-faint);margin-top:7px;}
+
+  .wn-callout{display:flex;gap:9px;align-items:flex-start;padding:12px 14px;border-radius:10px;margin-bottom:14px;
+    font-size:12.5px;line-height:1.5;background:var(--wn-accent-soft);color:var(--ink-soft);}
+  .wn-callout svg{width:14px;height:14px;color:var(--wn-accent);flex-shrink:0;margin-top:1px;}
+
+  .wn-cta{
+    width:100%;display:flex;align-items:center;justify-content:center;gap:7px;border-radius:10px;padding:12px 0;
+    font-size:13.5px;font-weight:600;cursor:pointer;border:1px solid var(--line);background:var(--surface);color:var(--ink);
+  }
+  .wn-cta svg{width:13px;height:13px;}
+  .wn-cta.dark{background:var(--ink);color:#fff;border-color:var(--ink);}
+  .wn-cta:hover{border-color:var(--wn-accent);}
+
+  /* -- detail modal -- */
+  .wn-modal{width:600px;max-width:92vw;max-height:86vh;overflow-y:auto;padding:24px 26px;}
+  .wn-modal-head{display:flex;align-items:center;gap:10px;margin-bottom:16px;}
+  .wn-modal-close{margin-left:auto;background:none;border:none;color:var(--ink-faint);cursor:pointer;padding:4px;flex-shrink:0;}
+  .wn-modal-close svg{width:18px;height:18px;}
+  .wn-modal-title{font-size:19px;font-weight:700;color:var(--ink);line-height:1.3;margin-bottom:18px;}
+
+  @media (max-width:1100px){ .wn-row{grid-template-columns:repeat(2,1fr);} }
+  @media (max-width:640px){ .wn-row{grid-template-columns:1fr;} .wn-card{height:auto;min-height:220px;} }
+
+  .tabs{display:flex;gap:22px;border-bottom:1px solid var(--line);margin-bottom:20px;}
+  .tab{
+    padding:0 2px 12px 2px;font-size:14px;color:var(--ink-faint);
+    border:none;background:none;cursor:pointer;position:relative;
+    display:flex;align-items:center;gap:6px;font-weight:500;
+  }
+  .tab svg{width:14px;height:14px;}
+  .tab.active{color:var(--accent);}
+  .tab.active::after{
+    content:'';position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--accent);border-radius:2px;
+  }
+
+  .range-pill{display:flex;align-items:center;gap:8px;}
+  .range-seg{display:flex;background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:3px;gap:2px;}
+  .range-seg button{
+    border:none;background:transparent;padding:6px 14px;font-size:12.5px;font-weight:500;color:var(--ink-soft);
+    cursor:pointer;border-radius:999px;
+  }
+  .range-seg button.active{background:var(--accent);color:#fff;}
+  .cal-btn{
+    width:32px;height:32px;border-radius:999px;border:1px solid var(--line);background:var(--surface);
+    display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink-soft);flex-shrink:0;
+  }
+  .cal-btn svg{width:14px;height:14px;}
+  .cal-btn:hover{border-color:var(--accent);color:var(--accent);}
+
+  .metric-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+  .metric-card{
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-m);
+    padding:16px 18px;position:relative;cursor:pointer;transition:border-color .12s ease, box-shadow .12s ease;
+  }
+  .metric-card:hover{border-color:#D8D3C9;}
+  .metric-card.selected{border-color:var(--accent);box-shadow:0 0 0 2px rgba(234,91,47,.16);}
+  .metric-card[data-type="bar"],.metric-card[data-type="table-users"],.metric-card[data-type="table-anomalies"]{cursor:default;}
+  .metric-card[data-type="bar"]:hover,.metric-card[data-type="table-users"]:hover,.metric-card[data-type="table-anomalies"]:hover{border-color:var(--line);}
+  .add-metric-card{cursor:pointer;}
+  .metric-card{min-height:210px;display:flex;flex-direction:column;}
+  .metric-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px;}
+  .m-avatar{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .m-avatar svg{width:15px;height:15px;}
+  .m-menu{color:var(--ink-faint);cursor:pointer;padding:2px;}
+  .m-menu svg{width:15px;height:15px;}
+  .m-label{font-size:12.5px;color:var(--ink-soft);margin:10px 0 10px 0;font-weight:500;}
+  .m-sub{font-size:11px;color:var(--ink-faint);margin-top:-6px;margin-bottom:10px;}
+  .m-value{font-size:25px;font-weight:600;margin-bottom:6px;}
+  .m-delta{font-size:12px;display:flex;align-items:center;gap:4px;color:var(--ink-faint);}
+  .m-delta svg{width:11px;height:11px;}
+  .m-delta.up{color:var(--green);}
+  .m-delta.down{color:var(--red);}
+
+  /* ---------- mini bar-chart / table card types ---------- */
+  .mini-bars{display:flex;flex-direction:column;gap:8px;flex:1;justify-content:center;}
+  .mini-bar-row{display:flex;align-items:center;gap:8px;}
+  .mini-bar-label{font-size:11px;color:var(--ink-soft);width:82px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .mini-bar-track{flex:1;height:7px;background:var(--bg);border-radius:4px;overflow:hidden;}
+  .mini-bar-fill{height:100%;border-radius:4px;}
+  .mini-bar-val{font-size:11px;color:var(--ink-faint);width:24px;text-align:right;flex-shrink:0;}
+
+  .mini-table{display:flex;flex-direction:column;gap:2px;flex:1;}
+  .mini-table-row{display:flex;align-items:center;gap:8px;padding:5px 0;}
+  .mini-av{width:20px;height:20px;border-radius:50%;background:var(--purple-soft);color:var(--purple);
+    font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .mini-sev{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  .mini-sev.sev-high{background:var(--red);}
+  .mini-sev.sev-med{background:var(--yellow);}
+  .mini-sev.sev-low{background:var(--ink-faint);}
+  .mini-name{flex:1;min-width:0;font-size:11.5px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .mini-count{font-size:11px;color:var(--ink-soft);font-weight:600;flex-shrink:0;}
+
+  .add-metric-card{
+    align-items:center;justify-content:center;border-style:dashed;color:var(--ink-faint);
+  }
+  .add-metric-card:hover{border-color:var(--accent);color:var(--accent);}
+  .plus-circle{width:34px;height:34px;border-radius:50%;border:1px solid currentColor;display:flex;align-items:center;justify-content:center;margin-bottom:8px;}
+  .plus-circle svg{width:15px;height:15px;}
+  .add-metric-card .m-label{margin:0;color:inherit;}
+
+  /* ---------- card 3-dot menu popover ---------- */
+  .card-menu-pop{
+    position:fixed;display:none;flex-direction:column;background:var(--surface);border:1px solid var(--line);
+    border-radius:10px;box-shadow:0 10px 30px rgba(20,20,40,.14);min-width:168px;padding:5px;z-index:70;
+  }
+  .card-menu-pop.show{display:flex;}
+  .card-menu-pop button{
+    display:flex;align-items:center;gap:9px;background:none;border:none;padding:9px 10px;border-radius:7px;
+    font-size:13px;color:var(--ink);cursor:pointer;text-align:left;
+  }
+  .card-menu-pop button svg{width:14px;height:14px;color:var(--ink-faint);}
+  .card-menu-pop button:hover{background:var(--bg);}
+  .card-menu-pop button.danger{color:var(--red);}
+  .card-menu-pop button.danger svg{color:var(--red);}
+
+  .swap-item{cursor:pointer;}
+  .swap-item:hover{background:var(--bg);}
+  .swap-item .val{margin-left:auto;font-size:12px;color:var(--ink-faint);}
+  .type-badge{
+    margin-left:auto;font-size:10.5px;font-weight:600;color:var(--purple);background:var(--purple-soft);
+    padding:2px 8px;border-radius:20px;
+  }
+
+  /* ---------- key metrics trend chart ---------- */
+  .trend-panel{
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-m);
+    padding:20px 22px;margin-top:14px;
+  }
+  .trend-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:10px;}
+  .trend-head .t{font-size:14.5px;font-weight:600;}
+  .trend-head .s{font-size:11.5px;color:var(--ink-faint);margin-top:2px;}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;}
+  .legend-item{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-soft);}
+  .legend-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  .trend-clear{
+    display:flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);
+    padding:6px 12px;border-radius:20px;font-size:12px;font-weight:500;color:var(--ink-soft);cursor:pointer;
+  }
+  .trend-clear svg{width:12px;height:12px;}
+  .trend-clear:hover{border-color:var(--accent);color:var(--accent);}
+  .trend-svg{width:100%;height:230px;display:block;margin-top:10px;}
+  .trend-svg .gridline{stroke:var(--line);stroke-width:1;}
+  .trend-svg .axis-label{font-size:10.5px;fill:var(--ink-faint);font-family:'IBM Plex Sans',sans-serif;}
+
+  /* ---------- content tab: extra breakdown panels ---------- */
+  .content-extra{margin-top:14px;}
+  .split-row2{display:grid;grid-template-columns:5fr 7fr;gap:16px;}
+  .split-row2 + .split-row2{margin-top:14px;}
+  .panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-m);}
+  .panel-pad{padding:20px 22px;}
+  .panel-title-row{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:2px;}
+  .panel-title-row h3{font-size:15px;font-weight:600;margin:0;display:flex;align-items:center;gap:6px;}
+  .panel-title-row h3 svg{width:13px;height:13px;color:var(--ink-faint);}
+  .panel-sub{font-size:11.5px;color:var(--ink-faint);margin:2px 0 18px 0;}
+  .panel-link{font-size:12.5px;color:var(--accent);font-weight:600;display:flex;align-items:center;gap:3px;white-space:nowrap;}
+  .panel-link svg{width:13px;height:13px;}
+
+  .donut-row{display:flex;align-items:center;gap:22px;}
+  .donut{width:150px;height:150px;border-radius:50%;position:relative;flex-shrink:0;}
+  .donut-center{position:absolute;inset:22px;background:var(--surface);border-radius:50%;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;}
+  .donut-center .big{font-size:19px;font-weight:700;}
+  .donut-center .lbl{font-size:10.5px;color:var(--ink-faint);}
+  .donut-legend{flex:1;display:flex;flex-direction:column;gap:11px;min-width:0;}
+  .donut-legend-row{display:flex;align-items:center;gap:9px;font-size:13px;}
+  .donut-legend-row .dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+  .donut-legend-row .nm{flex:1;min-width:0;}
+  .donut-legend-row .pct{color:var(--ink-soft);width:34px;text-align:right;flex-shrink:0;}
+  .donut-legend-row .cnt{color:var(--ink-faint);width:44px;text-align:right;flex-shrink:0;}
+
+  .cr-row{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line);cursor:pointer;}
+  .cr-row:last-child{border-bottom:none;}
+  .cr-num{width:14px;color:var(--ink-faint);font-size:12px;flex-shrink:0;}
+  .cr-ic{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .cr-ic svg{width:14px;height:14px;}
+  .cr-txt{flex:1;min-width:0;}
+  .cr-txt .n{font-size:13.5px;font-weight:600;}
+  .cr-txt .s{font-size:11.5px;color:var(--ink-faint);}
+  .cr-views{font-size:12.5px;color:var(--ink-soft);white-space:nowrap;}
+  .cr-chev{width:14px;height:14px;color:var(--ink-faint);flex-shrink:0;}
+
+  .bars-wrap{display:flex;align-items:flex-end;gap:22px;height:180px;padding-top:10px;}
+  .bar-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;}
+  .bar-val{font-size:12.5px;font-weight:600;margin-bottom:6px;}
+  .bar-rect{width:36px;border-radius:7px 7px 0 0;}
+  .bar-lbl{font-size:11.5px;color:var(--ink-faint);margin-top:9px;}
+
+  .country-wrap{display:flex;gap:18px;align-items:center;}
+  .country-map{flex:1;min-width:0;}
+  .country-map svg{width:100%;height:auto;display:block;}
+  .country-list{flex:0 0 175px;display:flex;flex-direction:column;gap:11px;}
+  .country-row{display:flex;align-items:center;gap:9px;font-size:12.5px;}
+  .country-row .flag{width:20px;height:14px;border-radius:2px;flex-shrink:0;}
+  .country-row .nm{flex:1;min-width:0;}
+  .country-row .pct{color:var(--ink-soft);font-weight:600;}
+
+  @media (max-width:900px){ .split-row2{grid-template-columns:1fr;} }
+
+  /* ---------- My insights ---------- */
+  .add-btn{
+    display:flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);
+    padding:8px 14px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;color:var(--ink);
+  }
+  .add-btn svg{width:14px;height:14px;color:var(--accent);}
+  .add-btn:hover{border-color:var(--accent);}
+
+  .insight-row{display:flex;gap:14px;overflow-x:auto;padding-bottom:6px;}
+  .insight-card{
+    flex:1 1 260px;min-width:240px;background:var(--surface);border:1px solid var(--line);
+    border-radius:var(--radius-m);padding:16px 18px;
+  }
+  .insight-card .top{display:flex;align-items:flex-start;justify-content:space-between;}
+  .insight-card .title{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:500;}
+  .insight-card .title svg{width:14px;color:var(--accent);}
+  .insight-card .meta{font-size:11.5px;color:var(--ink-faint);margin:4px 0 14px 22px;}
+  .insight-card .pin{background:none;border:none;cursor:pointer;color:var(--ink-faint);padding:2px;}
+  .insight-card .pin.pinned{color:var(--accent);}
+  .insight-card .pin svg{width:14px;height:14px;}
+  .insight-card .big{font-size:26px;font-weight:600;font-family:'IBM Plex Mono',monospace;}
+  .insight-card .sub{font-size:11.5px;color:var(--ink-faint);margin-top:2px;}
+  .insight-card .note{font-size:11.5px;color:var(--ink-soft);margin-top:14px;line-height:1.5;}
+  .insight-card .note b{color:var(--accent-ink);}
+  .insight-card svg.spark{width:100%;height:44px;margin-top:10px;}
+
+  .add-tile{
+    flex:0 0 170px;min-width:170px;border:1.5px dashed #DDD7CC;border-radius:var(--radius-m);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
+    color:var(--ink-faint);cursor:pointer;background:transparent;
+  }
+  .add-tile:hover{border-color:var(--accent);color:var(--accent);}
+  .add-tile .plus{width:34px;height:34px;border:1px solid currentColor;border-radius:8px;display:flex;align-items:center;justify-content:center;}
+  .add-tile .plus svg{width:15px;height:15px;}
+  .add-tile span{font-size:12.5px;font-weight:500;}
+
+  /* ---------- Recently viewed ---------- */
+  .filter-tabs{display:flex;gap:6px;}
+  .ftab{
+    border:1px solid var(--line);background:var(--surface);padding:6px 13px;border-radius:20px;
+    font-size:12.5px;color:var(--ink-soft);cursor:pointer;
+  }
+  .ftab.active{background:var(--ink);color:#fff;border-color:var(--ink);}
+
+  table{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-m);overflow:hidden;}
+  thead th{
+    text-align:left;font-size:11.5px;color:var(--ink-faint);font-weight:500;
+    padding:12px 20px;border-bottom:1px solid var(--line);
+  }
+  th.sortable{cursor:pointer;display:table-cell;user-select:none;}
+  th.sortable .arrows{display:inline-flex;margin-left:4px;vertical-align:middle;}
+  th.sortable svg{width:11px;height:11px;}
+  tbody tr{border-bottom:1px solid var(--line);cursor:pointer;transition:background .1s ease;}
+  tbody tr:last-child{border-bottom:none;}
+  tbody tr:hover{background:#FCFAF7;}
+  td{padding:14px 20px;font-size:13.5px;vertical-align:middle;}
+  .row-name{display:flex;align-items:center;gap:12px;}
+  .row-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .row-icon svg{width:15px;height:15px;}
+  .row-icon.insight{background:var(--accent-soft);color:var(--accent-ink);}
+  .row-icon.dashboard{background:var(--blue-soft);color:var(--blue);}
+  .row-icon.cohort{background:var(--purple-soft);color:var(--purple);}
+  .row-name .txt .name{font-weight:500;}
+  .row-name .txt .desc{font-size:12px;color:var(--ink-faint);margin-top:1px;}
+  .creator{display:flex;align-items:center;gap:8px;color:var(--ink-soft);}
+  .creator .av{width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;font-size:10.5px;
+    display:flex;align-items:center;justify-content:center;font-weight:600;}
+  td.date{color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;font-size:12.5px;}
+  td.chev{width:20px;color:var(--ink-faint);}
+  td.chev svg{width:15px;height:15px;}
+
+  /* ---------- modal ---------- */
+  .overlay{
+    position:fixed;inset:0;background:rgba(20,15,10,.35);display:none;
+    align-items:center;justify-content:center;z-index:50;
+  }
+  .overlay.show{display:flex;}
+  .modal{
+    background:var(--surface);border-radius:16px;padding:26px;width:380px;
+    box-shadow:0 20px 50px rgba(20,15,10,.18);
+  }
+  .modal h3{margin:0 0 4px 0;font-size:16px;}
+  .modal p{margin:0 0 18px 0;font-size:13px;color:var(--ink-soft);}
+  .modal-opt{
+    display:flex;align-items:center;gap:12px;padding:13px 14px;border:1px solid var(--line);
+    border-radius:10px;margin-bottom:10px;cursor:pointer;
+  }
+  .modal-opt:hover{border-color:var(--accent);}
+  .modal-opt .ic{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .modal-opt .ic svg{width:16px;height:16px;}
+  .modal-opt.insight .ic{background:var(--accent-soft);color:var(--accent-ink);}
+  .modal-opt.dashboard .ic{background:var(--blue-soft);color:var(--blue);}
+  .modal-opt.cohort .ic{background:var(--purple-soft);color:var(--purple);}
+  .modal-opt .lbl{font-weight:500;font-size:13.5px;}
+  .modal-opt .desc{font-size:11.5px;color:var(--ink-faint);}
+  .modal-close{width:100%;text-align:center;margin-top:6px;background:none;border:none;color:var(--ink-faint);font-size:12.5px;cursor:pointer;padding:8px;}
+
+  /* ---------- add-tab modal ---------- */
+  .field-label{font-size:12px;font-weight:600;color:var(--ink-soft);margin:14px 0 6px 0;}
+  .text-input,.select-input{
+    width:100%;border:1px solid var(--line);border-radius:9px;padding:9px 12px;font-size:13.5px;
+    font-family:inherit;color:var(--ink);background:var(--surface);outline:none;
+  }
+  .text-input:focus,.select-input:focus{border-color:var(--accent);}
+  .check-list{display:flex;flex-direction:column;gap:2px;max-height:220px;overflow-y:auto;margin-top:2px;}
+  .check-item{display:flex;align-items:center;gap:10px;padding:8px 6px;border-radius:8px;cursor:pointer;}
+  .check-item:hover{background:var(--bg);}
+  .check-item input{width:15px;height:15px;accent-color:var(--accent);flex-shrink:0;}
+  .check-item svg{width:14px;height:14px;color:var(--ink-soft);flex-shrink:0;}
+  .check-item .lbl{font-size:13px;flex:1;}
+  .check-item .val{font-size:12px;color:var(--ink-faint);}
+  .check-hint{font-size:11px;color:var(--ink-faint);margin-top:8px;}
+  .modal-submit{
+    width:100%;background:var(--ink);color:#fff;border:none;border-radius:9px;padding:11px 0;
+    font-size:13.5px;font-weight:600;cursor:pointer;margin-top:16px;
+  }
+  .modal-submit:disabled{background:var(--ink-faint);cursor:not-allowed;}
+
+  .tab.tab-add{color:var(--ink-faint);border:1px dashed var(--line);border-radius:8px;padding:6px 12px;margin-bottom:8px;}
+  .tab.tab-add:hover{color:var(--accent);border-color:var(--accent);}
+  .tab .tab-x{margin-left:2px;opacity:.5;}
+  .tab .tab-x:hover{opacity:1;color:var(--red);}
+  .tab .tab-x svg{width:12px;height:12px;}
+
+  .toast{
+    position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(20px);
+    background:var(--ink);color:#fff;padding:12px 20px;border-radius:10px;font-size:13px;
+    opacity:0;transition:all .25s ease;pointer-events:none;z-index:60;display:flex;align-items:center;gap:8px;
+  }
+  .toast svg{width:14px;height:14px;color:#7CE0A8;}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+  @media (max-width:900px){
+    .metric-grid{grid-template-columns:repeat(2,1fr);}
+    .content{padding:0 18px 60px 18px;}
+    .topbar{padding:18px 18px 0 18px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <aside class="rail">
+    <div class="mark">W</div>
+    <nav>
+      <button class="item active" title="Home"><i data-feather="home"></i></button>
+      <button class="item" title="Ask AI"><i data-feather="zap"></i></button>
+      <button class="item" title="Dashboards"><i data-feather="grid"></i></button>
+      <button class="item" title="Insights"><i data-feather="bar-chart-2"></i></button>
+      <button class="item" title="Trends"><i data-feather="trending-up"></i></button>
+      <button class="item" title="Cohorts"><i data-feather="users"></i></button>
+    </nav>
+    <div class="foot">
+      <button class="item" title="Settings"><i data-feather="settings"></i></button>
+      <div class="avatar">A</div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div class="brand"><svg class="brand-mark" viewBox="0 0 24 24" fill="none"><path d="M12 2 L14.2 9.8 L22 12 L14.2 14.2 L12 22 L9.8 14.2 L2 12 L9.8 9.8 Z" fill="var(--accent)"/></svg><span>Analytics</span></div>
+      <div class="top-actions">
+        <button class="btn-create" id="createNewBtn">Create New<i data-feather="chevron-down"></i></button>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- ASK AI HERO -->
+      <section class="hero">
+        <h1 id="heroGreeting">Good Morning, Alex</h1>
+        <p class="hero-sub">What would you like to analyze today?</p>
+        <div class="ask-bar-wrap" id="askBarWrap">
+          <div class="ask-bar">
+            <button class="ask-plus" id="askPlus"><i data-feather="plus"></i></button>
+            <input id="askInput" type="text" placeholder="">
+            <button class="ask-mic" id="askMic"><i data-feather="mic"></i></button>
+            <button class="ask-send" id="askSend"><i data-feather="arrow-up"></i></button>
+          </div>
+        </div>
+
+        <div class="ask-answer" id="askAnswer">
+          <div class="q" id="askAnswerQ"></div>
+          <div class="a">Here's a quick read — I'll pull the full breakdown into an insight if you want to dig further. <span id="askAnswerFake"></span></div>
+        </div>
+
+        <div class="ask-suggest-wrap" id="askSuggestWrap">
+          <div class="suggest-label">Not sure where to start? Try these or <button class="shuffle-btn" id="shuffleBtn">shuffle <i data-feather="shuffle"></i></button></div>
+          <div class="chips" id="askChipsRow"></div>
+        </div>
+
+        <div class="or-create-wrap" id="orCreateWrap">
+          <div class="or-divider"><span>or create new</span></div>
+          <div class="create-row">
+            <button class="create-pill insight" id="pillInsight"><i data-feather="zap"></i>Insight</button>
+            <button class="create-pill dashboard" id="pillDashboard"><i data-feather="grid"></i>Dashboard</button>
+            <button class="create-pill cohort" id="pillCohort"><i data-feather="users"></i>Cohorts</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- WHAT'S NEW: AI INSIGHTS FEED -->
+      <section class="section" id="whatsNewSection">
+        <div class="section-head">
+          <div><h2>What's new</h2><p class="wn-sub">Key changes since your last visit</p></div>
+          <div class="wn-meta" id="wnMeta"></div>
+        </div>
+        <div class="wn-row" id="wnRow"></div>
+      </section>
+
+      <!-- OVERVIEW -->
+      <section class="section">
+        <div class="section-head">
+          <h2>Overview</h2>
+          <div class="range-pill" id="rangeWrap">
+            <div class="range-seg">
+              <button data-range="7D">7D</button>
+              <button class="active" data-range="30D">30D</button>
+              <button data-range="90D">90D</button>
+            </div>
+            <button class="cal-btn" id="calBtn"><i data-feather="calendar"></i></button>
+          </div>
+        </div>
+        <div class="tabs" id="overviewTabs">
+          <button class="tab active" data-tab="app" data-builtin="1"><i data-feather="bar-chart-2"></i>Usage</button>
+          <button class="tab" data-tab="content" data-builtin="1"><i data-feather="layout"></i>Content</button>
+          <button class="tab tab-add" id="addTabBtn"><i data-feather="plus"></i>Add tab</button>
+          <div style="flex:1;"></div>
+        </div>
+        <div class="metric-grid" id="metricGrid"></div>
+        <div class="trend-panel" id="trendPanel">
+          <div class="trend-head">
+            <div><div class="t" id="trendTitle">Key Metrics Trend</div><div class="s" id="trendSub">Last 30 days</div></div>
+            <div style="display:flex;align-items:center;gap:12px;">
+              <button class="trend-clear" id="trendClear" style="display:none;">Show all metrics <i data-feather="x"></i></button>
+              <div class="legend" id="trendLegend"></div>
+            </div>
+          </div>
+          <svg class="trend-svg" id="trendSvg" viewBox="0 0 900 230" preserveAspectRatio="none"></svg>
+        </div>
+
+        <div class="content-extra" id="contentExtra" style="display:none;">
+          <div class="split-row2">
+            <div class="panel panel-pad">
+              <div class="panel-title-row"><h3>Content by Type<i data-feather="info"></i></h3></div>
+              <div class="panel-sub">Total content views by type</div>
+              <div class="donut-row">
+                <div class="donut" id="donutChart">
+                  <div class="donut-center"><div class="big">24.8k</div><div class="lbl">Total views</div></div>
+                </div>
+                <div class="donut-legend" id="donutLegend"></div>
+              </div>
+            </div>
+            <div class="panel panel-pad">
+              <div class="panel-title-row"><h3>Top Viewed Content</h3><a href="#" class="panel-link">View all <i data-feather="arrow-right"></i></a></div>
+              <div class="panel-sub">Most viewed flows and articles</div>
+              <div id="topViewedList"></div>
+            </div>
+          </div>
+          <div class="split-row2">
+            <div class="panel panel-pad">
+              <div class="panel-title-row"><h3>Content Created</h3></div>
+              <div class="panel-sub">Content created by type</div>
+              <div class="bars-wrap" id="createdBars"></div>
+            </div>
+            <div class="panel panel-pad">
+              <div class="panel-title-row"><h3>Top Countries by Content Views</h3><a href="#" class="panel-link">View all <i data-feather="arrow-right"></i></a></div>
+              <div class="panel-sub">Where your content is being consumed</div>
+              <div class="country-wrap">
+                <div class="country-map">
+                  <svg viewBox="0 0 400 200" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="0" y="0" width="400" height="200" fill="none"/>
+                    <path d="M30 70 L70 55 L95 75 L85 100 L60 110 L35 95 Z" fill="#EFE8FA"/>
+                    <path d="M100 60 L140 50 L160 75 L150 105 L120 115 L100 95 Z" fill="var(--purple)"/>
+                    <path d="M175 95 L200 90 L210 110 L195 125 L178 118 Z" fill="#EFE8FA"/>
+                    <path d="M195 55 L235 45 L255 60 L245 80 L215 82 L200 70 Z" fill="var(--purple)" opacity="0.55"/>
+                    <path d="M250 100 L300 90 L330 110 L320 140 L280 150 L255 130 Z" fill="#EFE8FA"/>
+                    <path d="M330 150 L360 145 L370 165 L350 175 L332 168 Z" fill="var(--purple)" opacity="0.7"/>
+                  </svg>
+                </div>
+                <div class="country-list" id="countryList"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- MY INSIGHTS -->
+      <section class="section">
+        <div class="section-head">
+          <h2>My Insights</h2>
+          <button class="add-btn" id="addInsightBtn"><i data-feather="plus"></i>Add insight</button>
+        </div>
+        <div class="insight-row" id="insightRow">
+          <div class="insight-card">
+            <div class="top">
+              <div class="title"><i data-feather="trending-up"></i>Dashboards Created</div>
+              <button class="pin pinned"><i data-feather="bookmark"></i></button>
+            </div>
+            <div class="meta">Last 30 days · Total events</div>
+            <div class="big">345</div>
+            <div class="sub">Total events</div>
+            <div class="note">There's a <b>5.42%</b> surge in review candidate completion rate since last week…</div>
+          </div>
+          <div class="insight-card">
+            <div class="top">
+              <div class="title"><i data-feather="trending-up"></i>Trend insight created</div>
+              <button class="pin"><i data-feather="bookmark"></i></button>
+            </div>
+            <div class="meta">Last 30 days · Total events</div>
+            <svg class="spark" viewBox="0 0 240 44" preserveAspectRatio="none">
+              <polyline points="0,34 40,32 80,30 120,29 160,28 200,22 240,8" fill="none" stroke="#3B63D4" stroke-width="2"/>
+            </svg>
+            <div class="note">There's a <b>5.42%</b> surge in review candidate completion rate since last week…</div>
+          </div>
+          <div class="insight-card">
+            <div class="top">
+              <div class="title"><i data-feather="percent"></i>Quote flow completion</div>
+              <button class="pin"><i data-feather="bookmark"></i></button>
+            </div>
+            <div class="meta">Last 30 days · Completion rate</div>
+            <div class="big">71.4%</div>
+            <div class="sub">↑ 1.0% since last week</div>
+          </div>
+          <button class="add-tile" id="addTile">
+            <div class="plus"><i data-feather="plus"></i></div>
+            <span>Add insight</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- RECENTLY VIEWED -->
+      <section class="section">
+        <div class="section-head">
+          <h2>Recently viewed</h2>
+          <div class="filter-tabs" id="filterTabs">
+            <button class="ftab active" data-filter="all">All</button>
+            <button class="ftab" data-filter="insight">Insights</button>
+            <button class="ftab" data-filter="dashboard">Dashboards</button>
+            <button class="ftab" data-filter="cohort">Cohorts</button>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th style="width:42%;">Name</th>
+              <th>Creator</th>
+              <th class="sortable" id="sortDate">Last visited <span class="arrows"><i data-feather="chevron-down"></i></span></th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="recentBody"></tbody>
+        </table>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<!-- ADD INSIGHT MODAL -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h3>Create new</h3>
+    <p>What would you like to build?</p>
+    <div class="modal-opt insight" data-type="Insight">
+      <div class="ic"><i data-feather="zap"></i></div>
+      <div><div class="lbl">Insight</div><div class="desc">A single metric, trend or breakdown</div></div>
+    </div>
+    <div class="modal-opt dashboard" data-type="Dashboard">
+      <div class="ic"><i data-feather="grid"></i></div>
+      <div><div class="lbl">Dashboard</div><div class="desc">A collection of insights on one page</div></div>
+    </div>
+    <div class="modal-opt cohort" data-type="Cohort">
+      <div class="ic"><i data-feather="users"></i></div>
+      <div><div class="lbl">Cohorts</div><div class="desc">A saved segment of users</div></div>
+    </div>
+    <button class="modal-close" id="modalClose">Cancel</button>
+  </div>
+</div>
+
+<!-- ADD TAB MODAL -->
+<div class="overlay" id="tabOverlay">
+  <div class="modal" style="width:400px;">
+    <h3>Add a tab</h3>
+    <p>Pick a topic and the out-of-the-box metrics you want tracked in this tab.</p>
+
+    <div class="field-label">Tab name</div>
+    <input class="text-input" id="tabNameInput" type="text" placeholder="e.g. Adoption">
+
+    <div class="field-label">Topic</div>
+    <select class="select-input" id="topicSelect">
+      <option value="app">App usage</option>
+      <option value="content">Content usage</option>
+      <option value="errors">Errors</option>
+      <option value="adoption">Adoption</option>
+    </select>
+
+    <div class="field-label">Out-of-the-box metrics</div>
+    <div class="check-list" id="metricCheckList"></div>
+    <div class="check-hint">Pick at least 1, up to 4.</div>
+
+    <button class="modal-submit" id="createTabBtn" disabled>Add tab</button>
+    <button class="modal-close" id="tabModalClose">Cancel</button>
+  </div>
+</div>
+
+<!-- CARD 3-DOT MENU POPOVER -->
+<div class="card-menu-pop" id="cardMenuPop">
+  <button id="cmSwap"><i data-feather="repeat"></i>Swap metric</button>
+  <button id="cmRemove" class="danger"><i data-feather="trash-2"></i>Remove</button>
+</div>
+
+<!-- WHAT'S NEW: INSIGHT DETAIL MODAL -->
+<div class="overlay" id="wnOverlay">
+  <div class="modal wn-modal" id="wnModalBody"></div>
+</div>
+
+<!-- SWAP / ADD METRIC MODAL -->
+<div class="overlay" id="swapOverlay">
+
+  <div class="modal" style="width:400px;">
+    <h3 id="swapModalTitle">Swap metric</h3>
+    <p>Up to 4 metrics can be shown at a time.</p>
+    <div class="check-list" id="swapList" style="max-height:340px;"></div>
+    <button class="modal-close" id="swapModalClose">Cancel</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"><i data-feather="check-circle"></i><span id="toastMsg"></span></div>
+
+<script>
+feather.replace();
+
+/* ---------------- metric catalog ---------------- */
+const MAX_VISIBLE = 4;
+
+const catalog = {
+  app: {
+    uniqueUsers: {
+      name:"Total Unique Users", ic:"user", bg:"purple", type:"stat", overlay:true, axis:"left",
+      color:"#7A5CC0", axisMax:5000, axisLabels:["0","1.25k","2.5k","3.75k","5k"],
+      trend:[3200,3400,3550,3700,3900,4050,4300,4500,4700],
+      values:{"7D":{v:"1,180",d:2.10,up:true}, "30D":{v:"4,320",d:3.50,up:true}, "90D":{v:"11,240",d:8.20,up:true}}
+    },
+    activeUsers: {
+      name:"Monthly Active Users", ic:"activity", bg:"blue", type:"stat", overlay:true, axis:"left",
+      color:"#3B63D4", axisMax:1200, axisLabels:["0","300","600","900","1.2k"],
+      trend:[800,830,860,900,930,970,1000,1030,1050],
+      values:{"7D":{v:"312",d:1.20,up:false}, "30D":{v:"984",d:3.50,up:true}, "90D":{v:"2,860",d:5.10,up:true}}
+    },
+    totalIdentifiedUsers: {
+      name:"Total Identified Users", ic:"user-check", bg:"green", type:"stat", overlay:true, axis:"left",
+      color:"#1F9254", axisMax:5000, axisLabels:["0","1.25k","2.5k","3.75k","5k"],
+      trend:[2720,2890,3020,3145,3315,3440,3655,3825,3995],
+      values:{"7D":{v:"970",d:1.80,up:true}, "30D":{v:"3,660",d:4.10,up:true}, "90D":{v:"9,510",d:6.50,up:true}}
+    },
+    eventIdRate: {
+      name:"Event Identification Rate", ic:"check-circle", bg:"green", type:"stat", overlay:true, axis:"right",
+      color:"#D98A1D", axisMax:100, axisLabels:["0%","25%","50%","75%","100%"],
+      trend:[78,79,80,81,82,83,84,84.5,85],
+      values:{"7D":{v:"82.4%",d:1.20,up:true}, "30D":{v:"84.6%",d:2.10,up:true}, "90D":{v:"86.1%",d:1.50,up:true}}
+    },
+    totalEventVolume: {
+      name:"Total Event Volume", ic:"zap", bg:"yellow", type:"stat", overlay:false,
+      color:"#D98A1D", axisMax:25000, axisLabels:["0","6.25k","12.5k","18.75k","25k"],
+      trend:[12400,13100,13800,14500,15600,16400,17300,18000,18432],
+      values:{"7D":{v:"4,120",d:5.40,up:true}, "30D":{v:"18,432",d:7.20,up:true}, "90D":{v:"54,900",d:9.10,up:true}}
+    },
+    totalPageViewsUsage: {
+      name:"Total Page Views", ic:"file-text", bg:"blue", type:"stat", overlay:false,
+      color:"#3B63D4", axisMax:6000, axisLabels:["0","1.5k","3k","4.5k","6k"],
+      trend:[3400,3700,3950,4200,4500,4900,5200,5500,5780],
+      values:{"7D":{v:"1,340",d:3.80,up:true}, "30D":{v:"5,780",d:6.10,up:true}, "90D":{v:"16,900",d:8.40,up:true}}
+    },
+    topPageBreakdown: {
+      name:"Top Page View Breakdown", ic:"bar-chart-2", bg:"blue", type:"bar",
+      data:[
+        {label:"/risk-profile", val:44},
+        {label:"/your-fire-corpus", val:33},
+        {label:"/dashboard", val:28},
+        {label:"/settings", val:19},
+        {label:"/reports", val:12},
+      ]
+    },
+    topActiveUsersTable: {
+      name:"Top Active Users Leaderboard", ic:"award", bg:"yellow", type:"table-users",
+      sub:"By event count · last 30 days",
+      data:[
+        {name:"Priya Sharma", initials:"PS", count:842},
+        {name:"Rahul Mehta",  initials:"RM", count:641},
+        {name:"Neha Kapoor",  initials:"NK", count:587},
+        {name:"Arjun Das",    initials:"AD", count:523},
+      ]
+    },
+    anomaliesTable: {
+      name:"Potential Anomalies", ic:"alert-triangle", bg:"red", type:"table-anomalies",
+      sub:"By event name",
+      data:[
+        {event:"checkout_failed",  change:"+340%", sev:"high"},
+        {event:"login_error",      change:"+180%", sev:"high"},
+        {event:"payment_timeout",  change:"+95%",  sev:"med"},
+        {event:"session_drop",     change:"+62%",  sev:"low"},
+      ]
+    },
+  },
+  content: {
+    contentViews: {name:"Total Content Views", ic:"eye", bg:"purple", type:"stat", axis:"left",
+      color:"#7A5CC0", axisMax:1200, axisLabels:["0","400","800","1.2k"], trend:[620,650,700,690,740,780,760,820,860,900,950],
+      values:{"7D":{v:"6,240",d:9.10,up:true},"30D":{v:"24,823",d:12.40,up:true},"90D":{v:"71,340",d:18.90,up:true}}},
+    contentClicked: {name:"Total Content Clicked", ic:"mouse-pointer", bg:"blue", type:"stat", axis:"left",
+      color:"#3B63D4", axisMax:380, axisLabels:["0","125","250","380"], trend:[190,205,215,210,230,245,240,260,275,290,310],
+      values:{"7D":{v:"2,180",d:6.40,up:true},"30D":{v:"8,421",d:9.20,up:true},"90D":{v:"24,650",d:14.10,up:true}}},
+    pageViews: {name:"Total Page Views", ic:"file-text", bg:"green", type:"stat", axis:"left",
+      color:"#1F9254", axisMax:800, axisLabels:["0","270","530","800"], trend:[480,500,520,510,540,560,555,580,600,625,650],
+      values:{"7D":{v:"4,760",d:8.20,up:true},"30D":{v:"18,762",d:11.60,up:true},"90D":{v:"54,980",d:15.40,up:true}}},
+    contentCreated: {name:"Content Created", ic:"plus", bg:"purple", type:"stat", axis:"left",
+      color:"#D98A1D", axisMax:50, axisLabels:["0","17","33","50"], trend:[2,5,9,12,15,19,23,28,33,38,42],
+      values:{"7D":{v:"9",d:12.00,up:true},"30D":{v:"42",d:16.70,up:true},"90D":{v:"126",d:21.00,up:true}}},
+    avgTime: {name:"Avg. Time on Content", ic:"clock", bg:"blue", type:"stat", axis:"left",
+      color:"#D6488B", axisMax:180, axisLabels:["0","1m","2m","3m"], trend:[130,135,140,138,145,148,150,152,150,153,154],
+      values:{"7D":{v:"2m 05s",d:4.10,up:true},"30D":{v:"2m 34s",d:6.30,up:true},"90D":{v:"2m 48s",d:7.80,up:true}}},
+    engagedUsers: {name:"Daily Engaged Users", ic:"clock", bg:"green", type:"stat", axis:"left",
+      color:"#1F9254", axisMax:800, axisLabels:["0","200","400","600","800"], trend:[420,440,460,480,500,520,540,560,590,620,650],
+      values:{"7D":{v:"148",d:6.40,up:true},"30D":{v:"612",d:5.20,up:true},"90D":{v:"1,780",d:7.40,up:true}}},
+    engagementRate: {name:"Engagement Rate", ic:"percent", bg:"red", type:"stat", axis:"left",
+      color:"#D6483F", axisMax:15, axisLabels:["0%","5%","10%","15%"], trend:[5.0,5.2,5.4,5.6,5.8,6.0,6.2,6.4,6.6,6.7,6.8],
+      values:{"7D":{v:"6.2%",d:0.90,up:true},"30D":{v:"6.8%",d:1.80,up:true},"90D":{v:"7.4%",d:2.60,up:true}}},
+  }
+};
+
+let visibleKeys = {
+  app: ["uniqueUsers","activeUsers","eventIdRate","totalIdentifiedUsers"],
+  content: ["contentViews","contentClicked","pageViews","contentCreated"]
+};
+
+let activeTab = "app";
+let activeRange = "30D";
+let selectedKey = null; // metric key currently isolated in the trend chart below
+const customTabs = {}; // tabId -> {label, icon, metrics:[...]}
+
+/* library of selectable OOB metrics, grouped by topic — used by the "Add tab" builder */
+const metricLibrary = {
+  app: {
+    icon:"user",
+    options: [
+      {l:"Total Unique Users",   ic:"user",     v:"4,320",  d:3.50,  up:true},
+      {l:"Monthly Active Users", ic:"activity", v:"984",    d:3.50,  up:true},
+      {l:"Avg. Session Time",    ic:"clock",    v:"6m 42s", d:13.50, up:false},
+      {l:"Events Captured",      ic:"zap",      v:"4,503",  d:3.50,  up:false},
+      {l:"Total Sessions",       ic:"layers",   v:"6,140",  d:4.10,  up:true},
+      {l:"Avg. Sessions per User", ic:"repeat", v:"1.4",    d:0.80,  up:true},
+    ]
+  },
+  content: {
+    icon:"file-text",
+    options: [
+      {l:"Total Content Views",  ic:"eye",           v:"12,860", d:2.10, up:true},
+      {l:"Content Clicked",      ic:"mouse-pointer",  v:"3,760",  d:2.40, up:false},
+      {l:"Flow Completion Rate", ic:"percent",        v:"71.4%",  d:1.00, up:true},
+      {l:"Negative Feedback",    ic:"thumbs-down",    v:"54",     d:3.50, up:false},
+      {l:"Smart Tips Shown",     ic:"zap",            v:"640",    d:2.90, up:true},
+      {l:"Total Page Views",     ic:"file",           v:"8,920",  d:3.30, up:true},
+    ]
+  },
+  errors: {
+    icon:"alert-triangle",
+    options: [
+      {l:"Failed Searches",         ic:"search",         v:"48", d:12.30, up:false},
+      {l:"Negative Feedback Votes", ic:"thumbs-down",     v:"23", d:18.50, up:false},
+      {l:"Quoting Errors",          ic:"alert-triangle",  v:"19", d:9.00,  up:false},
+      {l:"Flow Failures",           ic:"x-circle",        v:"14", d:5.50,  up:false},
+    ]
+  },
+  adoption: {
+    icon:"trending-up",
+    options: [
+      {l:"% Users Engaged",           ic:"users",        v:"28.4%", d:4.20, up:true},
+      {l:"Top Active Users",          ic:"star",         v:"12",    d:2.50, up:true},
+      {l:"Low Task List Completion",  ic:"check-circle", v:"62%",   d:6.10, up:true},
+      {l:"Feature Adoption Rate",     ic:"trending-up",  v:"54%",   d:3.00, up:true},
+    ]
+  }
+};
+const topicLabels = {app:"App usage", content:"Content usage", errors:"Errors", adoption:"Adoption"};
+
+const iconColorMap = {
+  user:"purple", users:"purple", activity:"blue", "trending-up":"blue", clock:"green",
+  percent:"red", zap:"yellow", eye:"purple", "mouse-pointer":"blue", "thumbs-down":"red",
+  search:"blue", "alert-triangle":"yellow", "x-circle":"red", star:"yellow",
+  "check-circle":"green", layers:"blue", repeat:"purple", file:"blue", "file-text":"purple"
+};
+function iconColor(ic){ return iconColorMap[ic] || "purple"; }
+
+/* simple stat card renderer — used for the "Add tab" custom tabs, which have their
+   own small metric library and aren't part of the swap/remove catalog system */
+function legacyCardHTML(m){
+  const bg = m.bg || iconColor(m.ic);
+  return `
+    <div class="metric-card" data-key="">
+      <div class="metric-top">
+        <div class="m-avatar" style="background:var(--${bg}-soft);color:var(--${bg});"><i data-feather="${m.ic}"></i></div>
+        <div class="m-menu"><i data-feather="more-vertical"></i></div>
+      </div>
+      <div class="m-label">${m.l}</div>
+      <div class="m-value">${m.v}</div>
+      <div class="m-delta ${m.up?'up':'down'}"><i data-feather="${m.up?'arrow-up-right':'arrow-down-right'}"></i>${m.d.toFixed(1)}% since last week</div>
+    </div>`;
+}
+
+function cardHTML(key, m){
+  const avatar = `<div class="m-avatar" style="background:var(--${m.bg}-soft);color:var(--${m.bg});"><i data-feather="${m.ic}"></i></div>`;
+  const menu = `<div class="m-menu" data-key="${key}"><i data-feather="more-vertical"></i></div>`;
+
+  if(m.type==='bar'){
+    const maxV = Math.max(...m.data.map(d=>d.val));
+    const rows = m.data.map(d=>`
+      <div class="mini-bar-row">
+        <div class="mini-bar-label" title="${d.label}">${d.label}</div>
+        <div class="mini-bar-track"><div class="mini-bar-fill" style="width:${(d.val/maxV*100).toFixed(0)}%;background:var(--${m.bg});"></div></div>
+        <div class="mini-bar-val">${d.val}</div>
+      </div>`).join('');
+    return `<div class="metric-card" data-key="${key}" data-type="bar">
+      <div class="metric-top">${avatar}${menu}</div>
+      <div class="m-label">${m.name}</div>
+      <div class="mini-bars">${rows}</div>
+    </div>`;
+  }
+  if(m.type==='table-users'){
+    const rows = m.data.map(u=>`
+      <div class="mini-table-row">
+        <div class="mini-av">${u.initials}</div>
+        <div class="mini-name">${u.name}</div>
+        <div class="mini-count">${u.count}</div>
+      </div>`).join('');
+    return `<div class="metric-card" data-key="${key}" data-type="table-users">
+      <div class="metric-top">${avatar}${menu}</div>
+      <div class="m-label">${m.name}</div>
+      <div class="m-sub">${m.sub||''}</div>
+      <div class="mini-table">${rows}</div>
+    </div>`;
+  }
+  if(m.type==='table-anomalies'){
+    const rows = m.data.map(a=>`
+      <div class="mini-table-row">
+        <div class="mini-sev sev-${a.sev}" title="${a.sev} severity"></div>
+        <div class="mini-name">${a.event}</div>
+        <div class="mini-count">${a.change}</div>
+      </div>`).join('');
+    return `<div class="metric-card" data-key="${key}" data-type="table-anomalies">
+      <div class="metric-top">${avatar}${menu}</div>
+      <div class="m-label">${m.name}</div>
+      <div class="m-sub">${m.sub||''}</div>
+      <div class="mini-table">${rows}</div>
+    </div>`;
+  }
+
+  // default: stat card
+  const v = m.values[activeRange];
+  const isSel = selectedKey===key;
+  return `<div class="metric-card ${isSel?'selected':''}" data-key="${key}" data-type="stat">
+    <div class="metric-top">${avatar}${menu}</div>
+    <div class="m-label">${m.name}</div>
+    <div class="m-value">${v.v}</div>
+    <div class="m-delta ${v.up?'up':'down'}"><i data-feather="${v.up?'arrow-up-right':'arrow-down-right'}"></i>${v.d.toFixed(1)}% since last week</div>
+  </div>`;
+}
+
+function renderMetrics(){
+  const grid = document.getElementById('metricGrid');
+  grid.style.gridTemplateColumns = `repeat(auto-fit, minmax(190px,1fr))`;
+
+  if(customTabs[activeTab]){
+    grid.innerHTML = customTabs[activeTab].metrics.map(m=>legacyCardHTML(m)).join('');
+    feather.replace();
+    document.querySelectorAll('#metricGrid .m-menu').forEach(mm=>{
+      mm.onclick = (e)=>{ e.stopPropagation(); showToast('Card options coming soon'); };
+    });
+    document.getElementById('contentExtra').style.display = 'none';
+    renderTrend();
+    return;
+  }
+
+  const keys = visibleKeys[activeTab];
+  let html = keys.map(k=>cardHTML(k, catalog[activeTab][k])).join('');
+  if(keys.length < MAX_VISIBLE){
+    html += `<div class="metric-card add-metric-card" id="addMetricTile">
+      <div class="plus-circle"><i data-feather="plus"></i></div>
+      <div class="m-label">Add metric</div>
+    </div>`;
+  }
+  grid.innerHTML = html;
+  feather.replace();
+
+  grid.querySelectorAll('.metric-card[data-type="stat"]').forEach(card=>{
+    card.addEventListener('click', (e)=>{
+      if(e.target.closest('.m-menu')) return;
+      const key = card.dataset.key;
+      selectedKey = (selectedKey===key) ? null : key;
+      renderMetrics();
+    });
+  });
+  grid.querySelectorAll('.m-menu').forEach(mm=>{
+    mm.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      openCardMenu(mm, mm.dataset.key);
+    });
+  });
+  const addTile = document.getElementById('addMetricTile');
+  if(addTile) addTile.addEventListener('click', ()=> openSwapModal(null));
+
+  document.getElementById('contentExtra').style.display = (activeTab==='content') ? 'block' : 'none';
+  if(activeTab==='content') renderContentBreakdowns();
+  renderTrend();
+}
+
+/* ---------------- card menu popover: swap / remove ---------------- */
+let menuTargetKey = null;
+function openCardMenu(anchorEl, key){
+  menuTargetKey = key;
+  const pop = document.getElementById('cardMenuPop');
+  const r = anchorEl.getBoundingClientRect();
+  pop.style.top = (r.bottom + window.scrollY + 6) + 'px';
+  pop.style.left = (r.right + window.scrollX - 168) + 'px';
+  pop.classList.add('show');
+}
+document.addEventListener('click', (e)=>{
+  if(!e.target.closest('#cardMenuPop') && !e.target.closest('.m-menu')){
+    document.getElementById('cardMenuPop').classList.remove('show');
+  }
+});
+document.getElementById('cmSwap').addEventListener('click', ()=>{
+  document.getElementById('cardMenuPop').classList.remove('show');
+  openSwapModal(menuTargetKey);
+});
+document.getElementById('cmRemove').addEventListener('click', ()=>{
+  document.getElementById('cardMenuPop').classList.remove('show');
+  const idx = visibleKeys[activeTab].indexOf(menuTargetKey);
+  if(idx>-1) visibleKeys[activeTab].splice(idx,1);
+  if(selectedKey===menuTargetKey) selectedKey = null;
+  renderMetrics();
+  showToast('Metric removed');
+});
+
+/* ---------------- swap / add metric modal ---------------- */
+let swapTargetKey = null; // null = adding a new slot rather than replacing one
+function openSwapModal(targetKey){
+  swapTargetKey = targetKey;
+  document.getElementById('swapModalTitle').textContent = targetKey ? 'Swap metric' : 'Add metric';
+  const avail = Object.keys(catalog[activeTab]).filter(k=> !visibleKeys[activeTab].includes(k));
+  const list = document.getElementById('swapList');
+  if(avail.length===0){
+    list.innerHTML = `<div class="check-hint" style="padding:10px 6px;">All available metrics for this tab are already shown.</div>`;
+  } else {
+    list.innerHTML = avail.map(k=>{
+      const m = catalog[activeTab][k];
+      const badge = m.type!=='stat' ? `<span class="type-badge">${m.type==='bar'?'Chart':'Table'}</span>` : '';
+      const preview = m.type==='stat' ? `<span class="val">${m.values[activeRange].v}</span>` : '';
+      return `<div class="check-item swap-item" data-key="${k}">
+        <i data-feather="${m.ic}"></i>
+        <span class="lbl">${m.name}</span>
+        ${badge}${preview}
+      </div>`;
+    }).join('');
+  }
+  feather.replace();
+  document.getElementById('swapOverlay').classList.add('show');
+}
+document.getElementById('swapModalClose').addEventListener('click', ()=>{
+  document.getElementById('swapOverlay').classList.remove('show');
+});
+document.getElementById('swapOverlay').addEventListener('click', e=>{
+  if(e.target.id==='swapOverlay') document.getElementById('swapOverlay').classList.remove('show');
+});
+document.getElementById('swapList').addEventListener('click', (e)=>{
+  const item = e.target.closest('.swap-item');
+  if(!item) return;
+  const newKey = item.dataset.key;
+  if(swapTargetKey){
+    const idx = visibleKeys[activeTab].indexOf(swapTargetKey);
+    if(idx>-1) visibleKeys[activeTab][idx] = newKey;
+    if(selectedKey===swapTargetKey) selectedKey = null;
+  } else if(visibleKeys[activeTab].length < MAX_VISIBLE){
+    visibleKeys[activeTab].push(newKey);
+  }
+  document.getElementById('swapOverlay').classList.remove('show');
+  renderMetrics();
+  showToast('Metric updated');
+});
+
+function bindTabClicks(){
+  document.querySelectorAll('#overviewTabs .tab:not(.tab-add)').forEach(t=>{
+    t.onclick = (e)=>{
+      if(e.target.closest('.tab-x')) return; // handled separately
+      document.querySelectorAll('#overviewTabs .tab').forEach(x=>x.classList.remove('active'));
+      t.classList.add('active');
+      activeTab = t.dataset.tab;
+      selectedKey = null;
+      renderMetrics();
+    };
+  });
+}
+bindTabClicks();
+
+document.querySelectorAll('.range-seg button').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('.range-seg button').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+    activeRange = b.dataset.range;
+    renderMetrics();
+  });
+});
+document.getElementById('calBtn').addEventListener('click', ()=> showToast('Custom date range picker would open here'));
+document.getElementById('trendClear').addEventListener('click', ()=>{
+  selectedKey = null;
+  renderMetrics();
+});
+
+/* ---------------- key metrics trend chart ---------------- */
+const rangeText = {"7D":"Last 7 days","30D":"Last 30 days","90D":"Last 90 days"};
+const appOverlayAxis = {
+  left:{max:6000, labels:["0","2k","4k","6k"]},
+  right:{max:100, labels:["0%","25%","50%","75%","100%"]},
+};
+const contentByType = {
+  left:{max:4000, labels:["0","1k","2k","3k","4k"]},
+  series:[
+    {name:"Flows",     color:"#7A5CC0", base:[1900,2050,2200,2150,2500,2900,2850,3000,3300,3550,3900]},
+    {name:"Pop-ups",   color:"#3B63D4", base:[900,1050,1150,1200,1300,1450,1500,1650,1800,1950,2050]},
+    {name:"Self Help", color:"#1F9254", base:[550,600,650,680,730,800,830,900,1000,1150,1250]},
+    {name:"Beacons",   color:"#D98A1D", base:[150,180,200,220,250,280,300,330,380,430,480]},
+    {name:"Smart Tips",color:"#D6488B", base:[80,95,105,115,130,145,155,175,200,225,250]},
+  ]
+};
+const trendXLabels = ["Jun 1","Jun 8","Jun 15","Jun 22","Jun 30"];
+
+function getTrendSeries(tab, key){
+  const m = catalog[tab] && catalog[tab][key];
+  if(!m || m.type!=='stat') return null;
+  return {name:m.name, color:m.color, base:m.trend, axisMax:m.axisMax, axisLabels:m.axisLabels, axis:m.axis||'left'};
+}
+
+function renderTrend(){
+  const panel = document.getElementById('trendPanel');
+  if(customTabs[activeTab]){ panel.style.display = 'none'; return; }
+  panel.style.display = 'block';
+  document.getElementById('trendTitle').textContent = activeTab==='content' ? 'Content Views Trend' : 'Key Metrics Trend';
+
+  const isolated = selectedKey ? getTrendSeries(activeTab, selectedKey) : null;
+  const clearBtn = document.getElementById('trendClear');
+
+  let seriesToShow, leftInfo, rightInfo = null, singleAxis;
+
+  if(isolated){
+    document.getElementById('trendSub').textContent = `Showing ${isolated.name} only · ${rangeText[activeRange]}`;
+    clearBtn.style.display = 'inline-flex';
+    seriesToShow = [{name:isolated.name, color:isolated.color, base:isolated.base}];
+    leftInfo = {max:isolated.axisMax, labels:isolated.axisLabels};
+    singleAxis = true;
+  } else {
+    document.getElementById('trendSub').textContent = rangeText[activeRange];
+    clearBtn.style.display = 'none';
+    if(activeTab==='app'){
+      const overlayKeys = visibleKeys.app.filter(k=>{ const m=catalog.app[k]; return m.type==='stat' && m.overlay; });
+      if(overlayKeys.length===0){ panel.style.display = 'none'; return; }
+      seriesToShow = overlayKeys.map(k=>{ const m=catalog.app[k]; return {name:m.name, color:m.color, base:m.trend, axis:m.axis}; });
+      leftInfo = appOverlayAxis.left; rightInfo = appOverlayAxis.right; singleAxis = false;
+    } else {
+      seriesToShow = contentByType.series;
+      leftInfo = contentByType.left; singleAxis = true;
+    }
+  }
+
+  document.getElementById('trendLegend').innerHTML = seriesToShow.map(s=>`
+    <div class="legend-item"><span class="legend-dot" style="background:${s.color};"></span>${s.name}</div>
+  `).join('');
+
+  const w=900,h=230,padL=36,padR=singleAxis?12:36,padT=10,padB=24;
+  const plotW=w-padL-padR, plotH=h-padT-padB;
+  const n = seriesToShow[0].base.length;
+  const stepX = plotW/(n-1);
+
+  let svg = `<defs><linearGradient id="tArea" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="${seriesToShow[0].color}" stop-opacity="0.14"/>
+    <stop offset="100%" stop-color="${seriesToShow[0].color}" stop-opacity="0"/>
+  </linearGradient></defs>`;
+
+  for(let i=0;i<leftInfo.labels.length;i++){
+    const y = padT + plotH - (i/(leftInfo.labels.length-1))*plotH;
+    svg += `<line class="gridline" x1="${padL}" y1="${y}" x2="${padL+plotW}" y2="${y}"/>`;
+    svg += `<text class="axis-label" x="0" y="${y+4}">${leftInfo.labels[i]}</text>`;
+    if(!singleAxis && rightInfo){
+      svg += `<text class="axis-label" x="${padL+plotW+8}" y="${y+4}">${rightInfo.labels[i]}</text>`;
+    }
+  }
+
+  seriesToShow.forEach((s,si)=>{
+    const maxV = (!isolated && s.axis==='right' && rightInfo) ? rightInfo.max : leftInfo.max;
+    const coords = s.base.map((v,i)=>[padL+i*stepX, padT+plotH-(v/maxV*plotH)]);
+    const linePts = coords.map(c=>c.join(',')).join(' ');
+    if(si===0){
+      const areaPts = `${padL},${padT+plotH} ` + linePts + ` ${padL+plotW},${padT+plotH}`;
+      svg += `<polygon points="${areaPts}" fill="url(#tArea)"/>`;
+    }
+    svg += `<polyline points="${linePts}" fill="none" stroke="${s.color}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>`;
+  });
+
+  const lastIdx = n-1;
+  trendXLabels.forEach((lbl,i)=>{
+    const xi = Math.round(i * (lastIdx/(trendXLabels.length-1)));
+    svg += `<text class="axis-label" x="${padL+xi*stepX-10}" y="${h-2}">${lbl}</text>`;
+  });
+
+  document.getElementById('trendSvg').innerHTML = svg;
+}
+
+/* ---------------- content tab breakdown panels ---------------- */
+const donutData = [
+  {name:"Flows",     color:"#7A5CC0", pct:42, count:"10.4k"},
+  {name:"Pop-ups",   color:"#3B63D4", pct:24, count:"5.9k"},
+  {name:"Self Help", color:"#1F9254", pct:18, count:"4.5k"},
+  {name:"Beacons",   color:"#D98A1D", pct:10, count:"2.5k"},
+  {name:"Smart Tips",color:"#D6488B", pct:6,  count:"1.5k"},
+];
+const topViewedData = [
+  {rank:1, ic:"zap",       bg:"purple", name:"Policy Quote Flow",    type:"Flow",     views:"12.4k views"},
+  {rank:2, ic:"file-text", bg:"purple", name:"Account Setup Guide",  type:"Article",  views:"8.7k views"},
+  {rank:3, ic:"zap",       bg:"blue",   name:"Quote to Save Flow",   type:"Flow",     views:"6.3k views"},
+  {rank:4, ic:"file-text", bg:"blue",   name:"Reset Password",       type:"Article",  views:"5.1k views"},
+  {rank:5, ic:"zap",       bg:"red",    name:"Smart Tip - Save More",type:"Smart Tip",views:"4.8k views"},
+];
+const createdBarsData = [
+  {name:"Flows",     color:"#7A5CC0", v:18},
+  {name:"Pop-ups",   color:"#3B63D4", v:9},
+  {name:"Self Help", color:"#1F9254", v:8},
+  {name:"Beacons",   color:"#D98A1D", v:5},
+  {name:"Smart Tips",color:"#D6488B", v:2},
+];
+const countryData = [
+  {name:"United States", pct:"28.4%", color:"#3B63D4"},
+  {name:"India",         pct:"16.7%", color:"#D98A1D"},
+  {name:"UK",             pct:"8.9%",  color:"#7A5CC0"},
+  {name:"Canada",        pct:"6.2%",  color:"#D6483F"},
+  {name:"Australia",     pct:"4.8%",  color:"#1F9254"},
+];
+
+function renderDonutChart(){
+  let acc = 0;
+  const stops = donutData.map(d=>{
+    const start = acc; acc += d.pct;
+    return `${d.color} ${start}% ${acc}%`;
+  }).join(', ');
+  document.getElementById('donutChart').style.background = `conic-gradient(${stops})`;
+  document.getElementById('donutLegend').innerHTML = donutData.map(d=>`
+    <div class="donut-legend-row">
+      <span class="dot" style="background:${d.color};"></span>
+      <span class="nm">${d.name}</span>
+      <span class="pct">${d.pct}%</span>
+      <span class="cnt">${d.count}</span>
+    </div>`).join('');
+}
+
+function renderTopViewed(){
+  document.getElementById('topViewedList').innerHTML = topViewedData.map(t=>`
+    <div class="cr-row">
+      <div class="cr-num">${t.rank}.</div>
+      <div class="cr-ic" style="background:var(--${t.bg}-soft);color:var(--${t.bg});"><i data-feather="${t.ic}"></i></div>
+      <div class="cr-txt"><div class="n">${t.name}</div><div class="s">${t.type}</div></div>
+      <div class="cr-views">${t.views}</div>
+      <i data-feather="chevron-right" class="cr-chev"></i>
+    </div>`).join('');
+  feather.replace();
+  document.querySelectorAll('#topViewedList .cr-row').forEach(r=>{
+    r.addEventListener('click', ()=> showToast('Opening content detail…'));
+  });
+}
+
+function renderCreatedBars(){
+  const maxV = Math.max(...createdBarsData.map(b=>b.v));
+  document.getElementById('createdBars').innerHTML = createdBarsData.map(b=>`
+    <div class="bar-col">
+      <div class="bar-val" style="color:${b.color};">${b.v}</div>
+      <div class="bar-rect" style="height:${(b.v/maxV*120).toFixed(0)}px;background:${b.color};"></div>
+      <div class="bar-lbl">${b.name}</div>
+    </div>`).join('');
+}
+
+function renderCountries(){
+  document.getElementById('countryList').innerHTML = countryData.map(c=>`
+    <div class="country-row">
+      <span class="flag" style="background:${c.color};"></span>
+      <span class="nm">${c.name}</span>
+      <span class="pct">${c.pct}</span>
+    </div>`).join('');
+}
+
+let contentBreakdownsRendered = false;
+function renderContentBreakdowns(){
+  renderDonutChart();
+  renderTopViewed();
+  renderCreatedBars();
+  if(!contentBreakdownsRendered){ renderCountries(); contentBreakdownsRendered = true; }
+}
+
+renderMetrics();
+
+/* ---------------- add tab modal ---------------- */
+const tabOverlay = document.getElementById('tabOverlay');
+const topicSelect = document.getElementById('topicSelect');
+const metricCheckList = document.getElementById('metricCheckList');
+const createTabBtn = document.getElementById('createTabBtn');
+const tabNameInput = document.getElementById('tabNameInput');
+let tabCounter = 1;
+
+function renderCheckList(){
+  const topic = topicSelect.value;
+  metricCheckList.innerHTML = metricLibrary[topic].options.map((m,i)=>`
+    <label class="check-item">
+      <input type="checkbox" data-idx="${i}">
+      <i data-feather="${m.ic}"></i>
+      <span class="lbl">${m.l}</span>
+      <span class="val">${m.v}</span>
+    </label>
+  `).join('');
+  feather.replace();
+  if(!tabNameInput.dataset.userEdited){
+    tabNameInput.value = topicLabels[topic];
+  }
+  updateCreateBtnState();
+}
+function updateCreateBtnState(){
+  const checked = metricCheckList.querySelectorAll('input:checked').length;
+  createTabBtn.disabled = checked < 1 || checked > 4 || tabNameInput.value.trim().length===0;
+}
+topicSelect.addEventListener('change', renderCheckList);
+metricCheckList.addEventListener('change', updateCreateBtnState);
+tabNameInput.addEventListener('input', ()=>{
+  tabNameInput.dataset.userEdited = "1";
+  updateCreateBtnState();
+});
+
+function openTabModal(){
+  tabNameInput.dataset.userEdited = "";
+  topicSelect.value = "app";
+  renderCheckList();
+  tabOverlay.classList.add('show');
+}
+function closeTabModal(){ tabOverlay.classList.remove('show'); }
+document.getElementById('addTabBtn').addEventListener('click', openTabModal);
+document.getElementById('tabModalClose').addEventListener('click', closeTabModal);
+tabOverlay.addEventListener('click', e=>{ if(e.target===tabOverlay) closeTabModal(); });
+
+createTabBtn.addEventListener('click', ()=>{
+  const topic = topicSelect.value;
+  const checks = [...metricCheckList.querySelectorAll('input:checked')].map(c=>parseInt(c.dataset.idx));
+  if(checks.length < 1) return;
+  const metrics = checks.map(i=>metricLibrary[topic].options[i]);
+  const name = tabNameInput.value.trim() || topicLabels[topic];
+  const tabId = "custom" + (tabCounter++);
+  customTabs[tabId] = {label:name, icon:metricLibrary[topic].icon, metrics};
+
+  const btn = document.createElement('button');
+  btn.className = 'tab';
+  btn.dataset.tab = tabId;
+  btn.innerHTML = `<i data-feather="${metricLibrary[topic].icon}"></i>${name}<span class="tab-x"><i data-feather="x"></i></span>`;
+  document.getElementById('addTabBtn').insertAdjacentElement('beforebegin', btn);
+  feather.replace();
+
+  btn.querySelector('.tab-x').addEventListener('click', (e)=>{
+    e.stopPropagation();
+    delete customTabs[tabId];
+    btn.remove();
+    if(activeTab === tabId){
+      activeTab = 'app';
+      selectedKey = null;
+      document.querySelectorAll('#overviewTabs .tab').forEach(x=>x.classList.remove('active'));
+      document.querySelector('#overviewTabs .tab[data-tab="app"]').classList.add('active');
+      renderMetrics();
+    }
+  });
+
+  bindTabClicks();
+  document.querySelectorAll('#overviewTabs .tab').forEach(x=>x.classList.remove('active'));
+  btn.classList.add('active');
+  activeTab = tabId;
+  selectedKey = null;
+  renderMetrics();
+  closeTabModal();
+  showToast(`"${name}" tab added`);
+});
+
+/* ---------------- ask ai ---------------- */
+/* ---------------- What's new: AI insights feed ---------------- */
+
+function sparkSvg(points, color, h){
+  const w=100;
+  const max=Math.max(...points), min=Math.min(...points);
+  const range=(max-min)||1;
+  const step=w/(points.length-1);
+  const coords=points.map((v,i)=>[i*step, h-2-((v-min)/range)*(h-6)]);
+  const linePts=coords.map(c=>c.join(',')).join(' ');
+  const areaPts=`0,${h} ${linePts} ${w},${h}`;
+  const last=coords[coords.length-1];
+  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" style="width:100%;height:${h}px;display:block;">
+    <polygon points="${areaPts}" fill="${color}" opacity="0.12"/>
+    <polyline points="${linePts}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="${last[0]}" cy="${last[1]}" r="3.2" fill="${color}"/>
+  </svg>`;
+}
+
+function fullLineChartSvg(points, xLabels, yMax, yLabels, color){
+  const w=560,h=150,padL=30,padR=6,padT=8,padB=20;
+  const plotW=w-padL-padR, plotH=h-padT-padB;
+  const n=points.length;
+  const step=plotW/(n-1);
+  const coords=points.map((v,i)=>[padL+i*step, padT+plotH-(v/yMax*plotH)]);
+  const linePts=coords.map(c=>c.join(',')).join(' ');
+  const areaPts=`${padL},${padT+plotH} ${linePts} ${padL+plotW},${padT+plotH}`;
+  let svg='';
+  yLabels.forEach((lbl,i)=>{
+    const y=padT+plotH-(i/(yLabels.length-1))*plotH;
+    svg+=`<line x1="${padL}" y1="${y}" x2="${padL+plotW}" y2="${y}" stroke="var(--line)" stroke-width="1"/>`;
+    svg+=`<text x="0" y="${y+4}" font-size="10.5" fill="var(--ink-faint)">${lbl}</text>`;
+  });
+  svg+=`<polygon points="${areaPts}" fill="${color}" opacity="0.12"/>`;
+  svg+=`<polyline points="${linePts}" fill="none" stroke="${color}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>`;
+  const last=coords[coords.length-1];
+  svg+=`<circle cx="${last[0]}" cy="${last[1]}" r="4" fill="${color}"/>`;
+  xLabels.forEach((lbl,i)=>{
+    const xi=Math.round(i*(n-1)/(xLabels.length-1));
+    svg+=`<text x="${padL+xi*step-8}" y="${h-2}" font-size="10.5" fill="var(--ink-faint)">${lbl}</text>`;
+  });
+  return `<svg class="wn-fullchart" viewBox="0 0 ${w} ${h}">${svg}</svg>`;
+}
+
+function weekMiniBarsHtml(values){
+  const max=Math.max(...values);
+  return values.map(v=>`<div class="b" style="height:${Math.max(3,Math.round((v/max)*24))}px;"></div>`).join('');
+}
+function weekFullChartHtml(values, dayLabels, yMax, yLabels){
+  const bars = values.map((v,i)=>`
+    <div class="wn-weekchart-col">
+      <div class="wn-weekchart-bar" style="height:${Math.max(3,Math.round((v/yMax)*90))}px;"></div>
+      <div class="wn-weekchart-lbl">${dayLabels[i]}</div>
+    </div>`).join('');
+  return `<div class="wn-weekchart">
+    <div class="wn-weekchart-axis">${yLabels.map(l=>`<span>${l}</span>`).join('')}</div>
+    <div class="wn-weekchart-bars">${bars}</div>
+  </div>`;
+}
+function legendListHtml(items){
+  return items.map(it=>`
+    <div class="wn-legend-row">
+      <span class="wn-legend-dot" style="background:${it.color};"></span>
+      <span class="wn-legend-name">${it.name}</span>
+      <span class="wn-legend-track"><span class="wn-legend-fill" style="width:${it.barPct}%;background:${it.color};"></span></span>
+      <span class="wn-legend-pct">${it.pct}</span>
+    </div>`).join('');
+}
+
+const wnInsights = [
+  {
+    id:'mau', type:'anomaly', icon:'alert-triangle', tag:'Needs Attention',
+    title:"Monthly active users dropped 29%",
+    big:"19,399", unit:"MAU", delta:"29.00", down:true,
+    spark:[15800,19200,22500,25400,26100,25900,19399],
+    para:"MAU grew from 5,176 in Sep to ~26,300 in Dec, stayed stable until Jul, then dropped to 19,399 in Aug.",
+    chart:{points:[5176,11000,18500,26300,25800,26100,25900,26400,26200,26000,25900,19399],
+      yLabels:["30K","15K","0"], xLabels:["Sep","Nov","Jan","Mar","May","Jul","Aug"]},
+    callout:"This drop is a significant deviation from the previous trend and is worth investigating.",
+    ctaText:"Investigate MAU", ctaDark:true, query:"Why did MAU drop?"
+  },
+  {
+    id:'smart-tips', type:'finding', icon:'search', tag:'Key Finding',
+    title:"Smart Tips drive 62% of engagement",
+    big:"62%", unit:"smart tips", donutPct:62,
+    para:'"Smart-tip loaded for page" accounts for 478,895 events in the last 30 days.',
+    legend:[
+      {name:"Smart Tips", pct:"62%", barPct:62, color:"var(--blue)"},
+      {name:"Page View",  pct:"10%", barPct:10, color:"#7CA6F2"},
+      {name:"Self Help",  pct:"10%", barPct:10, color:"#9CB6F5"},
+      {name:"Others",     pct:"18%", barPct:18, color:"var(--blue-soft)"},
+    ],
+    callout:"Smart Tips are the dominant content type, contributing to over 60% of engagement.",
+    ctaText:"View content breakdown", ctaDark:false, query:"Show content breakdown by type"
+  },
+  {
+    id:'underused', type:'opportunity', icon:'alert-triangle', tag:'Needs Action',
+    title:"Flows, Beacons and Surveys are underused",
+    big:"<1%", unit:"of total engagement",
+    para:"Each contribute less than 1% of total engagement, with many showing near-zero activity.",
+    items:[
+      {name:"Flows",     pct:"<1%", barPct:4, color:"var(--yellow)"},
+      {name:"QuickRead",  pct:"<1%", barPct:3, color:"var(--yellow)"},
+      {name:"Beacons",   pct:"<1%", barPct:5, color:"var(--yellow)"},
+      {name:"Surveys",   pct:"<1%", barPct:2, color:"var(--yellow)"},
+    ],
+    callout:"These content types may be underutilized or under-deployed. Explore usage to identify opportunities.",
+    ctaText:"Explore content usage", ctaDark:false, query:"Explore usage for Flows, Beacons and Surveys"
+  },
+  {
+    id:'sessions', type:'stable', icon:'check-circle', tag:'Healthy Pattern',
+    title:"Session volume is stable",
+    big:"61,615", unit:"Total sessions",
+    weekMini:[2600,2950,2700,3000,2400,900,850],
+    para:"Averaging ~2,050/day. Weekdays run 2,300–3,000 sessions, weekends dip to 800–1,100 — a normal pattern.",
+    week:{values:[2600,2950,2700,3000,2400,900,850], days:["Mon","Tue","Wed","Thu","Fri","Sat","Sun"], yMax:4000, yLabels:["4K","2K","0"]},
+    callout:"Usage is following a normal weekly pattern. No action needed.",
+    ctaText:"View session analytics", ctaDark:false, query:"Show session analytics by day of week"
+  },
+];
+
+function wnCollapsedBody(ins){
+  const subLine = ins.type==='anomaly'
+    ? `<div class="wn-stat-delta"><i data-feather="${ins.down?'arrow-down':'arrow-up'}"></i><b>${ins.delta}</b>% since last week</div>`
+    : `<div class="wn-unit">${ins.unit}</div>`;
+  return `
+    <div class="wn-collapsed">
+      <div>
+        <div class="wn-big">${ins.big}</div>
+        ${subLine}
+      </div>
+      <button class="wn-view-btn">View</button>
+    </div>`;
+}
+
+function wnExpandedBody(ins){
+  let visual = '';
+  if(ins.type==='anomaly'){
+    visual = fullLineChartSvg(ins.chart.points, ins.chart.xLabels, 30000, ins.chart.yLabels, 'var(--red)');
+  } else if(ins.type==='finding'){
+    visual = legendListHtml(ins.legend);
+  } else if(ins.type==='opportunity'){
+    visual = legendListHtml(ins.items);
+  } else {
+    visual = weekFullChartHtml(ins.week.values, ins.week.days, ins.week.yMax, ins.week.yLabels);
+  }
+  return `
+    <div class="wn-expanded">
+      <p class="wn-para">${ins.para}</p>
+      ${visual}
+      <div class="wn-callout"><i data-feather="${ins.type==='stable'?'check-circle':'zap'}"></i><span>${ins.callout}</span></div>
+      <button class="wn-cta ${ins.ctaDark?'dark':''}" data-query="${ins.query}">${ins.ctaText} <i data-feather="arrow-right"></i></button>
+    </div>`;
+}
+
+function renderWhatsNew(){
+  const row = document.getElementById('wnRow');
+  document.getElementById('wnMeta').textContent = `${wnInsights.length} findings · Last 30 days`;
+
+  row.innerHTML = wnInsights.map(ins=>`
+    <div class="wn-card type-${ins.type}" data-id="${ins.id}">
+      <div class="wn-tagpill"><i data-feather="${ins.icon}"></i>${ins.tag}</div>
+      <div class="wn-title">${ins.title}</div>
+      ${wnCollapsedBody(ins)}
+    </div>
+  `).join('');
+  feather.replace();
+
+  row.querySelectorAll('.wn-card').forEach(card=>{
+    card.addEventListener('click', ()=> openWnModal(card.dataset.id));
+  });
+}
+
+/* ---------------- insight detail modal ---------------- */
+function openWnModal(id){
+  const ins = wnInsights.find(i=>i.id===id);
+  if(!ins) return;
+  const body = document.getElementById('wnModalBody');
+  body.className = `modal wn-modal type-${ins.type}`;
+  body.innerHTML = `
+    <div class="wn-modal-head">
+      <div class="wn-tagpill"><i data-feather="${ins.icon}"></i>${ins.tag}</div>
+      <button class="wn-modal-close" id="wnModalCloseBtn"><i data-feather="x"></i></button>
+    </div>
+    <div class="wn-modal-title">${ins.title}</div>
+    ${wnExpandedBody(ins)}
+  `;
+  feather.replace();
+  document.getElementById('wnModalCloseBtn').addEventListener('click', closeWnModal);
+  const cta = body.querySelector('.wn-cta');
+  if(cta){
+    cta.addEventListener('click', ()=>{
+      closeWnModal();
+      askToHero(cta.dataset.query);
+    });
+  }
+  document.getElementById('wnOverlay').classList.add('show');
+}
+function closeWnModal(){
+  document.getElementById('wnOverlay').classList.remove('show');
+}
+document.getElementById('wnOverlay').addEventListener('click', e=>{
+  if(e.target.id==='wnOverlay') closeWnModal();
+});
+document.addEventListener('keydown', e=>{
+  if(e.key==='Escape') closeWnModal();
+});
+
+/* sends a query to the Ask AI hero and shows the answer preview — ties every insight
+   back into the same investigation flow */
+function askToHero(query){
+  askInput.value = query;
+  updateSendState();
+  window.scrollTo({top:0, behavior:'smooth'});
+  submitAsk();
+}
+
+renderWhatsNew();
+
+const askInput = document.getElementById('askInput');
+const askSend = document.getElementById('askSend');
+const askAnswer = document.getElementById('askAnswer');
+const askAnswerQ = document.getElementById('askAnswerQ');
+const askAnswerFake = document.getElementById('askAnswerFake');
+
+/* time-based greeting */
+const heroHour = new Date().getHours();
+const heroGreetingWord = heroHour < 12 ? 'Morning' : (heroHour < 17 ? 'Afternoon' : 'Evening');
+document.getElementById('heroGreeting').textContent = `Good ${heroGreetingWord}, Alex`;
+
+function updateSendState(){
+  askSend.classList.toggle('ready', askInput.value.trim().length>0);
+}
+askInput.addEventListener('input', updateSendState);
+
+function submitAsk(){
+  const q = askInput.value.trim();
+  if(!q) return;
+  askAnswerQ.textContent = q;
+  askAnswerFake.textContent = "";
+  askAnswer.classList.add('show');
+}
+askSend.addEventListener('click', submitAsk);
+askInput.addEventListener('keydown', e=>{ if(e.key==='Enter') submitAsk(); });
+
+document.getElementById('askPlus').addEventListener('click', ()=> showToast('Attach a file or data source'));
+document.getElementById('askMic').addEventListener('click', ()=> showToast('Voice input coming soon'));
+document.getElementById('createNewBtn').addEventListener('click', openModal);
+
+/* rotating typewriter placeholder — types out a suggestion, pauses, deletes it,
+   then moves to the next; pauses entirely while the field is focused or has text */
+const askSuggestions = [
+  "Find me underused features",
+  "Which of my flows have zero starts this quarter?",
+  "Show me which user actions have tracking issues",
+  "Give me a tracking health audit",
+  "What's the drop-off between create quote and save quote?",
+  "Which smart tips were shown the most in the last 30 days?"
+];
+let askTypeIdx = 0, askCharIdx = 0, askDeleting = false;
+
+function askTypeCanRun(){
+  return document.activeElement !== askInput && askInput.value.trim()==='';
+}
+function askTypeTick(){
+  if(!askTypeCanRun()){ setTimeout(askTypeTick, 350); return; }
+  const full = askSuggestions[askTypeIdx];
+  if(!askDeleting){
+    askCharIdx++;
+    askInput.setAttribute('placeholder', full.slice(0, askCharIdx));
+    if(askCharIdx >= full.length){
+      askDeleting = true;
+      setTimeout(askTypeTick, 1800);
+    } else {
+      setTimeout(askTypeTick, 32 + Math.random()*35);
+    }
+  } else {
+    askCharIdx--;
+    askInput.setAttribute('placeholder', full.slice(0, askCharIdx));
+    if(askCharIdx <= 0){
+      askDeleting = false;
+      askTypeIdx = (askTypeIdx+1) % askSuggestions.length;
+      setTimeout(askTypeTick, 500);
+    } else {
+      setTimeout(askTypeTick, 16);
+    }
+  }
+}
+askTypeTick();
+
+/* suggestion chips row — shown while the ask-bar is focused, hides "or create new" */
+const askSuggestWrap = document.getElementById('askSuggestWrap');
+const orCreateWrap = document.getElementById('orCreateWrap');
+const askChipsRow = document.getElementById('askChipsRow');
+let chipOffset = 0;
+
+function renderAskChips(){
+  const pool = askSuggestions;
+  const picks = [pool[chipOffset%pool.length], pool[(chipOffset+1)%pool.length], pool[(chipOffset+2)%pool.length]];
+  askChipsRow.innerHTML = picks.map(q=>`<button class="ask-chip"><i data-feather="zap"></i>${q}</button>`).join('')
+    + `<button class="ask-chip more" id="askChipsMore"><i data-feather="more-horizontal"></i>more</button>`;
+  feather.replace();
+  askChipsRow.querySelectorAll('.ask-chip:not(.more)').forEach(chip=>{
+    chip.addEventListener('mousedown', (e)=>{
+      e.preventDefault(); // keep focus on the input rather than the chip
+      askInput.value = chip.textContent.trim();
+      updateSendState();
+      askInput.focus();
+    });
+  });
+  document.getElementById('askChipsMore').addEventListener('mousedown', (e)=>{
+    e.preventDefault();
+    chipOffset = (chipOffset+3) % pool.length;
+    renderAskChips();
+  });
+}
+renderAskChips();
+
+document.getElementById('shuffleBtn').addEventListener('mousedown', (e)=>{
+  e.preventDefault();
+  chipOffset = (chipOffset+3) % askSuggestions.length;
+  renderAskChips();
+});
+
+askInput.addEventListener('focus', ()=>{
+  askSuggestWrap.classList.add('show');
+  orCreateWrap.classList.add('hide');
+});
+askInput.addEventListener('blur', ()=>{
+  askSuggestWrap.classList.remove('show');
+  orCreateWrap.classList.remove('hide');
+});
+
+/* ---------------- add insight modal ---------------- */
+const overlay = document.getElementById('overlay');
+function openModal(){ overlay.classList.add('show'); }
+function closeModal(){ overlay.classList.remove('show'); }
+document.getElementById('addInsightBtn').addEventListener('click', openModal);
+document.getElementById('addTile').addEventListener('click', openModal);
+document.getElementById('modalClose').addEventListener('click', closeModal);
+document.getElementById('pillInsight').addEventListener('click', openModal);
+document.getElementById('pillDashboard').addEventListener('click', openModal);
+document.getElementById('pillCohort').addEventListener('click', openModal);
+overlay.addEventListener('click', e=>{ if(e.target===overlay) closeModal(); });
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  document.getElementById('toastMsg').textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2200);
+}
+
+document.querySelectorAll('.modal-opt').forEach(opt=>{
+  opt.addEventListener('click', ()=>{
+    const type = opt.dataset.type;
+    closeModal();
+    if(type==='Insight'){
+      const row = document.getElementById('insightRow');
+      const card = document.createElement('div');
+      card.className = 'insight-card';
+      card.innerHTML = `
+        <div class="top">
+          <div class="title"><i data-feather="zap"></i>New insight</div>
+          <button class="pin"><i data-feather="bookmark"></i></button>
+        </div>
+        <div class="meta">Just now · Draft</div>
+        <div class="big">—</div>
+        <div class="sub">Set up your query to see data</div>`;
+      row.insertBefore(card, document.getElementById('addTile'));
+      feather.replace();
+    }
+    showToast(`${type} created`);
+  });
+});
+
+document.querySelectorAll('.insight-card .pin').forEach(p=>{
+  p.addEventListener('click', e=>{
+    e.stopPropagation();
+    p.classList.toggle('pinned');
+  });
+});
+
+/* ---------------- recently viewed ---------------- */
+const recentData = [
+  {type:"insight",   icon:"zap",  name:"Profile creation",       desc:"Description of the insight in one or two line", creator:"Bác. Lõ Lĩnh", initials:"B", date:"2026-06-27"},
+  {type:"dashboard", icon:"grid", name:"Onboarding funnel",      desc:"Funnel showing the feature adoption of the added features", creator:"Neeraj Das", initials:"N", date:"2026-06-08"},
+  {type:"cohort",    icon:"users",name:"Account Engagement",     desc:"Description of the insight in one or two line", creator:"Arya Ram", initials:"A", date:"2026-06-14"},
+  {type:"insight",   icon:"zap",  name:"Salesforce Lead Source", desc:"Description of the insight in one or two line", creator:"Scott Lau", initials:"S", date:"2026-06-28"},
+  {type:"insight",   icon:"zap",  name:"Salesforce Lead Source", desc:"Description of the insight in one or two line", creator:"Scott Lau", initials:"S", date:"2026-05-05"},
+  {type:"dashboard", icon:"grid", name:"Quote error breakdown",  desc:"Errors by type across the CPQ quoting flow", creator:"Alex", initials:"A", date:"2026-09-01"},
+];
+
+let currentFilter = 'all';
+let sortDesc = true;
+
+function renderRecent(){
+  const body = document.getElementById('recentBody');
+  let rows = recentData.filter(r => currentFilter==='all' || r.type===currentFilter);
+  rows = rows.slice().sort((a,b)=> sortDesc ? new Date(b.date)-new Date(a.date) : new Date(a.date)-new Date(b.date));
+  body.innerHTML = rows.map(r=>`
+    <tr>
+      <td>
+        <div class="row-name">
+          <div class="row-icon ${r.type}"><i data-feather="${r.icon}"></i></div>
+          <div class="txt"><div class="name">${r.name}</div><div class="desc">${r.desc}</div></div>
+        </div>
+      </td>
+      <td><div class="creator"><div class="av">${r.initials}</div>${r.creator}</div></td>
+      <td class="date">${new Date(r.date).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</td>
+      <td class="chev"><i data-feather="chevron-right"></i></td>
+    </tr>
+  `).join('');
+  feather.replace();
+}
+renderRecent();
+
+document.querySelectorAll('.ftab').forEach(f=>{
+  f.addEventListener('click', ()=>{
+    document.querySelectorAll('.ftab').forEach(x=>x.classList.remove('active'));
+    f.classList.add('active');
+    currentFilter = f.dataset.filter;
+    renderRecent();
+  });
+});
+
+document.getElementById('sortDate').addEventListener('click', ()=>{
+  sortDesc = !sortDesc;
+  document.querySelector('#sortDate .arrows').innerHTML =
+    sortDesc ? '<i data-feather="chevron-down"></i>' : '<i data-feather="chevron-up"></i>';
+  renderRecent();
+});
+
+document.querySelectorAll('#recentBody').forEach(()=>{});
+</script>
+
+</body>
+</html>
