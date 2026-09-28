@@ -9948,7 +9948,7 @@ function computeAutomationMetrics(node, meta) {
 
   const score = Math.round(100 * (0.3 * frequency + 0.3 * consistency + 0.2 * reworkFactor + 0.2 * judgmentFactor));
   const tier = score >= 70 ? 'high' : score >= 40 ? 'medium' : 'low';
-  const tierLabel = tier === 'high' ? 'High' : tier === 'medium' ? 'Medium' : 'Low';
+  const tierLabel = tier === 'high' ? 'Fully Automatable' : tier === 'medium' ? 'Assisted Automation' : 'Fully Manual';
   const tierColorVar = tier === 'high' ? 'var(--path-main)' : tier === 'medium' ? 'var(--rework)' : 'var(--flag-end-fg)';
 
   const reasonParts = [];
