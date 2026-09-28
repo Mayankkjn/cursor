@@ -453,6 +453,7 @@ function layout(renderGraph) {
 // stage inside one labeled pool — otherwise it falls back to a single,
 // unlabeled lane rather than inventing a grouping the data doesn't have.
 const BPMN_TASK_W = 168;
+const BPMN_TASK_W_MAX = 260;
 const BPMN_TASK_H = 76;
 const BPMN_EVENT_SIZE = 52;
 const BPMN_GATEWAY_SIZE = 50;
@@ -577,6 +578,50 @@ function laneIndexForNode(n, lanes) {
   return lanes.laneIndexOf.has(stage) ? lanes.laneIndexOf.get(stage) : lanes.stageOrder.length - 1;
 }
 
+// Measures real pixel text width in the exact font .bpmn-task-label draws
+// with, so a task box can be sized to its own label instead of guessing
+// from character count — one offscreen canvas, reused across calls.
+let bpmnMeasureCtx = null;
+function measureBpmnLabelWidth(text) {
+  if (!bpmnMeasureCtx) {
+    bpmnMeasureCtx = document.createElement('canvas').getContext('2d');
+    bpmnMeasureCtx.font = "600 12px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+  }
+  return bpmnMeasureCtx.measureText(text).width;
+}
+
+// Greedy word-wrap by real measured width (not a fixed character count),
+// so it wraps exactly where the box's own width says it must, whatever
+// that width ends up being.
+function wrapBpmnLabel(label, maxWidth) {
+  const words = label.split(' ');
+  const lines = [];
+  let line = '';
+  words.forEach((w) => {
+    const candidate = line ? `${line} ${w}` : w;
+    if (line && measureBpmnLabelWidth(candidate) > maxWidth) {
+      lines.push(line);
+      line = w;
+    } else {
+      line = candidate;
+    }
+  });
+  if (line) lines.push(line);
+  return lines;
+}
+
+// A task box grows to fit its label (up to BPMN_TASK_W_MAX) rather than
+// wrapping a long name into a fixed 168px column and truncating it —
+// width first, from the label's natural (unwrapped) width, then lines and
+// height from wrapping at that width.
+function sizeBpmnTaskBox(label) {
+  const natural = measureBpmnLabelWidth(label);
+  const width = Math.max(BPMN_TASK_W, Math.min(BPMN_TASK_W_MAX, Math.ceil(natural) + 48));
+  const lines = wrapBpmnLabel(label, width - 24);
+  const height = Math.max(BPMN_TASK_H, 30 + lines.length * 14);
+  return { width, height, lines };
+}
+
 function layoutBpmn(bpmnGraph, lanes) {
   const g = new dagre.graphlib.Graph();
   g.setGraph({ rankdir: 'LR', nodesep: 34, ranksep: 64, marginx: 30, marginy: 30 });
@@ -587,6 +632,12 @@ function layoutBpmn(bpmnGraph, lanes) {
     let height = BPMN_TASK_H;
     if (n.kind === 'start' || n.kind === 'end') { width = BPMN_EVENT_SIZE; height = BPMN_EVENT_SIZE; }
     if (n.kind === 'gateway') { width = BPMN_GATEWAY_SIZE; height = BPMN_GATEWAY_SIZE; }
+    if (n.kind === 'bpmn-task') {
+      const sized = sizeBpmnTaskBox(n.label);
+      width = sized.width;
+      height = sized.height;
+      n.wrappedLines = sized.lines;
+    }
     g.setNode(n.id, { width, height });
   });
   bpmnGraph.edges.forEach((e) => {
@@ -697,18 +748,9 @@ function buildBpmnTaskBox(g, n, p) {
   g.append('rect').attr('class', 'bpmn-task-box').attr('width', p.width).attr('height', p.height).attr('rx', 8);
   const meta = state.taskInsights && state.taskInsights.byTaskName.get(n.id);
   drawBpmnTaskIcon(g, 12, 12, meta && meta.nodeKind);
-  const words = n.label.split(' ');
-  const lines = [];
-  let line = '';
-  words.forEach((w) => {
-    const candidate = line ? `${line} ${w}` : w;
-    if (candidate.length > 18 && line) { lines.push(line); line = w; }
-    else line = candidate;
-  });
-  if (line) lines.push(line);
-  const shown = lines.slice(0, 3);
-  const startY = p.height / 2 - ((shown.length - 1) * 14) / 2 + 4;
-  shown.forEach((l, i) => {
+  const lines = n.wrappedLines || wrapBpmnLabel(n.label, p.width - 24);
+  const startY = p.height / 2 - ((lines.length - 1) * 14) / 2 + 4;
+  lines.forEach((l, i) => {
     g.append('text').attr('class', 'bpmn-task-label').attr('x', p.width / 2).attr('y', startY + i * 14).text(l);
   });
 }
