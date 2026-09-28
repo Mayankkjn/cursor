@@ -70,7 +70,7 @@ function addMarker(id, color) {
 addMarker('arrow-happy', '#1f9d5c');
 addMarker('arrow-deviation', '#9a9fb5');
 addMarker('arrow-rework', '#d17d2c');
-addMarker('arrow-bpmn', '#6e7595');
+addMarker('arrow-bpmn', '#9a9fb5');
 
 const zoomBehavior = d3.zoom()
   .scaleExtent([0.2, 2.5])
