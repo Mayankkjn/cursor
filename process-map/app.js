@@ -1039,6 +1039,31 @@ function render(fit = false) {
 
   const { nodePos, edgePos } = layout(renderGraph);
 
+  // Several branches leaving the same fork can land on an identical
+  // 2-point dagre route (no intermediate rank to separate them), which
+  // then draws as perfectly overlapping elbow segments. Give each one its
+  // own bend height — a staircase instead of a single shared line — purely
+  // cosmetic disambiguation; edges dagre already routed around other ranks
+  // (3+ points) are left untouched.
+  const deviationEdgesBySource = new Map();
+  renderGraph.edges.forEach((e) => {
+    if (e.kind === 'happy') return;
+    if (!deviationEdgesBySource.has(e.from)) deviationEdgesBySource.set(e.from, []);
+    deviationEdgesBySource.get(e.from).push(e);
+  });
+  deviationEdgesBySource.forEach((group) => {
+    if (group.length < 2) return;
+    group.forEach((e, i) => {
+      const pos = edgePos.get(edgeKey(e));
+      if (!pos || pos.points.length !== 2) return;
+      const [p0, p1] = pos.points;
+      if (Math.abs(p0.x - p1.x) < 1) return;
+      const t = (i + 1) / (group.length + 1);
+      const bendY = p0.y + (p1.y - p0.y) * t;
+      pos.points = [p0, { x: p0.x, y: bendY }, { x: p1.x, y: bendY }, p1];
+    });
+  });
+
   // A deviation edge is "rework" when the transition's target was already
   // visited earlier in the same case (graph.js flags this at the source),
   // as opposed to a variant that simply orders steps differently.
@@ -1079,7 +1104,11 @@ function render(fit = false) {
     return true;
   };
 
-  const lineGen = d3.line().x((d) => d.x).y((d) => d.y).curve(d3.curveBasis);
+  // Right-angle elbow joints (not a smoothed curve) so a line's route is
+  // exactly the polyline dagre itself computed to dodge other nodes — a
+  // smoothing curve can cut corners across that polyline and slice through
+  // an unrelated node it was actually routed around.
+  const lineGen = d3.line().x((d) => d.x).y((d) => d.y).curve(d3.curveStepBefore);
 
   // ---- edges ----
   const visibleEdges = renderGraph.edges.filter((e) => edgePos.has(edgeKey(e)));
