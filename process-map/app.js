@@ -29,6 +29,7 @@ const state = {
     durationMax: null,
     processIds: new Set(),
     userIds: new Set(),
+    oneCasePerVariant: false, // Path view: collapse to a single representative instance per distinct variant, so every path is drawn once rather than weighted by frequency
   },
   threshold: 100, // Path Filter slider value 0-100 (0 = fewest deviations, 100 = all)
   highlight: null, // null | { kind: 'variant', value: variant } | { kind: 'node', value: nodeId }
@@ -283,7 +284,8 @@ function computeFastVsTypical(model, cases) {
 // "N variants" bubble instead of each getting its own permanent
 // branch, so the map stays complete (nothing is discarded — click the
 // bubble to expand it) without every rare fork being drawn at once.
-function buildRenderGraph(model) {
+function buildRenderGraph(model, opts = {}) {
+  const bundleMinor = opts.bundleMinor !== false;
   const survivingEdges = model.edges.filter((e) => !e.hidden);
 
   // How many surviving edges touch each node.
@@ -305,6 +307,7 @@ function buildRenderGraph(model) {
   const candidatesByFork = new Map(); // from -> [edges below MINOR_SHARE]
   const allCandidates = new Set();
   deviationsByFrom.forEach((group, from) => {
+    if (!bundleMinor) return;
     if (group.length < 3) return;
     const total = group.reduce((s, e) => s + e.caseCount, 0);
     const candidates = group.filter((e) => e.caseCount / total < MINOR_SHARE);
@@ -1010,9 +1013,14 @@ function buildDiamond(g, n, p) {
 
 function render(fit = false) {
   const model = state.model;
-  applyThreshold(model, state.threshold);
+  // In "single instance per variant" mode every path is already its own
+  // distinct case, so nothing should be hidden by the popularity threshold
+  // or folded into a semantic-zoom bubble — the whole point is to see every
+  // variant at once.
+  if (state.filters.oneCasePerVariant) model.edges.forEach((e) => { e.hidden = false; });
+  else applyThreshold(model, state.threshold);
   updatePathFilterUI(model);
-  const renderGraph = buildRenderGraph(model);
+  const renderGraph = buildRenderGraph(model, { bundleMinor: !state.filters.oneCasePerVariant });
 
   // Fast-vs-typical comparison annotates whichever of its tasks are
   // currently on the canvas — a task hidden by a filter or folded into a
@@ -2411,6 +2419,8 @@ function resetFilters() {
   state.filters.durationMax = null;
   state.filters.processIds.clear();
   state.filters.userIds.clear();
+  state.filters.oneCasePerVariant = false;
+  d3.select('#filter-variant-toggle').classed('active', false).attr('aria-checked', 'false');
   if (processIdSelect) { processIdSelect.renderChips(); processIdSelect.closeDropdown(); processIdSelect.clearInput(); }
   if (userIdSelect) { userIdSelect.renderChips(); userIdSelect.closeDropdown(); userIdSelect.clearInput(); }
   syncDurationSliderBounds();
@@ -2424,13 +2434,25 @@ function getFilteredCases() {
   const hasPath = f.variantSignatures.size > 0;
   const hasProcessId = f.processIds.size > 0;
   const hasUserId = f.userIds.size > 0;
-  return state.allCases.filter((c) => {
+  const filtered = state.allCases.filter((c) => {
     if (hasTask && !c.steps.some((s) => f.taskNames.has(s.task))) return false;
     if (hasPath && !f.variantSignatures.has(c.steps.map((s) => s.task).join(' → '))) return false;
     if (f.durationMin != null && c.totalDuration < f.durationMin) return false;
     if (f.durationMax != null && c.totalDuration > f.durationMax) return false;
     if (hasProcessId && !f.processIds.has(c.caseId)) return false;
     if (hasUserId && !(c.users || []).some((u) => f.userIds.has(String(u)))) return false;
+    return true;
+  });
+  if (!f.oneCasePerVariant) return filtered;
+
+  // Keep exactly one representative case per distinct step sequence, so the
+  // mined graph draws every variant once instead of weighting it by how
+  // often it actually occurred.
+  const seenSignatures = new Set();
+  return filtered.filter((c) => {
+    const signature = c.steps.map((s) => s.task).join(' → ');
+    if (seenSignatures.has(signature)) return false;
+    seenSignatures.add(signature);
     return true;
   });
 }
@@ -2470,9 +2492,10 @@ function renderFilterPanel(matchCountOverride) {
         : `No instances match — showing the last matching view.`
   );
 
-  const activeFacets = [f.taskNames.size > 0, f.variantSignatures.size > 0, f.durationMin != null || f.durationMax != null, f.processIds.size > 0, f.userIds.size > 0]
+  const activeFacets = [f.taskNames.size > 0, f.variantSignatures.size > 0, f.durationMin != null || f.durationMax != null, f.processIds.size > 0, f.userIds.size > 0, f.oneCasePerVariant]
     .filter(Boolean).length;
   d3.select('#filter-count-badge').classed('hidden', activeFacets === 0).text(activeFacets);
+  d3.select('#filter-variant-toggle').classed('active', f.oneCasePerVariant).attr('aria-checked', String(f.oneCasePerVariant));
   d3.select('#filter-process-id-count').text(f.processIds.size);
   d3.select('#filter-user-id-count').text(f.userIds.size);
 
@@ -2543,6 +2566,11 @@ d3.select('#filter-reset').on('click', () => {
   resetFilters();
   render(true);
   renderFilterPanel();
+});
+d3.select('#filter-variant-toggle').on('click', function () {
+  state.filters.oneCasePerVariant = !state.filters.oneCasePerVariant;
+  d3.select(this).classed('active', state.filters.oneCasePerVariant).attr('aria-checked', String(state.filters.oneCasePerVariant));
+  applyFilters();
 });
 // A searchable multi-select combobox: a text input filters a dropdown list
 // (built from getOptions(), always the full unfiltered dataset so option

@@ -1319,6 +1319,17 @@ button:hover { filter: brightness(1.08); }
 .insight-compare-toggle.active .insight-compare-toggle-track { background: var(--accent-ui); border-color: var(--accent-ui); }
 .insight-compare-toggle.active .insight-compare-toggle-thumb { transform: translateX(16px); }
 
+.filter-variant-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--panel-border);
+}
+.filter-variant-toggle-label { font-size: 0.86rem; font-weight: 700; color: var(--text-primary); margin-bottom: 2px; }
+
 /* ---- ranked metric lists (time / rework / fast-vs-typical) ---- */
 .metric-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .metric-item {
