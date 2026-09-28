@@ -1195,8 +1195,28 @@ const BPMN_KIND_LABEL = {
   receiveTask: 'Receive task',
 };
 
+// Normalizes whatever autonomy value the upload's own data carries onto
+// one of the three real automation statuses, rather than just
+// capitalizing whatever raw string it happens to spell it as.
+const AUTONOMY_LABEL = {
+  'agent-assist': 'Agent-Assisted',
+  'agent-assisted': 'Agent-Assisted',
+  'assisted': 'Agent-Assisted',
+  'human-in-the-loop': 'Agent-Assisted',
+  'copilot': 'Agent-Assisted',
+  'automated': 'Fully Automatable',
+  'fully-automated': 'Fully Automatable',
+  'fully-automatable': 'Fully Automatable',
+  'automatable': 'Fully Automatable',
+  'auto': 'Fully Automatable',
+  'manual': 'Manual-only',
+  'manual-only': 'Manual-only',
+  'human': 'Manual-only',
+  'human-only': 'Manual-only',
+};
 function formatAutonomyLabel(v) {
-  return v.charAt(0).toUpperCase() + v.slice(1);
+  const key = String(v).toLowerCase().replace(/[\s_]+/g, '-');
+  return AUTONOMY_LABEL[key] || (v.charAt(0).toUpperCase() + v.slice(1));
 }
 
 // The richer hover card BPMN view shows on a task box: its real BPMN kind
