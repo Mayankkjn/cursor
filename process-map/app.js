@@ -848,6 +848,8 @@ function syncViewLayers() {
   bpmnLaneLayer.style('display', isBpmn ? 'inline' : 'none');
   bpmnNodeLayer.style('display', isBpmn ? 'inline' : 'none');
   bpmnEdgeLayer.style('display', isBpmn ? 'inline' : 'none');
+  d3.select('#floating-legend').style('display', isBpmn ? 'none' : 'block');
+  d3.select('#floating-legend-bpmn').style('display', isBpmn ? 'block' : 'none');
 }
 
 // ---- small inline icons ----

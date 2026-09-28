@@ -1022,10 +1022,34 @@ button:hover { filter: brightness(1.08); }
 
 .legend-row { display: flex; align-items: center; gap: 8px; font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 7px; }
 .legend-row:last-child { margin-bottom: 0; }
-.swatch { width: 22px; height: 3px; border-radius: 2px; display: inline-block; }
+.swatch { width: 22px; height: 3px; border-radius: 2px; display: inline-block; flex-shrink: 0; }
 .swatch.happy { background: var(--path-main); }
 .swatch.deviation { background: repeating-linear-gradient(90deg, var(--path-deviation) 0 4px, transparent 4px 7px); height: 2px; }
 .swatch.rework { background: repeating-linear-gradient(90deg, var(--rework) 0 4px, transparent 4px 7px); height: 2px; }
+.swatch.bpmn-sequence { background: var(--path-deviation); height: 2px; }
+.swatch.bpmn-message { background: repeating-linear-gradient(90deg, var(--path-deviation) 0 4px, transparent 4px 7px); height: 2px; }
+.swatch-circle {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+  background: var(--card-bg);
+  border: 1.6px solid var(--path-main);
+  box-sizing: border-box;
+}
+.swatch-circle.end { border-color: var(--flag-end-fg); border-width: 2.4px; }
+.swatch-diamond {
+  width: 11px;
+  height: 11px;
+  display: inline-block;
+  flex-shrink: 0;
+  background: var(--card-bg);
+  border: 1.4px solid var(--text-tertiary);
+  transform: rotate(45deg);
+  box-sizing: border-box;
+  margin: 0 1px;
+}
 
 .variant-panel { flex-shrink: 0; }
 .hint { margin: 0 0 10px; font-size: 0.75rem; color: var(--text-secondary); }
