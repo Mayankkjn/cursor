@@ -6771,6 +6771,31 @@ function extractRawCases(raw) {
     }));
   }
 
+  // AI-consolidated capture export: a hierarchical BPMN graph/subprocesses
+  // tree (the distilled model — read separately by extractGraphTaskInsights
+  // for its task descriptions) plus a top-level "instances" array, which is
+  // the actual real per-case event log the model was distilled from — each
+  // instance's "steps" is already a plain ordered list of canonical task
+  // names, so no id lookup is needed. This format carries no per-step
+  // timing at all, so every step's duration is honestly 0 rather than
+  // invented — same fallback normalizeCaseLog already applies to any case
+  // log missing duration data.
+  if (raw && Array.isArray(raw.instances) && raw.instances.length && raw.instances[0] && Array.isArray(raw.instances[0].steps)) {
+    const users = raw.coverage_manifest && raw.coverage_manifest.capture ? [raw.coverage_manifest.capture] : [];
+    const seenIds = new Map();
+    return raw.instances.map((inst, i) => {
+      const baseId = inst.instance_id || inst.entity || `INSTANCE-${i + 1}`;
+      const seen = seenIds.get(baseId) || 0;
+      seenIds.set(baseId, seen + 1);
+      const caseId = seen === 0 ? String(baseId) : `${baseId}#${seen + 1}`;
+      return {
+        caseId,
+        steps: (inst.steps || []).map((task) => ({ task, duration: 0 })),
+        users,
+      };
+    });
+  }
+
   // A pre-built diagram (nodes/edges, e.g. from a layout tool) rather than
   // an event log. There's no per-case sequence or duration data to mine
   // here, so refuse rather than fabricate frequency/time/rework numbers.
@@ -6908,6 +6933,110 @@ function extractTaskInsights(raw) {
   });
 
   instancesByTaskName.forEach((list) => list.sort((a, b) => (b.startTime || 0) - (a.startTime || 0)));
+
+  return { byTaskName, instancesByTaskName };
+}
+
+// Cleans a BPMN edge label down to its plain branch name, stripping a
+// trailing count/observation note like "(n=5)" or "— n=8" or
+// "— not observed in capture" — those are real structural counts, just
+// not part of the branch's actual name.
+function cleanBranchLabel(label) {
+  return label
+    .replace(/\s*\(n\s*=\s*\d+\)\s*$/i, '')
+    .replace(/\s*[—-]\s*n\s*=\s*\d+.*$/i, '')
+    .replace(/\s*[—-]\s*not observed.*$/i, '')
+    .trim();
+}
+
+// Pulls task descriptions and swimlane stages out of an AI-consolidated
+// capture export (a hierarchical BPMN "graph" + "subprocesses" tree next
+// to the real "instances" event log) — the counterpart to
+// extractTaskInsights() for that shape. Two, and only two, things are
+// derived here, both straight from real structure:
+//   - a task with its own nested subprocess (a drill-down into how it's
+//     actually carried out) gets a description built from that
+//     subprocess's own labeled routing branches;
+//   - every task's "stage" is the name of the top-level subprocess it
+//     lives inside (so BPMN view can lay out real swimlanes when a
+//     capture has more than one top-level subprocess) — one lane when
+//     there's only one, same as no stage data at all.
+// Everything else (canonicalReasoning, subtypes, appId) is left empty:
+// this format has no per-task narrative, subtype, or application field to
+// draw them from.
+function extractGraphTaskInsights(raw) {
+  if (!raw || !Array.isArray(raw.instances) || !raw.instances.length || !raw.instances[0] || !Array.isArray(raw.instances[0].steps)) {
+    return null;
+  }
+
+  const subprocesses = raw.subprocesses || {};
+  const byTaskName = new Map();
+  const ensure = (name) => {
+    if (!byTaskName.has(name)) {
+      byTaskName.set(name, { description: '', canonicalReasoning: '', subtypes: [], appId: null, stage: null });
+    }
+    return byTaskName.get(name);
+  };
+
+  // Stage = the top-level subprocess a task's ancestry belongs to.
+  const graphNodes = (raw.graph && raw.graph.nodes) || [];
+  const topSubprocessNodes = graphNodes.filter((n) => n.kind === 'subProcess' && subprocesses[n.id]);
+  const visited = new Set();
+  const assignStage = (subKey, stageName) => {
+    if (visited.has(subKey)) return;
+    visited.add(subKey);
+    const sub = subprocesses[subKey];
+    if (!sub || !Array.isArray(sub.nodes)) return;
+    sub.nodes.forEach((node) => {
+      if (node.kind === 'startEvent' || node.kind === 'endEvent' || node.kind === 'exclusiveGateway' || !node.name) return;
+      ensure(node.name).stage = stageName;
+      if (node.kind === 'subProcess' && subprocesses[node.id]) assignStage(node.id, stageName);
+    });
+  };
+  topSubprocessNodes.forEach((n) => assignStage(n.id, n.name));
+
+  // Description = the labeled branches of a task's own nested subprocess,
+  // when its internal routing gateway names real alternative ways the
+  // task gets carried out.
+  Object.keys(subprocesses).forEach((key) => {
+    const sub = subprocesses[key];
+    if (!sub || !Array.isArray(sub.nodes)) return;
+    sub.nodes.forEach((node) => {
+      if (node.kind !== 'subProcess' || !subprocesses[node.id] || !node.name) return;
+      const inner = subprocesses[node.id];
+      const branches = (inner.edges || [])
+        .map((e) => e.label)
+        .filter(Boolean)
+        .map(cleanBranchLabel)
+        .filter(Boolean);
+      if (!branches.length) return;
+      ensure(node.name).description = `Carried out one of ${branches.length} ways depending on the case: ${branches.join('; ')}.`;
+    });
+  });
+
+  const captureUser = (raw.coverage_manifest && raw.coverage_manifest.capture) || null;
+  const instancesByTaskName = new Map();
+  const seenIds = new Map();
+  raw.instances.forEach((inst, i) => {
+    const baseId = inst.instance_id || inst.entity || `INSTANCE-${i + 1}`;
+    const seen = seenIds.get(baseId) || 0;
+    seenIds.set(baseId, seen + 1);
+    const caseId = seen === 0 ? String(baseId) : `${baseId}#${seen + 1}`;
+    (inst.steps || []).forEach((task, si) => {
+      const list = instancesByTaskName.get(task) || [];
+      list.push({
+        caseId,
+        userId: captureUser,
+        ticketId: null,
+        subtypeId: null,
+        subtypeName: null,
+        reasoning: (inst.steps_detail && inst.steps_detail[si]) || '',
+        durationMinutes: 0,
+        startTime: null,
+      });
+      instancesByTaskName.set(task, list);
+    });
+  });
 
   return { byTaskName, instancesByTaskName };
 }
@@ -7116,7 +7245,7 @@ function buildProcessModel(cases) {
 
 </script>
   <script>
-/* global d3, dagre, generateEventLog, buildProcessModel, normalizeCaseLog, extractTaskInsights, median, SAMPLE_JSON_TEMPLATE, START, END */
+/* global d3, dagre, generateEventLog, buildProcessModel, normalizeCaseLog, extractTaskInsights, extractGraphTaskInsights, median, SAMPLE_JSON_TEMPLATE, START, END */
 
 const TASK_W = 220;
 const TASK_H = 62;
@@ -8956,13 +9085,20 @@ function renderTaskDetail() {
 
     d3.select('#task-detail-instances-section').classed('hidden', false);
     if (rows.length) {
+      // No subtype catalog for this task, but a rich upload may still carry
+      // real per-instance reasoning text (e.g. a granular "steps_detail"
+      // narration) — show that over the generic "User: ..." line when it
+      // exists, instead of leaving it unused just because there's no
+      // subtype breakdown to nest it under.
+      const richByCaseId = richInstances ? new Map(richInstances.map((r) => [r.caseId, r])) : null;
       rows.slice(0, MAX_SHOWN).forEach((r) => {
         const pathLabel = instancePathLabel(r.caseId);
+        const rich = richByCaseId && richByCaseId.get(r.caseId);
         appendInstanceCard(instanceListSel, {
           caseId: r.caseId,
           idLabel: pathLabel ? `${pathLabel} · ${r.caseId}` : r.caseId,
           durationMinutes: r.duration,
-          text: r.users.length ? `User: ${r.users.join(', ')}` : '',
+          text: (rich && rich.reasoning) || (r.users.length ? `User: ${r.users.join(', ')}` : ''),
         });
       });
       if (rows.length > MAX_SHOWN) {
@@ -9639,7 +9775,14 @@ function handleUploadFile(file) {
       state.threshold = 100;
       state.expandedBubbles = new Set();
       state.comparison = null;
-      state.taskInsights = (typeof extractTaskInsights === 'function') ? extractTaskInsights(raw) : null;
+      state.taskInsights = (typeof extractTaskInsights === 'function' && extractTaskInsights(raw))
+        || (typeof extractGraphTaskInsights === 'function' && extractGraphTaskInsights(raw))
+        || null;
+      if (raw && raw.goal && raw.goal.name) {
+        const pageTitle = `Process Map — ${raw.goal.name}`;
+        document.getElementById('page-title').textContent = pageTitle;
+        document.title = pageTitle;
+      }
       state.expandedOpportunityIds = new Set();
       d3.select('#insight-compare-btn').classed('active', false).attr('aria-checked', 'false');
       d3.select('#pf-slider').property('value', 100);
@@ -10322,7 +10465,9 @@ if (selectedProcessDataRaw) {
     state.baseModel = buildProcessModel(cases);
     resetFilters();
     state.highlight = null;
-    state.taskInsights = (typeof extractTaskInsights === 'function') ? extractTaskInsights(rawHandoff) : null;
+    state.taskInsights = (typeof extractTaskInsights === 'function' && extractTaskInsights(rawHandoff))
+      || (typeof extractGraphTaskInsights === 'function' && extractGraphTaskInsights(rawHandoff))
+      || null;
     renderFilterPanel();
     render(true);
     loadedFromHandoff = true;

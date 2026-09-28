@@ -1,4 +1,4 @@
-/* global d3, dagre, generateEventLog, buildProcessModel, normalizeCaseLog, extractTaskInsights, median, SAMPLE_JSON_TEMPLATE, START, END */
+/* global d3, dagre, generateEventLog, buildProcessModel, normalizeCaseLog, extractTaskInsights, extractGraphTaskInsights, median, SAMPLE_JSON_TEMPLATE, START, END */
 
 const TASK_W = 220;
 const TASK_H = 62;
@@ -1838,13 +1838,20 @@ function renderTaskDetail() {
 
     d3.select('#task-detail-instances-section').classed('hidden', false);
     if (rows.length) {
+      // No subtype catalog for this task, but a rich upload may still carry
+      // real per-instance reasoning text (e.g. a granular "steps_detail"
+      // narration) — show that over the generic "User: ..." line when it
+      // exists, instead of leaving it unused just because there's no
+      // subtype breakdown to nest it under.
+      const richByCaseId = richInstances ? new Map(richInstances.map((r) => [r.caseId, r])) : null;
       rows.slice(0, MAX_SHOWN).forEach((r) => {
         const pathLabel = instancePathLabel(r.caseId);
+        const rich = richByCaseId && richByCaseId.get(r.caseId);
         appendInstanceCard(instanceListSel, {
           caseId: r.caseId,
           idLabel: pathLabel ? `${pathLabel} · ${r.caseId}` : r.caseId,
           durationMinutes: r.duration,
-          text: r.users.length ? `User: ${r.users.join(', ')}` : '',
+          text: (rich && rich.reasoning) || (r.users.length ? `User: ${r.users.join(', ')}` : ''),
         });
       });
       if (rows.length > MAX_SHOWN) {
@@ -2521,7 +2528,14 @@ function handleUploadFile(file) {
       state.threshold = 100;
       state.expandedBubbles = new Set();
       state.comparison = null;
-      state.taskInsights = (typeof extractTaskInsights === 'function') ? extractTaskInsights(raw) : null;
+      state.taskInsights = (typeof extractTaskInsights === 'function' && extractTaskInsights(raw))
+        || (typeof extractGraphTaskInsights === 'function' && extractGraphTaskInsights(raw))
+        || null;
+      if (raw && raw.goal && raw.goal.name) {
+        const pageTitle = `Process Map — ${raw.goal.name}`;
+        document.getElementById('page-title').textContent = pageTitle;
+        document.title = pageTitle;
+      }
       state.expandedOpportunityIds = new Set();
       d3.select('#insight-compare-btn').classed('active', false).attr('aria-checked', 'false');
       d3.select('#pf-slider').property('value', 100);
@@ -3204,7 +3218,9 @@ if (selectedProcessDataRaw) {
     state.baseModel = buildProcessModel(cases);
     resetFilters();
     state.highlight = null;
-    state.taskInsights = (typeof extractTaskInsights === 'function') ? extractTaskInsights(rawHandoff) : null;
+    state.taskInsights = (typeof extractTaskInsights === 'function' && extractTaskInsights(rawHandoff))
+      || (typeof extractGraphTaskInsights === 'function' && extractGraphTaskInsights(rawHandoff))
+      || null;
     renderFilterPanel();
     render(true);
     loadedFromHandoff = true;
