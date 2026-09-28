@@ -1126,6 +1126,8 @@ button:hover { filter: brightness(1.08); }
 .bpmn-node-layer, .bpmn-edge-layer, .bpmn-lane-layer { display: none; }
 .bpmn-task-box { fill: var(--card-bg); stroke: #4a90b8; stroke-width: 1.4px; filter: drop-shadow(0 1px 2px rgba(24,26,51,0.08)); }
 .bpmn-task-icon { fill: none; stroke: #4a90b8; stroke-width: 1.3px; stroke-linecap: round; stroke-linejoin: round; }
+.bpmn-task-icon-shape { fill: none; stroke: #4a90b8; stroke-width: 1.3px; stroke-linecap: round; stroke-linejoin: round; }
+.bpmn-task-icon-line { stroke: #4a90b8; stroke-width: 1.1px; }
 .bpmn-task-label { fill: var(--text-primary); font-size: 12px; font-weight: 600; text-anchor: middle; pointer-events: none; }
 .node.bpmn-task.selected .bpmn-task-box { stroke: var(--path-main); stroke-width: 2.2px; }
 .node.bpmn-task:hover .bpmn-task-box { stroke: var(--accent-ui); }
@@ -1140,6 +1142,7 @@ button:hover { filter: brightness(1.08); }
 
 .bpmn-edge-path { fill: none; stroke: var(--path-deviation); stroke-width: 1.3px; }
 .edge.bpmn-happy .bpmn-edge-path { stroke: var(--path-main); stroke-width: 2px; }
+.edge.bpmn-message .bpmn-edge-path { stroke-dasharray: 5 4; }
 
 .bpmn-pool-border { fill: none; stroke: var(--panel-border); stroke-width: 1.4px; }
 .bpmn-pool-label-bg, .bpmn-lane-label-bg { fill: var(--bg); stroke: var(--panel-border); stroke-width: 1px; }
@@ -6973,12 +6976,15 @@ function extractGraphTaskInsights(raw) {
   const byTaskName = new Map();
   const ensure = (name) => {
     if (!byTaskName.has(name)) {
-      byTaskName.set(name, { description: '', canonicalReasoning: '', subtypes: [], appId: null, stage: null });
+      byTaskName.set(name, { description: '', canonicalReasoning: '', subtypes: [], appId: null, stage: null, nodeKind: null });
     }
     return byTaskName.get(name);
   };
 
-  // Stage = the top-level subprocess a task's ancestry belongs to.
+  // Stage = the top-level subprocess a task's ancestry belongs to;
+  // nodeKind = its own real BPMN activity kind (userTask/serviceTask/
+  // sendTask/...), straight off the graph — drives BPMN view's task icon
+  // and its message-flow edge styling, never guessed.
   const graphNodes = (raw.graph && raw.graph.nodes) || [];
   const topSubprocessNodes = graphNodes.filter((n) => n.kind === 'subProcess' && subprocesses[n.id]);
   const visited = new Set();
@@ -6988,8 +6994,10 @@ function extractGraphTaskInsights(raw) {
     const sub = subprocesses[subKey];
     if (!sub || !Array.isArray(sub.nodes)) return;
     sub.nodes.forEach((node) => {
-      if (node.kind === 'startEvent' || node.kind === 'endEvent' || node.kind === 'exclusiveGateway' || !node.name) return;
-      ensure(node.name).stage = stageName;
+      if (node.kind === 'startEvent' || node.kind === 'endEvent' || node.kind === 'exclusiveGateway' || node.kind === 'parallelGateway' || !node.name) return;
+      const entry = ensure(node.name);
+      entry.stage = stageName;
+      entry.nodeKind = node.kind || null;
       if (node.kind === 'subProcess' && subprocesses[node.id]) assignStage(node.id, stageName);
     });
   };
@@ -7920,12 +7928,30 @@ function layoutBpmn(bpmnGraph, lanes) {
   return { nodePos, edgePos, laneMeta };
 }
 
+// BPMN task icon by real activity kind — userTask/manualTask draws a hand
+// (the default when no kind data exists at all, since most uploads don't
+// carry one); serviceTask/scriptTask/businessRuleTask draws a grid (rule/
+// system-driven work); sendTask/receiveTask draws an envelope (its whole
+// job is firing or catching a message). Never guessed — only drawn when
+// the upload's own BPMN node kind says so.
+function drawBpmnTaskIcon(g, x, y, kind) {
+  if (kind === 'serviceTask' || kind === 'scriptTask' || kind === 'businessRuleTask') {
+    g.append('rect').attr('class', 'bpmn-task-icon-shape').attr('x', x).attr('y', y).attr('width', 12).attr('height', 10).attr('rx', 1.5);
+    g.append('line').attr('class', 'bpmn-task-icon-line').attr('x1', x).attr('y1', y + 5).attr('x2', x + 12).attr('y2', y + 5);
+    g.append('line').attr('class', 'bpmn-task-icon-line').attr('x1', x + 6).attr('y1', y).attr('x2', x + 6).attr('y2', y + 10);
+  } else if (kind === 'sendTask' || kind === 'receiveTask') {
+    g.append('path').attr('class', 'bpmn-task-icon-shape')
+      .attr('d', `M${x},${y} H${x + 12} V${y + 9} H${x} Z M${x},${y} L${x + 6},${y + 5} L${x + 12},${y}`);
+  } else {
+    g.append('path').attr('class', 'bpmn-task-icon')
+      .attr('d', `M${x},${y + 10} V${y + 3} A3,3 0 0 1 ${x + 3},${y} H${x + 8}`);
+  }
+}
+
 function buildBpmnTaskBox(g, n, p) {
   g.append('rect').attr('class', 'bpmn-task-box').attr('width', p.width).attr('height', p.height).attr('rx', 8);
-  const iconX = 12;
-  const iconY = 12;
-  g.append('path').attr('class', 'bpmn-task-icon')
-    .attr('d', `M${iconX},${iconY + 10} V${iconY + 3} A3,3 0 0 1 ${iconX + 3},${iconY} H${iconX + 8}`);
+  const meta = state.taskInsights && state.taskInsights.byTaskName.get(n.id);
+  drawBpmnTaskIcon(g, 12, 12, meta && meta.nodeKind);
   const words = n.label.split(' ');
   const lines = [];
   let line = '';
@@ -8010,12 +8036,27 @@ function renderBpmnView() {
   renderBpmnLanes(laneMeta);
   const lineGen = d3.line().x((d) => d.x).y((d) => d.y).curve(d3.curveBasis);
 
+  // A send/receive task's whole job is firing or catching a message, so
+  // any sequence flow touching one is drawn as a message flow (dashed) —
+  // the one edge distinction BPMN makes that a real "kind" field can
+  // actually justify, rather than guessing at which arrows cross a
+  // participant boundary we don't have data for.
+  const isMessageTaskId = (id) => {
+    const meta = state.taskInsights && state.taskInsights.byTaskName.get(id);
+    return !!(meta && (meta.nodeKind === 'sendTask' || meta.nodeKind === 'receiveTask'));
+  };
+
   const edgeSel = bpmnEdgeLayer.selectAll('g.edge').data(bpmnGraph.edges.filter((e) => edgePos.has(`${e.from}||${e.to}`)), (e) => `${e.from}||${e.to}`);
   edgeSel.exit().remove();
   const edgeEnter = edgeSel.enter().append('g').attr('class', 'edge');
   edgeEnter.append('path').attr('class', 'bpmn-edge-path');
   const mergedEdges = edgeEnter.merge(edgeSel);
-  mergedEdges.attr('class', (e) => `edge${e.kind === 'happy' ? ' bpmn-happy' : ''}`);
+  mergedEdges.attr('class', (e) => {
+    const classes = ['edge'];
+    if (e.kind === 'happy') classes.push('bpmn-happy');
+    if (isMessageTaskId(e.from) || isMessageTaskId(e.to)) classes.push('bpmn-message');
+    return classes.join(' ');
+  });
   mergedEdges.select('path.bpmn-edge-path')
     .attr('d', (e) => lineGen(edgePos.get(`${e.from}||${e.to}`).points))
     .attr('marker-end', (e) => (e.kind === 'happy' ? 'url(#arrow-happy)' : 'url(#arrow-bpmn)'));

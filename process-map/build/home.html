@@ -995,12 +995,15 @@ function extractGraphTaskInsights(raw) {
   const byTaskName = new Map();
   const ensure = (name) => {
     if (!byTaskName.has(name)) {
-      byTaskName.set(name, { description: '', canonicalReasoning: '', subtypes: [], appId: null, stage: null });
+      byTaskName.set(name, { description: '', canonicalReasoning: '', subtypes: [], appId: null, stage: null, nodeKind: null });
     }
     return byTaskName.get(name);
   };
 
-  // Stage = the top-level subprocess a task's ancestry belongs to.
+  // Stage = the top-level subprocess a task's ancestry belongs to;
+  // nodeKind = its own real BPMN activity kind (userTask/serviceTask/
+  // sendTask/...), straight off the graph — drives BPMN view's task icon
+  // and its message-flow edge styling, never guessed.
   const graphNodes = (raw.graph && raw.graph.nodes) || [];
   const topSubprocessNodes = graphNodes.filter((n) => n.kind === 'subProcess' && subprocesses[n.id]);
   const visited = new Set();
@@ -1010,8 +1013,10 @@ function extractGraphTaskInsights(raw) {
     const sub = subprocesses[subKey];
     if (!sub || !Array.isArray(sub.nodes)) return;
     sub.nodes.forEach((node) => {
-      if (node.kind === 'startEvent' || node.kind === 'endEvent' || node.kind === 'exclusiveGateway' || !node.name) return;
-      ensure(node.name).stage = stageName;
+      if (node.kind === 'startEvent' || node.kind === 'endEvent' || node.kind === 'exclusiveGateway' || node.kind === 'parallelGateway' || !node.name) return;
+      const entry = ensure(node.name);
+      entry.stage = stageName;
+      entry.nodeKind = node.kind || null;
       if (node.kind === 'subProcess' && subprocesses[node.id]) assignStage(node.id, stageName);
     });
   };
