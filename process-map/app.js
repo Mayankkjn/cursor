@@ -872,7 +872,7 @@ function renderBpmnView() {
     })
     .attr('class', (n) => `node ${n.kind}${n.id === state.selectedTaskId ? ' selected' : ''}`)
     .on('mouseenter', (event, n) => {
-      if (n.kind === 'bpmn-task') showTooltip(event, nodeTooltipHtml(n.source, model));
+      if (n.kind === 'bpmn-task') showTooltip(event, bpmnTaskTooltipHtml(n.source, model), true);
       applyHoverHighlight(bpmnNodeLayer.selectAll('g.node'), bpmnEdgeLayer.selectAll('g.edge'), computeForwardReachable(n.id, bpmnGraph.edges));
     })
     .on('mousemove', moveTooltip)
@@ -1185,6 +1185,59 @@ function nodeTooltipHtml(n, model) {
   `;
 }
 
+const BPMN_KIND_LABEL = {
+  userTask: 'User task',
+  manualTask: 'User task',
+  serviceTask: 'Service task',
+  scriptTask: 'Service task',
+  businessRuleTask: 'Service task',
+  sendTask: 'Send task',
+  receiveTask: 'Receive task',
+};
+
+function formatAutonomyLabel(v) {
+  return v.charAt(0).toUpperCase() + v.slice(1);
+}
+
+// The richer hover card BPMN view shows on a task box: its real BPMN kind
+// and whether it sits on the happy path (never guessed — only drawn when
+// the upload's own data says so), a plain-language description and one
+// concrete example action when the dataset carries them, and the same
+// frequency/timing stats as the plain tooltip plus an Autonomy pill when
+// the upload's own subprocess data declares one.
+function bpmnTaskTooltipHtml(n, model) {
+  const meta = state.taskInsights && state.taskInsights.byTaskName.get(n.id);
+  const onHappyPath = !!(model.happyPath && model.happyPath.path.includes(n.id));
+
+  const badges = [];
+  if (meta && meta.nodeKind && BPMN_KIND_LABEL[meta.nodeKind]) {
+    badges.push(`<span class="bpmn-tt-chip bpmn-tt-chip-kind">${BPMN_KIND_LABEL[meta.nodeKind]}</span>`);
+  }
+  badges.push(`<span class="bpmn-tt-chip bpmn-tt-chip-path">${onHappyPath ? 'Happy path' : 'Deviation path'}</span>`);
+
+  const descLine = `<div class="bpmn-tt-desc">${meta && meta.description ? meta.description : n.label}</div>`;
+
+  const examples = state.taskInsights && state.taskInsights.instancesByTaskName.get(n.id);
+  const example = examples && examples.length ? examples.find((e) => e.reasoning) : null;
+  const quoteLine = example ? `<div class="bpmn-tt-quote">&ldquo;${example.reasoning}&rdquo;</div>` : '';
+
+  const autonomyRow = meta && meta.autonomy
+    ? `<div class="bpmn-tt-row"><span class="bpmn-tt-row-label">${PERSON_ICON_SVG}Autonomy</span><span class="bpmn-tt-row-value bpmn-tt-row-value-pill">${formatAutonomyLabel(meta.autonomy)}</span></div>`
+    : '';
+
+  return `
+    <div class="bpmn-tt-badges">${badges.join('')}</div>
+    ${descLine}
+    ${quoteLine}
+    <div class="bpmn-tt-divider"></div>
+    <div class="bpmn-tt-rows">
+      <div class="bpmn-tt-row"><span class="bpmn-tt-row-label">${BARS_ICON_SVG}Seen in</span><span class="bpmn-tt-row-value">${n.caseCount} of ${model.totalCases} cases</span></div>
+      <div class="bpmn-tt-row"><span class="bpmn-tt-row-label">${CLOCK_ICON_SVG}Median duration</span><span class="bpmn-tt-row-value">${formatDuration(n.medianDuration)}</span></div>
+      ${autonomyRow}
+    </div>
+  `;
+}
+
 function edgeTooltipHtml(e, model) {
   if (e.kind === 'happy') {
     return `<strong>${labelForNode(e.from)} → ${labelForNode(e.to)}</strong><div>Part of the most common path</div>`;
@@ -1215,7 +1268,8 @@ function edgeTooltipHtml(e, model) {
   `;
 }
 
-function showTooltip(event, html) {
+function showTooltip(event, html, rich) {
+  tooltip.classed('bpmn-task-tooltip', !!rich);
   tooltip.style('display', 'block').html(html);
   moveTooltip(event);
 }
@@ -2924,6 +2978,7 @@ const PERSON_ICON_SVG = '<svg width="16" height="16" viewBox="0 0 16 16" fill="n
 const TASK_ICON_SVG = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="2.5" y="3.5" width="11" height="9" rx="2" stroke="currentColor" stroke-width="1.4"/><rect x="9.4" y="6.9" width="2.7" height="2.7" rx="0.7" fill="currentColor"/></svg>';
 const PATH_ICON_SVG = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="4" cy="4.3" r="1.8" stroke="currentColor" stroke-width="1.3"/><circle cx="12" cy="11.7" r="1.8" stroke="currentColor" stroke-width="1.3"/><path d="M4 6.1 C4 9.5 6 7.8 8 7.8 C10 7.8 12 6.3 12 9.9" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/></svg>';
 const CLOCK_ICON_SVG = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.3"/><path d="M8 4.8 V8 L10.2 9.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const BARS_ICON_SVG = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="2.5" y="9" width="3" height="5" rx="1" fill="currentColor"/><rect x="6.5" y="5.5" width="3" height="8.5" rx="1" fill="currentColor"/><rect x="10.5" y="2" width="3" height="12" rx="1" fill="currentColor"/></svg>';
 
 function hashStr(str) {
   let h = 0;

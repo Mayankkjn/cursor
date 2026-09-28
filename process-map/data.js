@@ -592,6 +592,7 @@ function extractTaskInsights(raw) {
       subtypes: t.canonical_subtypes || [],
       appId: t.app_id || null,
       stage: t.stage || t.phase || t.category || null,
+      autonomy: t.autonomy || null,
     });
   });
 
@@ -661,7 +662,7 @@ function extractGraphTaskInsights(raw) {
   const byTaskName = new Map();
   const ensure = (name) => {
     if (!byTaskName.has(name)) {
-      byTaskName.set(name, { description: '', canonicalReasoning: '', subtypes: [], appId: null, stage: null, nodeKind: null });
+      byTaskName.set(name, { description: '', canonicalReasoning: '', subtypes: [], appId: null, stage: null, nodeKind: null, autonomy: null });
     }
     return byTaskName.get(name);
   };
@@ -683,6 +684,7 @@ function extractGraphTaskInsights(raw) {
       const entry = ensure(node.name);
       entry.stage = stageName;
       entry.nodeKind = node.kind || null;
+      if (node.autonomy) entry.autonomy = node.autonomy;
       if (node.kind === 'subProcess' && subprocesses[node.id]) assignStage(node.id, stageName);
     });
   };
