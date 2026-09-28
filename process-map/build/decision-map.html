@@ -1122,6 +1122,25 @@ button:hover { filter: brightness(1.08); }
 .edge.deviation.rework .edge-label rect { fill: var(--rework-soft); }
 .edge.deviation.rework .edge-label text { fill: #9a5613; }
 
+/* ---- BPMN view ---- */
+.bpmn-node-layer, .bpmn-edge-layer { display: none; }
+.bpmn-task-box { fill: var(--card-bg); stroke: #4a90b8; stroke-width: 1.4px; filter: drop-shadow(0 1px 2px rgba(24,26,51,0.08)); }
+.bpmn-task-icon { fill: none; stroke: #4a90b8; stroke-width: 1.3px; stroke-linecap: round; stroke-linejoin: round; }
+.bpmn-task-label { fill: var(--text-primary); font-size: 12px; font-weight: 600; text-anchor: middle; pointer-events: none; }
+.node.bpmn-task.selected .bpmn-task-box { stroke: var(--path-main); stroke-width: 2.2px; }
+.node.bpmn-task:hover .bpmn-task-box { stroke: var(--accent-ui); }
+
+.bpmn-event-circle { fill: var(--card-bg); }
+.node.bpmn-start .bpmn-event-circle { stroke: var(--path-main); stroke-width: 1.6px; }
+.node.bpmn-end .bpmn-event-circle { stroke: var(--flag-end-fg); stroke-width: 2.6px; }
+.bpmn-event-label { fill: var(--text-secondary); font-size: 10.5px; font-weight: 600; text-anchor: middle; pointer-events: none; }
+
+.bpmn-gateway-shape { fill: var(--card-bg); stroke: var(--text-tertiary); stroke-width: 1.4px; }
+.bpmn-gateway-mark { stroke: var(--text-secondary); stroke-width: 1.8px; stroke-linecap: round; }
+
+.bpmn-edge-path { fill: none; stroke: var(--path-deviation); stroke-width: 1.3px; }
+.edge.bpmn-happy .bpmn-edge-path { stroke: var(--path-main); stroke-width: 2px; }
+
 /* ---- key insights ---- */
 .process-summary-text p { margin: 0 0 8px; font-size: 0.8rem; line-height: 1.55; color: var(--text-primary); }
 .process-summary-text p:last-child { margin-bottom: 0; }
@@ -1261,6 +1280,41 @@ button:hover { filter: brightness(1.08); }
   z-index: 5;
 }
 .floating-legend h3 { margin: 0 0 8px; font-size: 0.78rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em; }
+
+/* ---- flow / BPMN view toggle ---- */
+.view-toggle {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  z-index: 6;
+  display: flex;
+  gap: 2px;
+  background: var(--bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 100px;
+  padding: 4px;
+  box-shadow: var(--shadow-sm);
+}
+.view-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border: none;
+  background: none;
+  padding: 8px 16px;
+  border-radius: 100px;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.view-toggle-btn:hover { color: var(--text-primary); }
+.view-toggle-btn.active { background: var(--card-bg); color: var(--text-primary); box-shadow: var(--shadow-sm); }
+.view-toggle-btn .view-toggle-sparkle { color: var(--text-tertiary); }
+.view-toggle-btn.active .view-toggle-sparkle { color: var(--accent-ui); }
 
 /* ---- AI summary ---- */
 .canvas-toolbar { display: flex; align-items: center; gap: 10px; flex-shrink: 0; transition: margin-right 0.22s ease; }

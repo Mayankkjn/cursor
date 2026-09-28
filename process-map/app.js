@@ -40,6 +40,7 @@ const state = {
   expandedOpportunityIds: new Set(), // task ids currently expanded in the Automation Opportunities list
   opportunitySort: 'impact', // 'impact' | 'score' | 'frequency' — how the Automation Opportunities list is ordered
   opportunityShowAll: false, // false = only the top OPPORTUNITY_PAGE_SIZE shown, true = the full ranked list
+  viewMode: 'flow', // 'flow' | 'bpmn' — which canvas layer set is visible
 };
 
 const svg = d3.select('#graph');
@@ -47,6 +48,8 @@ const defs = svg.append('defs');
 const viewport = svg.append('g').attr('class', 'viewport');
 const edgeLayer = viewport.append('g').attr('class', 'edge-layer');
 const nodeLayer = viewport.append('g').attr('class', 'node-layer');
+const bpmnEdgeLayer = viewport.append('g').attr('class', 'bpmn-edge-layer');
+const bpmnNodeLayer = viewport.append('g').attr('class', 'bpmn-node-layer');
 const tooltip = d3.select('#tooltip');
 
 function addMarker(id, color) {
@@ -65,6 +68,7 @@ function addMarker(id, color) {
 addMarker('arrow-happy', '#1f9d5c');
 addMarker('arrow-deviation', '#9a9fb5');
 addMarker('arrow-rework', '#d17d2c');
+addMarker('arrow-bpmn', '#9a9fb5');
 
 const zoomBehavior = d3.zoom()
   .scaleExtent([0.2, 2.5])
@@ -72,7 +76,8 @@ const zoomBehavior = d3.zoom()
 svg.call(zoomBehavior);
 
 function fitToView() {
-  const bounds = nodeLayer.node().getBBox();
+  const activeLayer = state.viewMode === 'bpmn' ? bpmnNodeLayer : nodeLayer;
+  const bounds = activeLayer.node().getBBox();
   if (!bounds.width || !bounds.height) return;
   const svgNode = svg.node();
   const fullWidth = svgNode.clientWidth;
@@ -389,6 +394,209 @@ function layout(renderGraph) {
   return { nodePos, edgePos };
 }
 
+// ---- BPMN view ----
+// A second, alternate-notation rendering of the exact same process model:
+// start/end events, task boxes, and exclusive gateways inserted wherever a
+// task's surviving (non-hidden-by-threshold) edges actually fan out or
+// merge — no swimlanes, since nothing in the underlying data reliably
+// says which participant/role performs a task.
+const BPMN_TASK_W = 168;
+const BPMN_TASK_H = 76;
+const BPMN_EVENT_SIZE = 52;
+const BPMN_GATEWAY_SIZE = 50;
+
+// Turns the DFG (model.nodes/edges, with .hidden already set by
+// applyThreshold) into a BPMN-shaped graph: real task/start/end nodes,
+// plus a synthetic exclusive-gateway node inserted right after any node
+// with more than one surviving outgoing edge, and another inserted right
+// before any node with more than one surviving incoming edge.
+function buildBpmnGraph(model) {
+  const visibleEdges = model.edges.filter((e) => !e.hidden && e.from !== e.to);
+
+  const outMap = new Map();
+  const inMap = new Map();
+  visibleEdges.forEach((e) => {
+    if (!outMap.has(e.from)) outMap.set(e.from, []);
+    outMap.get(e.from).push(e);
+    if (!inMap.has(e.to)) inMap.set(e.to, []);
+    inMap.get(e.to).push(e);
+  });
+
+  const nodeById = new Map(model.nodes.map((n) => [n.id, n]));
+  const nodes = [];
+  const nodeIds = new Set();
+  const touchedIds = new Set([...outMap.keys(), ...inMap.keys()]);
+
+  touchedIds.forEach((id) => {
+    const src = nodeById.get(id);
+    if (!src) return;
+    nodeIds.add(id);
+    const kind = id === START ? 'start' : id === END ? 'end' : 'bpmn-task';
+    nodes.push({ id, kind, label: src.label, source: src });
+  });
+
+  const splitGatewayFor = new Map();
+  const joinGatewayFor = new Map();
+  touchedIds.forEach((id) => {
+    if ((outMap.get(id) || []).length > 1) {
+      const gwId = `gw-split-${id}`;
+      nodes.push({ id: gwId, kind: 'gateway', label: 'X' });
+      splitGatewayFor.set(id, gwId);
+    }
+    if ((inMap.get(id) || []).length > 1) {
+      const gwId = `gw-join-${id}`;
+      nodes.push({ id: gwId, kind: 'gateway', label: 'X' });
+      joinGatewayFor.set(id, gwId);
+    }
+  });
+
+  const edges = [];
+  const linkedFromGateway = new Set();
+  const linkedToGateway = new Set();
+  visibleEdges.forEach((e) => {
+    let from = e.from;
+    let to = e.to;
+    if (splitGatewayFor.has(e.from)) {
+      const gw = splitGatewayFor.get(e.from);
+      if (!linkedFromGateway.has(e.from)) {
+        edges.push({ from: e.from, to: gw, kind: 'link' });
+        linkedFromGateway.add(e.from);
+      }
+      from = gw;
+    }
+    if (joinGatewayFor.has(e.to)) {
+      const gw = joinGatewayFor.get(e.to);
+      if (!linkedToGateway.has(e.to)) {
+        edges.push({ from: gw, to: e.to, kind: 'link' });
+        linkedToGateway.add(e.to);
+      }
+      to = gw;
+    }
+    edges.push({ from, to, kind: e.onHappyPath ? 'happy' : 'deviation', sourceEdge: e });
+  });
+
+  return { nodes, edges, splitGatewayFor, joinGatewayFor };
+}
+
+function layoutBpmn(bpmnGraph) {
+  const g = new dagre.graphlib.Graph();
+  g.setGraph({ rankdir: 'LR', nodesep: 34, ranksep: 64, marginx: 30, marginy: 30 });
+  g.setDefaultEdgeLabel(() => ({}));
+
+  bpmnGraph.nodes.forEach((n) => {
+    let width = BPMN_TASK_W;
+    let height = BPMN_TASK_H;
+    if (n.kind === 'start' || n.kind === 'end') { width = BPMN_EVENT_SIZE; height = BPMN_EVENT_SIZE; }
+    if (n.kind === 'gateway') { width = BPMN_GATEWAY_SIZE; height = BPMN_GATEWAY_SIZE; }
+    g.setNode(n.id, { width, height });
+  });
+  bpmnGraph.edges.forEach((e) => {
+    g.setEdge(e.from, e.to, { weight: e.kind === 'happy' ? 10 : 1 });
+  });
+
+  dagre.layout(g);
+
+  const nodePos = new Map();
+  g.nodes().forEach((id) => nodePos.set(id, g.node(id)));
+  const edgePos = new Map();
+  g.edges().forEach((e) => edgePos.set(`${e.v}||${e.w}`, g.edge(e)));
+
+  return { nodePos, edgePos };
+}
+
+function buildBpmnTaskBox(g, n, p) {
+  g.append('rect').attr('class', 'bpmn-task-box').attr('width', p.width).attr('height', p.height).attr('rx', 8);
+  const iconX = 12;
+  const iconY = 12;
+  g.append('path').attr('class', 'bpmn-task-icon')
+    .attr('d', `M${iconX},${iconY + 10} V${iconY + 3} A3,3 0 0 1 ${iconX + 3},${iconY} H${iconX + 8}`);
+  const words = n.label.split(' ');
+  const lines = [];
+  let line = '';
+  words.forEach((w) => {
+    const candidate = line ? `${line} ${w}` : w;
+    if (candidate.length > 18 && line) { lines.push(line); line = w; }
+    else line = candidate;
+  });
+  if (line) lines.push(line);
+  const shown = lines.slice(0, 3);
+  const startY = p.height / 2 - ((shown.length - 1) * 14) / 2 + 4;
+  shown.forEach((l, i) => {
+    g.append('text').attr('class', 'bpmn-task-label').attr('x', p.width / 2).attr('y', startY + i * 14).text(l);
+  });
+}
+
+function buildBpmnEvent(g, n, p) {
+  const r = p.width / 2;
+  g.append('circle').attr('class', 'bpmn-event-circle').attr('cx', r).attr('cy', r).attr('r', r);
+  g.append('text').attr('class', 'bpmn-event-label').attr('x', r).attr('y', p.height + 14).text(n.label);
+}
+
+function buildBpmnGateway(g, n, p) {
+  const cx = p.width / 2;
+  const cy = p.height / 2;
+  const d = `M${cx},2 L${p.width - 2},${cy} L${cx},${p.height - 2} L2,${cy} Z`;
+  g.append('path').attr('class', 'bpmn-gateway-shape').attr('d', d);
+  const s = 9;
+  g.append('path').attr('class', 'bpmn-gateway-mark')
+    .attr('d', `M${cx - s},${cy - s} L${cx + s},${cy + s} M${cx + s},${cy - s} L${cx - s},${cy + s}`);
+}
+
+function renderBpmnView() {
+  const model = state.model;
+  const bpmnGraph = buildBpmnGraph(model);
+  const { nodePos, edgePos } = layoutBpmn(bpmnGraph);
+  const lineGen = d3.line().x((d) => d.x).y((d) => d.y).curve(d3.curveBasis);
+
+  const edgeSel = bpmnEdgeLayer.selectAll('g.edge').data(bpmnGraph.edges.filter((e) => edgePos.has(`${e.from}||${e.to}`)), (e) => `${e.from}||${e.to}`);
+  edgeSel.exit().remove();
+  const edgeEnter = edgeSel.enter().append('g').attr('class', 'edge');
+  edgeEnter.append('path').attr('class', 'bpmn-edge-path');
+  const mergedEdges = edgeEnter.merge(edgeSel);
+  mergedEdges.attr('class', (e) => `edge${e.kind === 'happy' ? ' bpmn-happy' : ''}`);
+  mergedEdges.select('path.bpmn-edge-path')
+    .attr('d', (e) => lineGen(edgePos.get(`${e.from}||${e.to}`).points))
+    .attr('marker-end', (e) => (e.kind === 'happy' ? 'url(#arrow-happy)' : 'url(#arrow-bpmn)'));
+
+  const nodeSel = bpmnNodeLayer.selectAll('g.node').data(bpmnGraph.nodes, (n) => n.id);
+  nodeSel.exit().remove();
+  const nodeEnter = nodeSel.enter().append('g').attr('class', 'node');
+  const mergedNodes = nodeEnter.merge(nodeSel);
+  mergedNodes
+    .attr('transform', (n) => {
+      const p = nodePos.get(n.id);
+      return `translate(${p.x - p.width / 2}, ${p.y - p.height / 2})`;
+    })
+    .attr('class', (n) => `node ${n.kind}${n.id === state.selectedTaskId ? ' selected' : ''}`)
+    .on('mouseenter', (event, n) => {
+      if (n.kind === 'bpmn-task') showTooltip(event, nodeTooltipHtml(n.source, model));
+    })
+    .on('mousemove', moveTooltip)
+    .on('mouseleave', hideTooltip);
+
+  mergedNodes.each(function (n) {
+    const g = d3.select(this);
+    g.selectAll('*').remove();
+    const p = nodePos.get(n.id);
+    if (n.kind === 'bpmn-task') buildBpmnTaskBox(g, n, p);
+    else if (n.kind === 'gateway') buildBpmnGateway(g, n, p);
+    else buildBpmnEvent(g, n, p);
+  });
+
+  mergedNodes.filter((n) => n.kind === 'bpmn-task').on('click', (event, n) => {
+    event.stopPropagation();
+    openTaskDetail(n.id);
+  });
+}
+
+function syncViewLayers() {
+  const isBpmn = state.viewMode === 'bpmn';
+  nodeLayer.style('display', isBpmn ? 'none' : 'inline');
+  edgeLayer.style('display', isBpmn ? 'none' : 'inline');
+  bpmnNodeLayer.style('display', isBpmn ? 'inline' : 'none');
+  bpmnEdgeLayer.style('display', isBpmn ? 'inline' : 'none');
+}
+
 // ---- small inline icons ----
 function appendTaskIcon(g, x, y) {
   const k = g.append('g').attr('class', 'icon-task');
@@ -637,6 +845,8 @@ function render(fit = false) {
   renderVariantList(model);
   renderStats(model);
   renderFastCompare();
+  renderBpmnView();
+  syncViewLayers();
   if (fit) fitToView();
 }
 
@@ -2143,6 +2353,17 @@ d3.select('#fullscreen-btn').on('click', function () {
   const isFullscreen = document.body.classList.toggle('app-fullscreen');
   d3.select(this).classed('active', isFullscreen).attr('aria-pressed', String(isFullscreen));
   requestAnimationFrame(() => { fitToView(); syncTaskDetailLayout(); });
+});
+
+// ---- flow / BPMN view toggle ----
+d3.selectAll('.view-toggle-btn').on('click', function () {
+  const view = this.dataset.view;
+  if (view === state.viewMode) return;
+  state.viewMode = view;
+  d3.selectAll('.view-toggle-btn').classed('active', function () { return this.dataset.view === view; })
+    .attr('aria-selected', function () { return String(this.dataset.view === view); });
+  syncViewLayers();
+  fitToView();
 });
 
 // ---- collapsible sidebar panels ----
