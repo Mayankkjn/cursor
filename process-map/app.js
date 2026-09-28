@@ -1345,8 +1345,24 @@ function showTooltip(event, html, rich) {
   tooltip.style('display', 'block').html(html);
   moveTooltip(event);
 }
+// Anchored to the hovered shape itself (its bounding box), not the cursor,
+// so the card opens on the shape's left side and stays put while the mouse
+// moves around inside it — falls back to the right when there isn't room
+// on the left edge of the viewport.
 function moveTooltip(event) {
-  tooltip.style('left', `${event.clientX + 14}px`).style('top', `${event.clientY + 14}px`);
+  const target = event.currentTarget;
+  const rect = target && target.getBoundingClientRect ? target.getBoundingClientRect() : null;
+  if (!rect) {
+    tooltip.style('left', `${event.clientX + 14}px`).style('top', `${event.clientY + 14}px`);
+    return;
+  }
+  const ttRect = tooltip.node().getBoundingClientRect();
+  const gap = 12;
+  let left = rect.left - ttRect.width - gap;
+  if (left < 4) left = rect.right + gap;
+  let top = rect.top + rect.height / 2 - ttRect.height / 2;
+  top = Math.max(4, Math.min(top, window.innerHeight - ttRect.height - 4));
+  tooltip.style('left', `${left}px`).style('top', `${top}px`);
 }
 function hideTooltip() {
   clearTimeout(tooltipHideTimer);
