@@ -385,9 +385,13 @@ function buildRenderGraph(model, opts = {}) {
 
   deviationByFrom.forEach((group, from) => {
     const bubble = bubblesByFrom.get(from) || null;
-    if (!bubble && group.length === 1) {
-      const e = group[0];
-      edges.push({ from: e.from, to: e.to, kind: 'deviation', label: `${e.caseCount}`, casePct: e.caseCount / model.totalCases, sourceEdges: e.sourceEdges || [e] });
+    // In single-instance-per-variant mode every branch is drawn directly
+    // off its fork node — no merge-point circle — since the whole point of
+    // that mode is to see each variant's own connection, not a bundled one.
+    if (!bundleMinor || (!bubble && group.length === 1)) {
+      group.forEach((e) => {
+        edges.push({ from: e.from, to: e.to, kind: 'deviation', label: `${e.caseCount}`, casePct: e.caseCount / model.totalCases, sourceEdges: e.sourceEdges || [e] });
+      });
       return;
     }
     // A fork's total is its own surviving branches plus whatever its minor
