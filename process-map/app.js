@@ -117,6 +117,43 @@ function formatDuration(minutes) {
 
 function pluralCases(n) { return `${n} instance${n === 1 ? '' : 's'}`; }
 
+// Hovering a node highlights everywhere it can lead — every node and edge
+// forward-reachable from it, however many hops away — not just its
+// immediate neighbors. Shared by Flow view and BPMN view; each just hands
+// it whichever edge list it currently has on screen.
+function computeForwardReachable(startId, edges) {
+  const outByFrom = new Map();
+  edges.forEach((e) => {
+    if (!outByFrom.has(e.from)) outByFrom.set(e.from, []);
+    outByFrom.get(e.from).push(e);
+  });
+  const nodeIds = new Set([startId]);
+  const edgeKeys = new Set();
+  const queue = [startId];
+  while (queue.length) {
+    const cur = queue.shift();
+    (outByFrom.get(cur) || []).forEach((e) => {
+      edgeKeys.add(`${e.from}||${e.to}`);
+      if (!nodeIds.has(e.to)) { nodeIds.add(e.to); queue.push(e.to); }
+    });
+  }
+  return { nodeIds, edgeKeys };
+}
+
+// Applied as a temporary overlay on top of whatever click-driven
+// active/dimmed state a view already has — cleared on mouseleave without
+// needing a full re-render, so hovering stays responsive.
+function applyHoverHighlight(nodeSel, edgeSel, forward) {
+  nodeSel.classed('hover-dim', (n) => !forward.nodeIds.has(n.id));
+  nodeSel.classed('hover-focus', (n) => forward.nodeIds.has(n.id));
+  edgeSel.classed('hover-dim', (e) => !forward.edgeKeys.has(`${e.from}||${e.to}`));
+  edgeSel.classed('hover-focus', (e) => forward.edgeKeys.has(`${e.from}||${e.to}`));
+}
+function clearHoverHighlight(nodeSel, edgeSel) {
+  nodeSel.classed('hover-dim', false).classed('hover-focus', false);
+  edgeSel.classed('hover-dim', false).classed('hover-focus', false);
+}
+
 // Spreadsheet-style column labels for the Filter panel's path list: 1->A,
 // 2->B, ... 26->Z, 27->AA, 28->AB, ... so it never runs out even with
 // dozens of variants.
@@ -748,9 +785,13 @@ function renderBpmnView() {
     .attr('class', (n) => `node ${n.kind}${n.id === state.selectedTaskId ? ' selected' : ''}`)
     .on('mouseenter', (event, n) => {
       if (n.kind === 'bpmn-task') showTooltip(event, nodeTooltipHtml(n.source, model));
+      applyHoverHighlight(bpmnNodeLayer.selectAll('g.node'), bpmnEdgeLayer.selectAll('g.edge'), computeForwardReachable(n.id, bpmnGraph.edges));
     })
     .on('mousemove', moveTooltip)
-    .on('mouseleave', hideTooltip);
+    .on('mouseleave', () => {
+      hideTooltip();
+      clearHoverHighlight(bpmnNodeLayer.selectAll('g.node'), bpmnEdgeLayer.selectAll('g.edge'));
+    });
 
   mergedNodes.each(function (n) {
     const g = d3.select(this);
@@ -993,9 +1034,15 @@ function render(fit = false) {
       return `translate(${p.x - p.width / 2}, ${p.y - p.height / 2})`;
     })
     .attr('class', (n) => `node ${n.kind}${nodeIsActive(n) ? '' : ' dimmed'}${n.id === state.selectedTaskId ? ' selected' : ''}`)
-    .on('mouseenter', (event, n) => showTooltip(event, nodeTooltipHtml(n, model)))
+    .on('mouseenter', (event, n) => {
+      showTooltip(event, nodeTooltipHtml(n, model));
+      applyHoverHighlight(nodeLayer.selectAll('g.node'), edgeLayer.selectAll('g.edge'), computeForwardReachable(n.id, renderGraph.edges));
+    })
     .on('mousemove', moveTooltip)
-    .on('mouseleave', hideTooltip);
+    .on('mouseleave', () => {
+      hideTooltip();
+      clearHoverHighlight(nodeLayer.selectAll('g.node'), edgeLayer.selectAll('g.edge'));
+    });
 
   mergedNodes.each(function (n) {
     const g = d3.select(this);

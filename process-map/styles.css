@@ -1140,6 +1140,25 @@ button:hover { filter: brightness(1.08); }
 .bpmn-lane-label { fill: var(--text-secondary); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; }
 .bpmn-lane-divider { stroke: var(--panel-border); stroke-width: 1px; }
 
+/* ---- hover highlight: every node/edge forward-reachable from the
+   hovered node, in either view — a temporary overlay on top of whatever
+   click-driven active/dimmed state is already showing. ---- */
+.node.hover-dim, .edge.hover-dim { opacity: 0.12 !important; }
+.node.hover-focus, .edge.hover-focus { opacity: 1 !important; }
+.node.hover-focus .card-bg,
+.node.hover-focus .pill-bg,
+.node.hover-focus .diamond-shape,
+.node.hover-focus .bpmn-task-box,
+.node.hover-focus .bpmn-event-circle,
+.node.hover-focus .bpmn-gateway-shape {
+  stroke: var(--accent-ui) !important;
+}
+.edge.hover-focus .edge-path,
+.edge.hover-focus .bpmn-edge-path {
+  stroke: var(--accent-ui) !important;
+  stroke-width: 2.4px !important;
+}
+
 /* ---- key insights ---- */
 .process-summary-text p { margin: 0 0 8px; font-size: 0.8rem; line-height: 1.55; color: var(--text-primary); }
 .process-summary-text p:last-child { margin-bottom: 0; }
