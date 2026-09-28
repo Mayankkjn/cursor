@@ -8335,16 +8335,27 @@ function laneIndexForNode(n, lanes) {
   return lanes.laneIndexOf.has(stage) ? lanes.laneIndexOf.get(stage) : lanes.stageOrder.length - 1;
 }
 
-// Measures real pixel text width in the exact font .bpmn-task-label draws
-// with, so a task box can be sized to its own label instead of guessing
-// from character count — one offscreen canvas, reused across calls.
+// Measures real pixel text width in a given font, so shapes can be sized
+// to their own label instead of guessing from character count — one
+// offscreen canvas, reused across calls (font is set per call since it's
+// shared between the task-box font and the rotated lane-label font).
+const BPMN_TASK_LABEL_FONT = "600 12px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+const BPMN_LANE_LABEL_FONT = "700 10px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
 let bpmnMeasureCtx = null;
-function measureBpmnLabelWidth(text) {
+function measureBpmnLabelWidth(text, font = BPMN_TASK_LABEL_FONT) {
   if (!bpmnMeasureCtx) {
     bpmnMeasureCtx = document.createElement('canvas').getContext('2d');
-    bpmnMeasureCtx.font = "600 12px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
   }
+  bpmnMeasureCtx.font = font;
   return bpmnMeasureCtx.measureText(text).width;
+}
+
+// A rotated lane-label strip (text drawn sideways) needs at least as much
+// lane height as its own uppercased text is wide, plus a little padding —
+// otherwise a long stage name like "Document & Communicate" overflows past
+// the lane's own divider lines into the lane above/below it.
+function bpmnLaneMinHeight(stage) {
+  return Math.ceil(measureBpmnLabelWidth(stage.toUpperCase(), BPMN_LANE_LABEL_FONT)) + 24;
 }
 
 // Greedy word-wrap by real measured width (not a fixed character count),
@@ -8431,9 +8442,11 @@ function layoutBpmn(bpmnGraph, lanes) {
       maxConcurrentByLane.set(laneIdx, Math.max(maxConcurrentByLane.get(laneIdx) || 1, ids.length));
     });
 
-    const laneHeights = lanes.stageOrder.map((_, i) =>
-      Math.max(BPMN_MIN_LANE_HEIGHT, (maxConcurrentByLane.get(i) || 1) * BPMN_LANE_SLOT_H)
-    );
+    const laneHeights = lanes.stageOrder.map((stage, i) => Math.max(
+      BPMN_MIN_LANE_HEIGHT,
+      (maxConcurrentByLane.get(i) || 1) * BPMN_LANE_SLOT_H,
+      bpmnLaneMinHeight(stage)
+    ));
     const laneTop = [];
     let cum = 0;
     laneHeights.forEach((h) => { laneTop.push(cum); cum += h; });
