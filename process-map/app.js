@@ -877,7 +877,7 @@ function renderBpmnView() {
     })
     .on('mousemove', moveTooltip)
     .on('mouseleave', () => {
-      hideTooltip();
+      scheduleHideTooltip();
       clearHoverHighlight(bpmnNodeLayer.selectAll('g.node'), bpmnEdgeLayer.selectAll('g.edge'));
     });
 
@@ -1225,6 +1225,13 @@ function bpmnTaskTooltipHtml(n, model) {
     ? `<div class="bpmn-tt-row"><span class="bpmn-tt-row-label">${PERSON_ICON_SVG}Autonomy</span><span class="bpmn-tt-row-value bpmn-tt-row-value-pill">${formatAutonomyLabel(meta.autonomy)}</span></div>`
     : '';
 
+  // "Watch session" only offered when this task actually has a recorded
+  // instance to replay — openSessionReplay() itself no-ops without one, so
+  // this just keeps the button from ever looking clickable when it isn't.
+  const watchBtn = examples && examples.length
+    ? `<button type="button" class="bpmn-tt-btn" data-tt-action="watch" data-task-id="${n.id}">${PLAY_ICON_SVG}Watch session</button>`
+    : '';
+
   return `
     <div class="bpmn-tt-badges">${badges.join('')}</div>
     ${descLine}
@@ -1234,6 +1241,10 @@ function bpmnTaskTooltipHtml(n, model) {
       <div class="bpmn-tt-row"><span class="bpmn-tt-row-label">${BARS_ICON_SVG}Seen in</span><span class="bpmn-tt-row-value">${n.caseCount} of ${model.totalCases} cases</span></div>
       <div class="bpmn-tt-row"><span class="bpmn-tt-row-label">${CLOCK_ICON_SVG}Median duration</span><span class="bpmn-tt-row-value">${formatDuration(n.medianDuration)}</span></div>
       ${autonomyRow}
+    </div>
+    <div class="bpmn-tt-actions">
+      ${watchBtn}
+      <button type="button" class="bpmn-tt-btn" data-tt-action="details" data-task-id="${n.id}">${TASK_ICON_SVG}View details</button>
     </div>
   `;
 }
@@ -1268,7 +1279,10 @@ function edgeTooltipHtml(e, model) {
   `;
 }
 
+let tooltipHideTimer = null;
+
 function showTooltip(event, html, rich) {
+  clearTimeout(tooltipHideTimer);
   tooltip.classed('bpmn-task-tooltip', !!rich);
   tooltip.style('display', 'block').html(html);
   moveTooltip(event);
@@ -1276,7 +1290,27 @@ function showTooltip(event, html, rich) {
 function moveTooltip(event) {
   tooltip.style('left', `${event.clientX + 14}px`).style('top', `${event.clientY + 14}px`);
 }
-function hideTooltip() { tooltip.style('display', 'none'); }
+function hideTooltip() {
+  clearTimeout(tooltipHideTimer);
+  tooltip.style('display', 'none');
+}
+// Gives the mouse time to travel from a BPMN task box into its own hover
+// card (which carries clickable buttons) without the card disappearing
+// mid-move — cancelled by the tooltip's own mouseenter below.
+function scheduleHideTooltip() {
+  clearTimeout(tooltipHideTimer);
+  tooltipHideTimer = setTimeout(() => tooltip.style('display', 'none'), 200);
+}
+tooltip.on('mouseenter', () => clearTimeout(tooltipHideTimer));
+tooltip.on('mouseleave', scheduleHideTooltip);
+tooltip.on('click', (event) => {
+  const btn = event.target.closest('[data-tt-action]');
+  if (!btn) return;
+  const taskId = btn.dataset.taskId;
+  if (btn.dataset.ttAction === 'watch') openSessionReplay(taskId);
+  else if (btn.dataset.ttAction === 'details') openTaskDetail(taskId);
+  hideTooltip();
+});
 
 // Plain-language overview of the whole process, plus the completion split
 // (recognized conclusion vs. an uncommon stopping point) — meant to orient
@@ -2979,6 +3013,7 @@ const TASK_ICON_SVG = '<svg width="16" height="16" viewBox="0 0 16 16" fill="non
 const PATH_ICON_SVG = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="4" cy="4.3" r="1.8" stroke="currentColor" stroke-width="1.3"/><circle cx="12" cy="11.7" r="1.8" stroke="currentColor" stroke-width="1.3"/><path d="M4 6.1 C4 9.5 6 7.8 8 7.8 C10 7.8 12 6.3 12 9.9" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/></svg>';
 const CLOCK_ICON_SVG = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.3"/><path d="M8 4.8 V8 L10.2 9.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const BARS_ICON_SVG = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="2.5" y="9" width="3" height="5" rx="1" fill="currentColor"/><rect x="6.5" y="5.5" width="3" height="8.5" rx="1" fill="currentColor"/><rect x="10.5" y="2" width="3" height="12" rx="1" fill="currentColor"/></svg>';
+const PLAY_ICON_SVG = '<svg width="11" height="11" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M2.5 1.5 L10 6 L2.5 10.5 Z" /></svg>';
 
 function hashStr(str) {
   let h = 0;

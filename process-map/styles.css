@@ -1510,7 +1510,7 @@ button:hover { filter: brightness(1.08); }
 .tooltip strong { display: block; margin-bottom: 4px; }
 .tooltip div { color: var(--text-secondary); margin-top: 2px; }
 
-.tooltip.bpmn-task-tooltip { width: 340px; max-width: 340px; padding: 14px 16px; }
+.tooltip.bpmn-task-tooltip { width: 340px; max-width: 340px; padding: 14px 16px; pointer-events: auto; }
 
 .bpmn-tt-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
 .bpmn-tt-chip { display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; margin: 0; color: inherit; }
@@ -1531,6 +1531,26 @@ button:hover { filter: brightness(1.08); }
 
 .bpmn-tt-footnote { display: flex; align-items: flex-start; gap: 6px; color: var(--text-tertiary); font-size: 0.72rem; line-height: 1.35; margin: 0; }
 .bpmn-tt-footnote svg { flex-shrink: 0; margin-top: 1px; }
+
+.bpmn-tt-actions { display: flex; gap: 8px; margin-top: 10px; }
+.bpmn-tt-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 8px;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  background: var(--card-bg);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.bpmn-tt-btn:hover { border-color: var(--accent-ui); color: var(--accent-ui); }
+.bpmn-tt-btn svg { flex-shrink: 0; }
 
 .edge-tooltip-card { display: flex; flex-direction: column; min-width: 210px; }
 .edge-tooltip-step { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; font-weight: 600; color: var(--text-primary); }
