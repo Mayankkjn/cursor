@@ -465,7 +465,7 @@ const BPMN_TASK_H = 76;
 const BPMN_EVENT_SIZE = 52;
 const BPMN_GATEWAY_SIZE = 50;
 const BPMN_MIN_LANE_HEIGHT = 140;
-const BPMN_LANE_STACK_GAP = 14; // vertical breathing room between stacked siblings sharing a lane+column
+const BPMN_LANE_SLOT_H = 90; // vertical room reserved per stacked node sharing a lane+column
 const BPMN_POOL_LABEL_W = 26;
 const BPMN_LANE_LABEL_W = 26;
 
@@ -686,20 +686,15 @@ function layoutBpmn(bpmnGraph, lanes) {
       groups.get(key).push(n.id);
     });
 
-    // How tall a lane needs to be is driven by its OWN nodes' real (possibly
-    // wrapped-multi-line) heights, not an assumed uniform slot — a fixed
-    // per-node slot can be shorter than an actual box, which is exactly
-    // what let stacked siblings' boxes overlap each other before.
-    const requiredHeightByLane = new Map();
+    const maxConcurrentByLane = new Map();
     groups.forEach((ids, key) => {
       const laneIdx = Number(key.split('||')[0]);
-      const stackHeight = ids.reduce((s, id) => s + nodePos.get(id).height, 0) + BPMN_LANE_STACK_GAP * (ids.length - 1);
-      requiredHeightByLane.set(laneIdx, Math.max(requiredHeightByLane.get(laneIdx) || 0, stackHeight));
+      maxConcurrentByLane.set(laneIdx, Math.max(maxConcurrentByLane.get(laneIdx) || 1, ids.length));
     });
 
     const laneHeights = lanes.stageOrder.map((stage, i) => Math.max(
       BPMN_MIN_LANE_HEIGHT,
-      (requiredHeightByLane.get(i) || 0) + BPMN_LANE_STACK_GAP * 2,
+      (maxConcurrentByLane.get(i) || 1) * BPMN_LANE_SLOT_H,
       bpmnLaneMinHeight(stage)
     ));
     const laneTop = [];
@@ -712,14 +707,27 @@ function layoutBpmn(bpmnGraph, lanes) {
       const top = laneTop[laneIdx];
       const height = laneHeights[laneIdx];
       ids.sort((a, b) => nodePos.get(a).y - nodePos.get(b).y);
-      const heights = ids.map((id) => nodePos.get(id).height);
-      const stackHeight = heights.reduce((s, h) => s + h, 0) + BPMN_LANE_STACK_GAP * (ids.length - 1);
-      let cursor = top + (height - stackHeight) / 2;
+      const n = ids.length;
       ids.forEach((id, i) => {
-        const h = heights[i];
-        nodePos.get(id).y = cursor + h / 2;
-        cursor += h + BPMN_LANE_STACK_GAP;
+        nodePos.get(id).y = top + (height * (i + 1)) / (n + 1);
       });
+    });
+
+    // Dagre's original bend points assumed the old y positions — replace
+    // each edge with a simple elbow between its (possibly re-laned)
+    // endpoints instead of a bend shape that no longer matches.
+    edgePos.forEach((edge, key) => {
+      const [fromId, toId] = key.split('||');
+      const fp = nodePos.get(fromId);
+      const tp = nodePos.get(toId);
+      if (!fp || !tp) return;
+      const midX = (fp.x + tp.x) / 2;
+      edge.points = [
+        { x: fp.x, y: fp.y },
+        { x: midX, y: fp.y },
+        { x: midX, y: tp.y },
+        { x: tp.x, y: tp.y },
+      ];
     });
 
     const contentRight = Math.max(...Array.from(nodePos.values()).map((p) => p.x + p.width / 2)) + 30;
@@ -732,37 +740,6 @@ function layoutBpmn(bpmnGraph, lanes) {
       contentRight,
     };
   }
-
-  // Every edge gets a strict right-angle elbow between its own endpoints —
-  // dagre's re-laning above can move nodes off its original bend points
-  // anyway, and a hand-built elbow is what actually renders as one (see
-  // curveLinear in renderBpmnView). Edges that share a "from" node and
-  // bend at the exact same X would otherwise draw one on top of the
-  // other for however much of their vertical run overlaps, so siblings
-  // sharing a source spread their bend across a range instead of a
-  // single shared midpoint.
-  const siblingsByFrom = new Map();
-  edgePos.forEach((edge, key) => {
-    const from = key.split('||')[0];
-    if (!siblingsByFrom.has(from)) siblingsByFrom.set(from, []);
-    siblingsByFrom.get(from).push(key);
-  });
-  edgePos.forEach((edge, key) => {
-    const [fromId, toId] = key.split('||');
-    const fp = nodePos.get(fromId);
-    const tp = nodePos.get(toId);
-    if (!fp || !tp) return;
-    const siblings = siblingsByFrom.get(fromId);
-    const laneIndex = siblings.indexOf(key);
-    const t = siblings.length > 1 ? (laneIndex + 1) / (siblings.length + 1) : 0.5;
-    const bendX = fp.x + (tp.x - fp.x) * t;
-    edge.points = [
-      { x: fp.x, y: fp.y },
-      { x: bendX, y: fp.y },
-      { x: bendX, y: tp.y },
-      { x: tp.x, y: tp.y },
-    ];
-  });
 
   return { nodePos, edgePos, laneMeta };
 }
@@ -864,10 +841,7 @@ function renderBpmnView() {
   const lanes = computeBpmnLanes(bpmnGraph);
   const { nodePos, edgePos, laneMeta } = layoutBpmn(bpmnGraph, lanes);
   renderBpmnLanes(laneMeta);
-  // curveLinear draws exactly the elbow points layoutBpmn computed, as
-  // strict right-angle segments — a smoothing curve would round those
-  // corners back into a diagonal-looking bend.
-  const lineGen = d3.line().x((d) => d.x).y((d) => d.y).curve(d3.curveLinear);
+  const lineGen = d3.line().x((d) => d.x).y((d) => d.y).curve(d3.curveBasis);
 
   // A send/receive task's whole job is firing or catching a message, so
   // any sequence flow touching one is drawn as a message flow (dashed) —
