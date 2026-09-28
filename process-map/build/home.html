@@ -486,6 +486,7 @@ function generateEventLog(numCases = 500) {
 // available" placeholders a demo with no catalog at all would show.
 const DEMO_TASK_CATALOG = {
   'Create Request': {
+    stage: 'Request Intake',
     description: 'The requester submits a new purchase request, specifying the item, quantity, and business justification.',
     subtypes: [
       { id: 'standard-purchase', name: 'Standard Purchase', weight: 70, reasoning: 'Routine purchase submitted through the standard request form.' },
@@ -494,6 +495,7 @@ const DEMO_TASK_CATALOG = {
     ],
   },
   'Manager Approval': {
+    stage: 'Approval & Budget',
     description: "The requester's manager reviews the request and approves or rejects it based on budget authority and business need.",
     subtypes: [
       { id: 'standard-approval', name: 'Standard Approval', weight: 65, reasoning: "Approved directly by the requester's manager." },
@@ -502,6 +504,7 @@ const DEMO_TASK_CATALOG = {
     ],
   },
   'Budget Check': {
+    stage: 'Approval & Budget',
     description: 'Finance verifies that sufficient budget is available in the relevant cost center before the purchase proceeds.',
     subtypes: [
       { id: 'within-budget', name: 'Within Budget', weight: 75, reasoning: 'Cost center had sufficient budget headroom.' },
@@ -509,6 +512,7 @@ const DEMO_TASK_CATALOG = {
     ],
   },
   'Vendor Selection': {
+    stage: 'Procurement',
     description: 'The buyer selects a vendor to fulfill the request, using an existing preferred vendor or sourcing a new one.',
     subtypes: [
       { id: 'preferred-vendor', name: 'Preferred Vendor', weight: 60, reasoning: 'Fulfilled through an existing preferred-vendor contract.' },
@@ -517,6 +521,7 @@ const DEMO_TASK_CATALOG = {
     ],
   },
   'PO Creation': {
+    stage: 'Procurement',
     description: 'A formal purchase order is generated and issued to the selected vendor.',
     subtypes: [
       { id: 'standard-po', name: 'Standard PO', weight: 80, reasoning: 'One-time purchase order issued for this request.' },
@@ -524,6 +529,7 @@ const DEMO_TASK_CATALOG = {
     ],
   },
   'Goods Receipt': {
+    stage: 'Fulfillment & Invoicing',
     description: 'The ordered goods or services are received and logged against the purchase order.',
     subtypes: [
       { id: 'full-delivery', name: 'Full Delivery', weight: 70, reasoning: 'Entire order received in a single shipment.' },
@@ -532,6 +538,7 @@ const DEMO_TASK_CATALOG = {
     ],
   },
   'Invoice Match': {
+    stage: 'Fulfillment & Invoicing',
     description: "The vendor's invoice is matched against the purchase order and goods receipt before payment is authorized.",
     subtypes: [
       { id: '3-way-match', name: '3-Way Match', weight: 75, reasoning: 'Invoice, PO, and goods receipt all matched automatically.' },
@@ -539,6 +546,7 @@ const DEMO_TASK_CATALOG = {
     ],
   },
   'Invoice Mismatch': {
+    stage: 'Fulfillment & Invoicing',
     description: 'A discrepancy between the invoice, purchase order, or goods receipt is flagged for resolution before payment.',
     subtypes: [
       { id: 'price-discrepancy', name: 'Price Discrepancy', weight: 55, reasoning: 'Invoiced unit price differed from the PO price.' },
@@ -546,6 +554,7 @@ const DEMO_TASK_CATALOG = {
     ],
   },
   'Payment': {
+    stage: 'Payment',
     description: 'The vendor is paid according to the agreed terms once the invoice is cleared.',
     subtypes: [
       { id: 'standard-payment-run', name: 'Standard Payment Run', weight: 70, reasoning: 'Paid in the next scheduled payment batch.' },
@@ -554,6 +563,7 @@ const DEMO_TASK_CATALOG = {
     ],
   },
   'Rejected': {
+    stage: 'Exceptions',
     description: 'The request is declined by the approver and the process ends without a purchase being made.',
     subtypes: [
       { id: 'budget-exceeded', name: 'Budget Exceeded', weight: 50, reasoning: 'Rejected because the request exceeded available budget.' },
@@ -562,6 +572,7 @@ const DEMO_TASK_CATALOG = {
     ],
   },
   'Escalated to Finance Review': {
+    stage: 'Exceptions',
     description: "A high-value or non-standard request is routed to finance for additional review beyond the manager's approval authority.",
     subtypes: [
       { id: 'high-value-exception', name: 'High-Value Exception', weight: 60, reasoning: "Request value exceeded the manager's approval limit." },
@@ -569,6 +580,7 @@ const DEMO_TASK_CATALOG = {
     ],
   },
   'Escalated to Legal Review': {
+    stage: 'Exceptions',
     description: 'The request is routed to legal for review of contract or compliance terms before proceeding.',
     subtypes: [
       { id: 'contract-terms-review', name: 'Contract Terms Review', weight: 65, reasoning: 'Vendor contract included non-standard terms requiring legal sign-off.' },
@@ -576,6 +588,7 @@ const DEMO_TASK_CATALOG = {
     ],
   },
   'Flagged as Duplicate Request': {
+    stage: 'Exceptions',
     description: 'The request is identified as a likely duplicate of an existing request and held for confirmation.',
     subtypes: [
       { id: 'system-auto-flag', name: 'System Auto-Flag', weight: 70, reasoning: 'Automatically flagged by duplicate-detection matching against a recent request.' },
@@ -609,6 +622,7 @@ function buildDemoTaskInsights(cases) {
       canonicalReasoning: '',
       subtypes: entry.subtypes.map((s) => ({ id: s.id, name: s.name })),
       appId: null,
+      stage: entry.stage || null,
     });
   });
 
@@ -886,6 +900,7 @@ function extractTaskInsights(raw) {
       canonicalReasoning: t.canonical_reasoning || '',
       subtypes: t.canonical_subtypes || [],
       appId: t.app_id || null,
+      stage: t.stage || t.phase || t.category || null,
     });
   });
 

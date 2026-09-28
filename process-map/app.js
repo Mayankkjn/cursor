@@ -48,6 +48,7 @@ const defs = svg.append('defs');
 const viewport = svg.append('g').attr('class', 'viewport');
 const edgeLayer = viewport.append('g').attr('class', 'edge-layer');
 const nodeLayer = viewport.append('g').attr('class', 'node-layer');
+const bpmnLaneLayer = viewport.append('g').attr('class', 'bpmn-lane-layer');
 const bpmnEdgeLayer = viewport.append('g').attr('class', 'bpmn-edge-layer');
 const bpmnNodeLayer = viewport.append('g').attr('class', 'bpmn-node-layer');
 const tooltip = d3.select('#tooltip');
@@ -75,9 +76,20 @@ const zoomBehavior = d3.zoom()
   .on('zoom', (event) => viewport.attr('transform', event.transform));
 svg.call(zoomBehavior);
 
+function unionBBox(a, b) {
+  if (!a.width) return b;
+  if (!b.width) return a;
+  const x = Math.min(a.x, b.x);
+  const y = Math.min(a.y, b.y);
+  const right = Math.max(a.x + a.width, b.x + b.width);
+  const bottom = Math.max(a.y + a.height, b.y + b.height);
+  return { x, y, width: right - x, height: bottom - y };
+}
+
 function fitToView() {
-  const activeLayer = state.viewMode === 'bpmn' ? bpmnNodeLayer : nodeLayer;
-  const bounds = activeLayer.node().getBBox();
+  const bounds = state.viewMode === 'bpmn'
+    ? unionBBox(bpmnNodeLayer.node().getBBox(), bpmnLaneLayer.node().getBBox())
+    : nodeLayer.node().getBBox();
   if (!bounds.width || !bounds.height) return;
   const svgNode = svg.node();
   const fullWidth = svgNode.clientWidth;
@@ -398,12 +410,19 @@ function layout(renderGraph) {
 // A second, alternate-notation rendering of the exact same process model:
 // start/end events, task boxes, and exclusive gateways inserted wherever a
 // task's surviving (non-hidden-by-threshold) edges actually fan out or
-// merge — no swimlanes, since nothing in the underlying data reliably
-// says which participant/role performs a task.
+// merge. When the dataset's task metadata carries a real "stage" per task
+// (a task-catalog upload's own stage/phase/category field, or the demo
+// catalog's authored stage), tasks are grouped into swimlanes by that
+// stage inside one labeled pool — otherwise it falls back to a single,
+// unlabeled lane rather than inventing a grouping the data doesn't have.
 const BPMN_TASK_W = 168;
 const BPMN_TASK_H = 76;
 const BPMN_EVENT_SIZE = 52;
 const BPMN_GATEWAY_SIZE = 50;
+const BPMN_MIN_LANE_HEIGHT = 140;
+const BPMN_LANE_SLOT_H = 90; // vertical room reserved per stacked node sharing a lane+column
+const BPMN_POOL_LABEL_W = 26;
+const BPMN_LANE_LABEL_W = 26;
 
 // Turns the DFG (model.nodes/edges, with .hidden already set by
 // applyThreshold) into a BPMN-shaped graph: real task/start/end nodes,
@@ -478,7 +497,50 @@ function buildBpmnGraph(model) {
   return { nodes, edges, splitGatewayFor, joinGatewayFor };
 }
 
-function layoutBpmn(bpmnGraph) {
+// Groups the BPMN graph's real tasks into swimlanes by their taskInsights
+// "stage" field, in first-seen order — returns null (no lanes) if nothing
+// in this dataset carries a stage at all, so a plain upload with no such
+// metadata renders exactly as it did before lanes existed. A task that's
+// missing a stage in an otherwise-staged dataset falls into a trailing
+// "Other" lane rather than silently losing its place in the diagram.
+function computeBpmnLanes(bpmnGraph) {
+  const byTaskName = state.taskInsights && state.taskInsights.byTaskName;
+  if (!byTaskName) return null;
+
+  const stageOrder = [];
+  const stageByTaskId = new Map();
+  let anyStage = false;
+  bpmnGraph.nodes.forEach((n) => {
+    if (n.kind !== 'bpmn-task') return;
+    const meta = byTaskName.get(n.id);
+    const stage = meta && meta.stage;
+    if (!stage) return;
+    anyStage = true;
+    if (!stageOrder.includes(stage)) stageOrder.push(stage);
+    stageByTaskId.set(n.id, stage);
+  });
+  if (!anyStage) return null;
+
+  const hasUnstaged = bpmnGraph.nodes.some((n) => n.kind === 'bpmn-task' && !stageByTaskId.has(n.id));
+  if (hasUnstaged) stageOrder.push('Other');
+
+  const laneIndexOf = new Map(stageOrder.map((s, i) => [s, i]));
+  return { stageOrder, stageByTaskId, laneIndexOf };
+}
+
+// A gateway inherits its anchor task's lane (it visually sits right next
+// to that task); Start sits in the first lane, End in the last — matching
+// how a real BPMN pool draws its start/end events inside a lane.
+function laneIndexForNode(n, lanes) {
+  if (!lanes) return null;
+  if (n.kind === 'start') return 0;
+  if (n.kind === 'end') return lanes.stageOrder.length - 1;
+  const taskId = n.kind === 'gateway' ? n.id.replace(/^gw-(split|join)-/, '') : n.id;
+  const stage = lanes.stageByTaskId.get(taskId) || 'Other';
+  return lanes.laneIndexOf.has(stage) ? lanes.laneIndexOf.get(stage) : lanes.stageOrder.length - 1;
+}
+
+function layoutBpmn(bpmnGraph, lanes) {
   const g = new dagre.graphlib.Graph();
   g.setGraph({ rankdir: 'LR', nodesep: 34, ranksep: 64, marginx: 30, marginy: 30 });
   g.setDefaultEdgeLabel(() => ({}));
@@ -501,7 +563,77 @@ function layoutBpmn(bpmnGraph) {
   const edgePos = new Map();
   g.edges().forEach((e) => edgePos.set(`${e.v}||${e.w}`, g.edge(e)));
 
-  return { nodePos, edgePos };
+  let laneMeta = null;
+  if (lanes) {
+    const contentLeft = BPMN_POOL_LABEL_W + BPMN_LANE_LABEL_W + 20;
+    nodePos.forEach((p) => { p.x += contentLeft; });
+
+    // Group nodes by (lane, exact dagre column) so nodes dagre already put
+    // in the same rank — like several deviation branches off one gateway —
+    // stack vertically inside that lane instead of colliding.
+    const groups = new Map(); // "laneIdx||x" -> [nodeId, ...]
+    bpmnGraph.nodes.forEach((n) => {
+      const laneIdx = laneIndexForNode(n, lanes);
+      const p = nodePos.get(n.id);
+      const key = `${laneIdx}||${Math.round(p.x)}`;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(n.id);
+    });
+
+    const maxConcurrentByLane = new Map();
+    groups.forEach((ids, key) => {
+      const laneIdx = Number(key.split('||')[0]);
+      maxConcurrentByLane.set(laneIdx, Math.max(maxConcurrentByLane.get(laneIdx) || 1, ids.length));
+    });
+
+    const laneHeights = lanes.stageOrder.map((_, i) =>
+      Math.max(BPMN_MIN_LANE_HEIGHT, (maxConcurrentByLane.get(i) || 1) * BPMN_LANE_SLOT_H)
+    );
+    const laneTop = [];
+    let cum = 0;
+    laneHeights.forEach((h) => { laneTop.push(cum); cum += h; });
+    const totalHeight = cum;
+
+    groups.forEach((ids, key) => {
+      const laneIdx = Number(key.split('||')[0]);
+      const top = laneTop[laneIdx];
+      const height = laneHeights[laneIdx];
+      ids.sort((a, b) => nodePos.get(a).y - nodePos.get(b).y);
+      const n = ids.length;
+      ids.forEach((id, i) => {
+        nodePos.get(id).y = top + (height * (i + 1)) / (n + 1);
+      });
+    });
+
+    // Dagre's original bend points assumed the old y positions — replace
+    // each edge with a simple elbow between its (possibly re-laned)
+    // endpoints instead of a bend shape that no longer matches.
+    edgePos.forEach((edge, key) => {
+      const [fromId, toId] = key.split('||');
+      const fp = nodePos.get(fromId);
+      const tp = nodePos.get(toId);
+      if (!fp || !tp) return;
+      const midX = (fp.x + tp.x) / 2;
+      edge.points = [
+        { x: fp.x, y: fp.y },
+        { x: midX, y: fp.y },
+        { x: midX, y: tp.y },
+        { x: tp.x, y: tp.y },
+      ];
+    });
+
+    const contentRight = Math.max(...Array.from(nodePos.values()).map((p) => p.x + p.width / 2)) + 30;
+    laneMeta = {
+      stageOrder: lanes.stageOrder,
+      laneTop,
+      laneHeights,
+      totalHeight,
+      contentLeft,
+      contentRight,
+    };
+  }
+
+  return { nodePos, edgePos, laneMeta };
 }
 
 function buildBpmnTaskBox(g, n, p) {
@@ -542,10 +674,56 @@ function buildBpmnGateway(g, n, p) {
     .attr('d', `M${cx - s},${cy - s} L${cx + s},${cy + s} M${cx + s},${cy - s} L${cx - s},${cy + s}`);
 }
 
+// Draws the pool border, its rotated title strip, and one rotated-title
+// strip + divider per lane — the static backdrop the nodes/edges sit on
+// top of. A no-op (and an empty layer) when this dataset has no stages.
+function renderBpmnLanes(laneMeta) {
+  bpmnLaneLayer.selectAll('*').remove();
+  if (!laneMeta) return;
+
+  const { stageOrder, laneTop, laneHeights, totalHeight, contentRight } = laneMeta;
+  const lanesLeft = BPMN_POOL_LABEL_W;
+  const bodyLeft = BPMN_POOL_LABEL_W + BPMN_LANE_LABEL_W;
+
+  bpmnLaneLayer.append('rect').attr('class', 'bpmn-pool-border')
+    .attr('x', 0).attr('y', 0).attr('width', contentRight).attr('height', totalHeight);
+
+  bpmnLaneLayer.append('rect').attr('class', 'bpmn-pool-label-bg')
+    .attr('x', 0).attr('y', 0).attr('width', BPMN_POOL_LABEL_W).attr('height', totalHeight);
+  const titleEl = document.getElementById('page-title');
+  const poolLabel = ((titleEl && titleEl.textContent) || '').replace(/^Process Map\s*[—-]\s*/, '') || 'Process';
+  bpmnLaneLayer.append('text').attr('class', 'bpmn-pool-label')
+    .attr('transform', `translate(${BPMN_POOL_LABEL_W / 2}, ${totalHeight / 2}) rotate(-90)`)
+    .attr('text-anchor', 'middle')
+    .text(poolLabel);
+
+  stageOrder.forEach((stage, i) => {
+    const top = laneTop[i];
+    const height = laneHeights[i];
+    bpmnLaneLayer.append('rect').attr('class', 'bpmn-lane-label-bg')
+      .attr('x', lanesLeft).attr('y', top).attr('width', BPMN_LANE_LABEL_W).attr('height', height);
+    bpmnLaneLayer.append('text').attr('class', 'bpmn-lane-label')
+      .attr('transform', `translate(${lanesLeft + BPMN_LANE_LABEL_W / 2}, ${top + height / 2}) rotate(-90)`)
+      .attr('text-anchor', 'middle')
+      .text(stage);
+    if (i > 0) {
+      bpmnLaneLayer.append('line').attr('class', 'bpmn-lane-divider')
+        .attr('x1', lanesLeft).attr('x2', contentRight).attr('y1', top).attr('y2', top);
+    }
+  });
+
+  bpmnLaneLayer.append('line').attr('class', 'bpmn-lane-divider')
+    .attr('x1', bodyLeft).attr('x2', bodyLeft).attr('y1', 0).attr('y2', totalHeight);
+  bpmnLaneLayer.append('line').attr('class', 'bpmn-lane-divider')
+    .attr('x1', lanesLeft).attr('x2', lanesLeft).attr('y1', 0).attr('y2', totalHeight);
+}
+
 function renderBpmnView() {
   const model = state.model;
   const bpmnGraph = buildBpmnGraph(model);
-  const { nodePos, edgePos } = layoutBpmn(bpmnGraph);
+  const lanes = computeBpmnLanes(bpmnGraph);
+  const { nodePos, edgePos, laneMeta } = layoutBpmn(bpmnGraph, lanes);
+  renderBpmnLanes(laneMeta);
   const lineGen = d3.line().x((d) => d.x).y((d) => d.y).curve(d3.curveBasis);
 
   const edgeSel = bpmnEdgeLayer.selectAll('g.edge').data(bpmnGraph.edges.filter((e) => edgePos.has(`${e.from}||${e.to}`)), (e) => `${e.from}||${e.to}`);
@@ -593,6 +771,7 @@ function syncViewLayers() {
   const isBpmn = state.viewMode === 'bpmn';
   nodeLayer.style('display', isBpmn ? 'none' : 'inline');
   edgeLayer.style('display', isBpmn ? 'none' : 'inline');
+  bpmnLaneLayer.style('display', isBpmn ? 'inline' : 'none');
   bpmnNodeLayer.style('display', isBpmn ? 'inline' : 'none');
   bpmnEdgeLayer.style('display', isBpmn ? 'inline' : 'none');
 }
