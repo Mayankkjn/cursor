@@ -2069,22 +2069,6 @@ const CHECK_ICON_SVG = '<svg width="12" height="12" viewBox="0 0 12 12" fill="no
 // arc whose visible length is set via stroke-dasharray/dashoffset, and a
 // needle rotated to match. Geometry (cx=48, cy=48, r=40) matches the fixed
 // path data in the SVG markup, so this is pure arithmetic, not measurement.
-function updateAutomationGauge(fraction, colorVar) {
-  const r = 40;
-  const arcLength = Math.PI * r;
-  d3.selectAll('.automation-gauge-fill')
-    .style('stroke-dasharray', `${arcLength}`)
-    .style('stroke-dashoffset', `${arcLength * (1 - fraction)}`)
-    .style('stroke', colorVar);
-  const angleRad = (180 - fraction * 180) * (Math.PI / 180);
-  const needleLength = 32;
-  const cx = 48;
-  const cy = 48;
-  d3.selectAll('.automation-gauge-needle')
-    .attr('x2', cx + needleLength * Math.cos(angleRad))
-    .attr('y2', cy - needleLength * Math.sin(angleRad));
-}
-
 function buildStatTile(container, { label, value, sub, muted }) {
   const tile = container.append('div').attr('class', 'task-stat');
   tile.append('span').attr('class', 'task-stat-label').text(label);
@@ -2145,7 +2129,6 @@ function computeAutomationMetrics(node, meta) {
   const score = Math.round(100 * (0.3 * frequency + 0.3 * consistency + 0.2 * reworkFactor + 0.2 * judgmentFactor));
   const tier = score >= 70 ? 'high' : score >= 40 ? 'medium' : 'low';
   const tierLabel = tier === 'high' ? 'Fully Automatable' : tier === 'medium' ? 'Assisted Automation' : 'Fully Manual';
-  const tierColorVar = tier === 'high' ? 'var(--path-main)' : tier === 'medium' ? 'var(--rework)' : 'var(--flag-end-fg)';
 
   const reasonParts = [];
   if (consistency >= 0.8) reasonParts.push('its consistency');
@@ -2154,16 +2137,14 @@ function computeAutomationMetrics(node, meta) {
   const reasonText = reasonParts.length ? reasonParts.join(' and ') : 'a mix of moderate consistency and judgment needs';
   const verdict = tier === 'high' ? 'highly automatable' : tier === 'medium' ? 'a moderate automation candidate' : 'a weaker automation candidate';
 
-  return { consistency, frequency, reworkFactor, subtypeCount, judgment, judgmentFactor, score, tier, tierLabel, tierColorVar, reasonText, verdict };
+  return { consistency, frequency, reworkFactor, subtypeCount, judgment, judgmentFactor, score, tier, tierLabel, reasonText, verdict };
 }
 
 function renderAutomationTab(node, meta, uniqueUsers) {
   const m = computeAutomationMetrics(node, meta);
-  const { score, tier, tierLabel, tierColorVar, reasonText, verdict } = m;
+  const { tier, tierLabel, reasonText, verdict } = m;
 
-  d3.selectAll('.automation-tier-badge').attr('class', `automation-tier-badge ${tier}`).text(tierLabel);
-  d3.selectAll('.automation-score').html(`${score} <span>/100</span>`);
-  updateAutomationGauge(score / 100, tierColorVar);
+  d3.selectAll('.automation-tier-badge').attr('class', `automation-tier-badge automation-tier-badge-lg ${tier}`).text(tierLabel);
 
   d3.selectAll('.automation-opportunity-text').text(
     `This task is ${verdict} due to ${reasonText}, potentially saving ~${formatDuration(node.totalTime)} effort.`
