@@ -40,7 +40,7 @@ const state = {
   expandedOpportunityIds: new Set(), // task ids currently expanded in the Automation Opportunities list
   opportunitySort: 'impact', // 'impact' | 'score' | 'frequency' — how the Automation Opportunities list is ordered
   opportunityShowAll: false, // false = only the top OPPORTUNITY_PAGE_SIZE shown, true = the full ranked list
-  viewMode: 'flow', // 'flow' | 'bpmn' — which canvas layer set is visible
+  viewMode: 'bpmn', // 'flow' | 'bpmn' — which canvas layer set is visible
 };
 
 const svg = d3.select('#graph');
