@@ -19,13 +19,31 @@
       </div>
       <p class="subtitle">Directly-follows graph mined from process history. Thicker path = more frequent. Highlighted path = most common route.</p>
     </div>
-    <button id="import-button" class="import-button" type="button">
-      <svg width="16" height="16" viewBox="0 0 22 22" aria-hidden="true">
-        <path d="M11 3 V14 M6 8 L11 3 L16 8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-        <path d="M4 15 V17.5 A1.5 1.5 0 0 0 5.5 19 H16.5 A1.5 1.5 0 0 0 18 17.5 V15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-      </svg>
-      Import
-    </button>
+    <div class="topbar-actions">
+      <div class="export-menu-wrap" id="export-menu-wrap">
+        <button id="export-button" class="export-button" type="button" aria-haspopup="true" aria-expanded="false">
+          <svg width="16" height="16" viewBox="0 0 22 22" aria-hidden="true">
+            <path d="M11 3 V14 M6 9 L11 14 L16 9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M4 15 V17.5 A1.5 1.5 0 0 0 5.5 19 H16.5 A1.5 1.5 0 0 0 18 17.5 V15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          Export
+          <svg class="export-chevron" width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
+            <path d="M2 3.5 L5 6.5 L8 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+        <div class="export-dropdown hidden" id="export-dropdown">
+          <button class="export-dropdown-item" id="export-png" type="button">Export as PNG</button>
+          <button class="export-dropdown-item" id="export-pdf" type="button">Export as PDF</button>
+        </div>
+      </div>
+      <button id="import-button" class="import-button" type="button">
+        <svg width="16" height="16" viewBox="0 0 22 22" aria-hidden="true">
+          <path d="M11 3 V14 M6 8 L11 3 L16 8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+          <path d="M4 15 V17.5 A1.5 1.5 0 0 0 5.5 19 H16.5 A1.5 1.5 0 0 0 18 17.5 V15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        Import
+      </button>
+    </div>
   </header>
 
   <div class="kpi-band" id="kpi-band">
@@ -759,6 +777,7 @@
 
   <script src="vendor/d3.min.js"></script>
   <script src="vendor/dagre.min.js"></script>
+  <script src="vendor/jspdf.umd.min.js"></script>
   <script src="data.js"></script>
   <script src="graph.js"></script>
   <script src="app.js"></script>

@@ -2648,6 +2648,156 @@ d3.selectAll('.panel-header').on('click', function () {
   d3.select(this).attr('aria-expanded', collapsed ? 'false' : 'true');
 });
 
+// ---- export (PNG / PDF) ----
+// Exports exactly what the active view (Flow or BPMN) is showing — full
+// diagram content at a fit-to-content crop, not whatever the current
+// pan/zoom happens to be scrolled to — as a standalone rasterized image.
+function getActiveContentBBox() {
+  if (state.viewMode === 'bpmn') {
+    return unionBBox(bpmnNodeLayer.node().getBBox(), bpmnLaneLayer.node().getBBox());
+  }
+  return nodeLayer.node().getBBox();
+}
+
+function getAllCssText() {
+  let css = '';
+  for (const sheet of document.styleSheets) {
+    try {
+      for (const rule of sheet.cssRules) css += `${rule.cssText}\n`;
+    } catch (err) {
+      // cross-origin stylesheet — none expected in this app, skip defensively
+    }
+  }
+  return css;
+}
+
+function exportFileBaseName() {
+  const title = (document.getElementById('page-title')?.textContent || 'process-map').trim();
+  const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'process-map';
+  return `${slug}-${state.viewMode === 'bpmn' ? 'bpmn' : 'flow'}`;
+}
+
+// Builds a standalone SVG document string: the live #graph SVG, cropped to
+// the active view's real content bounds (ignoring current pan/zoom), with
+// every applicable CSS rule inlined (an <img> rasterizing this SVG later
+// can't reach the page's own stylesheet) and an opaque background so the
+// export isn't transparent.
+function buildExportSvgString() {
+  const bounds = getActiveContentBBox();
+  if (!bounds.width || !bounds.height) return null;
+
+  const svgEl = document.getElementById('graph');
+  const clone = svgEl.cloneNode(true);
+  const viewportEl = clone.querySelector('.viewport');
+  if (viewportEl) viewportEl.removeAttribute('transform');
+
+  const pad = 24;
+  const x = bounds.x - pad;
+  const y = bounds.y - pad;
+  const width = bounds.width + pad * 2;
+  const height = bounds.height + pad * 2;
+  clone.setAttribute('viewBox', `${x} ${y} ${width} ${height}`);
+  clone.setAttribute('width', width);
+  clone.setAttribute('height', height);
+
+  const bgColor = getComputedStyle(document.body).getPropertyValue('--bg').trim() || '#f2f2f8';
+  const bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  bgRect.setAttribute('x', x);
+  bgRect.setAttribute('y', y);
+  bgRect.setAttribute('width', width);
+  bgRect.setAttribute('height', height);
+  bgRect.setAttribute('fill', bgColor);
+  clone.insertBefore(bgRect, clone.firstChild);
+
+  const styleEl = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+  styleEl.textContent = getAllCssText();
+  clone.insertBefore(styleEl, clone.firstChild);
+
+  return { xml: new XMLSerializer().serializeToString(clone), width, height };
+}
+
+function renderExportCanvas(scale = 2) {
+  const built = buildExportSvgString();
+  if (!built) return Promise.reject(new Error('Nothing to export yet.'));
+  return new Promise((resolve, reject) => {
+    const blob = new Blob([built.xml], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(built.width * scale);
+      canvas.height = Math.round(built.height * scale);
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      resolve(canvas);
+    };
+    img.onerror = (err) => { URL.revokeObjectURL(url); reject(err); };
+    img.src = url;
+  });
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function exportAsPng() {
+  renderExportCanvas().then((canvas) => {
+    canvas.toBlob((blob) => {
+      if (blob) downloadBlob(blob, `${exportFileBaseName()}.png`);
+    }, 'image/png');
+  }).catch(() => {});
+}
+
+function exportAsPdf() {
+  renderExportCanvas().then((canvas) => {
+    const jsPDFCtor = window.jspdf && window.jspdf.jsPDF;
+    if (!jsPDFCtor) return;
+    // JPEG embeds as a direct byte-copy (DCTDecode) in the PDF, whereas
+    // jsPDF's PNG path re-encodes the raw pixels into a much larger
+    // stream — since the export always has an opaque background (no
+    // transparency to lose), JPEG keeps the file a reasonable size.
+    const imgData = canvas.toDataURL('image/jpeg', 0.95);
+    const isLandscape = canvas.width >= canvas.height;
+    const pageW = isLandscape ? 792 : 612;
+    const pageH = isLandscape ? 612 : 792;
+    const doc = new jsPDFCtor({ orientation: isLandscape ? 'landscape' : 'portrait', unit: 'pt', format: [pageW, pageH] });
+    const margin = 24;
+    const scale = Math.min((pageW - margin * 2) / canvas.width, (pageH - margin * 2) / canvas.height);
+    const drawW = canvas.width * scale;
+    const drawH = canvas.height * scale;
+    doc.addImage(imgData, 'JPEG', (pageW - drawW) / 2, (pageH - drawH) / 2, drawW, drawH);
+    doc.save(`${exportFileBaseName()}.pdf`);
+  }).catch(() => {});
+}
+
+function closeExportDropdown() {
+  d3.select('#export-button').classed('active', false).attr('aria-expanded', 'false');
+  d3.select('#export-dropdown').classed('hidden', true);
+}
+d3.select('#export-button').on('click', function (event) {
+  event.stopPropagation();
+  const isOpen = !d3.select('#export-dropdown').classed('hidden');
+  if (isOpen) closeExportDropdown();
+  else {
+    d3.select(this).classed('active', true).attr('aria-expanded', 'true');
+    d3.select('#export-dropdown').classed('hidden', false);
+  }
+});
+d3.select('#export-png').on('click', () => { closeExportDropdown(); exportAsPng(); });
+d3.select('#export-pdf').on('click', () => { closeExportDropdown(); exportAsPdf(); });
+d3.select(document).on('click.exportMenu', (event) => {
+  const wrap = document.getElementById('export-menu-wrap');
+  if (wrap && !wrap.contains(event.target)) closeExportDropdown();
+});
+
 // ---- import modal ----
 function openImportModal() { d3.select('#import-modal').classed('hidden', false); }
 function closeImportModal() { d3.select('#import-modal').classed('hidden', true); }
@@ -2668,6 +2818,7 @@ d3.select(document).on('keydown.sessionReplay', (event) => {
   else if (!d3.select('#task-detail-panel').classed('hidden')) closeTaskDetail();
   else if (!d3.select('#filter-panel').classed('hidden')) closeFilterPanel();
   else if (!d3.select('#automation-opps-panel').classed('hidden')) closeAutomationOpportunities();
+  else if (!d3.select('#export-dropdown').classed('hidden')) closeExportDropdown();
 });
 
 // ---- task "..." menu ----
