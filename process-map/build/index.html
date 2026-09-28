@@ -8904,11 +8904,7 @@ function render(fit = false) {
     return true;
   };
 
-  // Right-angle elbow joints (not a smoothed curve) so a line's route is
-  // exactly the polyline dagre itself computed to dodge other nodes — a
-  // smoothing curve can cut corners across that polyline and slice through
-  // an unrelated node it was actually routed around.
-  const lineGen = d3.line().x((d) => d.x).y((d) => d.y).curve(d3.curveStepBefore);
+  const lineGen = d3.line().x((d) => d.x).y((d) => d.y).curve(d3.curveBasis);
 
   // ---- edges ----
   const visibleEdges = renderGraph.edges.filter((e) => edgePos.has(edgeKey(e)));
