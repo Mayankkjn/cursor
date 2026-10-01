@@ -7213,6 +7213,30 @@ function pickWeighted(options) {
   return options[options.length - 1];
 }
 
+// A worked example of a task with its own nested subprocess, for the demo
+// dataset — "Budget Check" is really carried out as this short sequence
+// under the hood, same shape a hierarchical capture export's "subprocesses"
+// map uses, so the canvas can show its "3 sub steps" badge and drill into
+// it without needing a real upload first.
+const DEMO_SUBPROCESS_ID = 'demo-sub-budget-check';
+const DEMO_SUBPROCESSES = {
+  [DEMO_SUBPROCESS_ID]: {
+    nodes: [
+      { id: 'dsb-start', name: 'Start', kind: 'startEvent' },
+      { id: 'dsb-check', name: 'Check Budget Line', kind: 'userTask' },
+      { id: 'dsb-validate', name: 'Validate Threshold', kind: 'userTask' },
+      { id: 'dsb-record', name: 'Record Decision', kind: 'userTask' },
+      { id: 'dsb-end', name: 'End', kind: 'endEvent' },
+    ],
+    edges: [
+      { from: 'dsb-start', to: 'dsb-check' },
+      { from: 'dsb-check', to: 'dsb-validate' },
+      { from: 'dsb-validate', to: 'dsb-record' },
+      { from: 'dsb-record', to: 'dsb-end' },
+    ],
+  },
+};
+
 // Builds the same { byTaskName, instancesByTaskName } shape
 // extractTaskInsights() produces for a real task-catalog upload, populated
 // from DEMO_TASK_CATALOG — so the sample dataset's Task Detail panel shows
@@ -7229,8 +7253,17 @@ function buildDemoTaskInsights(cases) {
       subtypes: entry.subtypes.map((s) => ({ id: s.id, name: s.name })),
       appId: null,
       stage: entry.stage || null,
+      subprocessId: null,
+      subStepCount: 0,
     });
   });
+
+  const budgetCheckEntry = byTaskName.get('Budget Check');
+  if (budgetCheckEntry) {
+    budgetCheckEntry.subprocessId = DEMO_SUBPROCESS_ID;
+    budgetCheckEntry.subStepCount = DEMO_SUBPROCESSES[DEMO_SUBPROCESS_ID].nodes
+      .filter((n) => n.kind !== 'startEvent' && n.kind !== 'endEvent').length;
+  }
 
   const instancesByTaskName = new Map();
   let seq = 0;
@@ -7255,7 +7288,7 @@ function buildDemoTaskInsights(cases) {
     });
   });
 
-  return { byTaskName, instancesByTaskName };
+  return { byTaskName, instancesByTaskName, subprocesses: DEMO_SUBPROCESSES };
 }
 
 function median(numbers) {
