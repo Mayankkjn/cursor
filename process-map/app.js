@@ -940,6 +940,98 @@ function layoutBpmn(bpmnGraph, lanes) {
     };
   }
 
+  // Every real node blocks a full-height vertical strip at its own X (its
+  // width plus a little clearance) — a long-distance edge (e.g. a rare
+  // exception branch jumping straight from an early gateway to a late
+  // node several ranks away) would otherwise bend through whichever
+  // unrelated node's rank its naive midpoint happened to land on, visibly
+  // clipping its corner. Merging those strips and taking the gaps between
+  // them gives every edge's vertical run somewhere genuinely clear to
+  // land, however many ranks it needs to jump.
+  const BPMN_BEND_CLEARANCE = 14;
+  const occupiedBands = Array.from(nodePos.values())
+    .map((p) => [p.x - p.width / 2 - BPMN_BEND_CLEARANCE, p.x + p.width / 2 + BPMN_BEND_CLEARANCE])
+    .sort((a, b) => a[0] - b[0]);
+  const mergedBands = [];
+  occupiedBands.forEach(([a, b]) => {
+    const last = mergedBands[mergedBands.length - 1];
+    if (last && a <= last[1]) last[1] = Math.max(last[1], b);
+    else mergedBands.push([a, b]);
+  });
+  const freeGaps = [];
+  for (let i = 0; i < mergedBands.length - 1; i++) {
+    freeGaps.push([mergedBands[i][1], mergedBands[i + 1][0]]);
+  }
+  // Finds whichever free gap between xa and xb sits closest to the
+  // preferred fractional position (t) along that span — null when they're
+  // close enough (adjacent ranks) that the plain ranksep gap between them
+  // is itself already clear, which the caller falls back to.
+  function freeGapBetween(xa, xb, t) {
+    const lo = Math.min(xa, xb);
+    const hi = Math.max(xa, xb);
+    const candidates = freeGaps.filter(([a, b]) => b > lo + 1 && a < hi - 1 && b - a > 4);
+    if (!candidates.length) return null;
+    const preferredX = xa + (xb - xa) * t;
+    let best = candidates[0];
+    let bestDist = Infinity;
+    candidates.forEach((g) => {
+      const dist = Math.abs((g[0] + g[1]) / 2 - preferredX);
+      if (dist < bestDist) { bestDist = dist; best = g; }
+    });
+    return best;
+  }
+
+  // The free gap whose center sits closest to x, for a flyover's own
+  // vertical hop near one endpoint — unlike freeGapBetween this isn't
+  // bounded between two X's, since a flyover's hop just needs *some*
+  // clear column near its own end, not one on the way to the other end.
+  function nearestFreeGapX(x) {
+    if (!freeGaps.length) return null;
+    let best = freeGaps[0];
+    let bestDist = Infinity;
+    freeGaps.forEach((g) => {
+      const dist = Math.abs((g[0] + g[1]) / 2 - x);
+      if (dist < bestDist) { bestDist = dist; best = g; }
+    });
+    return best;
+  }
+
+  // Whether an axis-aligned segment (horizontal if y1===y2, vertical
+  // otherwise) passes through any node other than the edge's own two
+  // endpoints — the free-gap bend above clears the vertical run itself,
+  // but a laned diagram can still have a same-row sibling sitting between
+  // a far-off bend and the edge's own source/target, which the vertical
+  // fix alone can't see.
+  function segmentHitsNode(x1, y1, x2, y2, excludeIds) {
+    for (const [id, p] of nodePos) {
+      if (excludeIds.has(id)) continue;
+      const bx0 = p.x - p.width / 2 - 2;
+      const bx1 = p.x + p.width / 2 + 2;
+      const by0 = p.y - p.height / 2 - 2;
+      const by1 = p.y + p.height / 2 + 2;
+      if (y1 === y2) {
+        if (y1 > by0 && y1 < by1 && Math.max(x1, x2) > bx0 && Math.min(x1, x2) < bx1) return true;
+      } else if (x1 === x2) {
+        if (x1 > bx0 && x1 < bx1 && Math.max(y1, y2) > by0 && Math.min(y1, y2) < by1) return true;
+      }
+    }
+    return false;
+  }
+
+  // The nearest lane boundary (including the pool's own top/bottom edge)
+  // to a given Y — every one of these sits in the gap between two lanes'
+  // real content, so it's always clear to route a horizontal flyover
+  // segment through, whichever lanes the edge's source and target are in.
+  function nearestLaneDividerY(y) {
+    if (!laneMeta) return null;
+    const dividers = laneMeta.laneTop.slice();
+    dividers.push(laneMeta.laneTop[laneMeta.laneTop.length - 1] + laneMeta.laneHeights[laneMeta.laneHeights.length - 1]);
+    let best = dividers[0];
+    let bestDist = Infinity;
+    dividers.forEach((d) => { const dist = Math.abs(d - y); if (dist < bestDist) { bestDist = dist; best = d; } });
+    return best;
+  }
+
   // Every edge gets a strict right-angle elbow between its own endpoints —
   // dagre's re-laning above can move nodes off its original bend points
   // anyway, and a hand-built elbow is what actually renders as one (see
@@ -947,7 +1039,12 @@ function layoutBpmn(bpmnGraph, lanes) {
   // bend at the exact same X would otherwise draw one on top of the
   // other for however much of their vertical run overlaps, so siblings
   // sharing a source spread their bend across a range instead of a
-  // single shared midpoint.
+  // single shared midpoint — now spread across whichever clear gap was
+  // chosen, so the spread itself can't reintroduce a node crossing. A
+  // long-distance edge whose source and target sit in different lanes can
+  // still have its horizontal run graze a same-row sibling in between —
+  // when that happens it's rerouted through the nearest lane boundary
+  // instead, a guaranteed-clear corridor between two lanes' real content.
   const siblingsByFrom = new Map();
   edgePos.forEach((edge, key) => {
     const from = key.split('||')[0];
@@ -962,13 +1059,42 @@ function layoutBpmn(bpmnGraph, lanes) {
     const siblings = siblingsByFrom.get(fromId);
     const laneIndex = siblings.indexOf(key);
     const t = siblings.length > 1 ? (laneIndex + 1) / (siblings.length + 1) : 0.5;
-    const bendX = fp.x + (tp.x - fp.x) * t;
-    edge.points = [
+    const gap = freeGapBetween(fp.x, tp.x, t);
+    const bendX = gap ? gap[0] + (gap[1] - gap[0]) * t : fp.x + (tp.x - fp.x) * t;
+
+    const excludeIds = new Set([fromId, toId]);
+    const simplePoints = [
       { x: fp.x, y: fp.y },
       { x: bendX, y: fp.y },
       { x: bendX, y: tp.y },
       { x: tp.x, y: tp.y },
     ];
+    const simpleCollides = segmentHitsNode(fp.x, fp.y, bendX, fp.y, excludeIds)
+      || segmentHitsNode(bendX, fp.y, bendX, tp.y, excludeIds)
+      || segmentHitsNode(bendX, tp.y, tp.x, tp.y, excludeIds);
+
+    if (simpleCollides && laneMeta) {
+      // A flyover's own vertical hops (near each endpoint) use whichever
+      // clear column sits nearest that endpoint, rather than the
+      // endpoint's exact X — another node can easily share that exact
+      // rank in a different lane, which straight-at-the-endpoint would
+      // otherwise run right through.
+      const flyY = nearestLaneDividerY((fp.y + tp.y) / 2);
+      const fromGap = nearestFreeGapX(fp.x);
+      const toGap = nearestFreeGapX(tp.x);
+      const fromX = fromGap ? (fromGap[0] + fromGap[1]) / 2 : fp.x;
+      const toX = toGap ? (toGap[0] + toGap[1]) / 2 : tp.x;
+      edge.points = [
+        { x: fp.x, y: fp.y },
+        { x: fromX, y: fp.y },
+        { x: fromX, y: flyY },
+        { x: toX, y: flyY },
+        { x: toX, y: tp.y },
+        { x: tp.x, y: tp.y },
+      ];
+    } else {
+      edge.points = simplePoints;
+    }
   });
 
   return { nodePos, edgePos, laneMeta };
@@ -2641,6 +2767,16 @@ function syncTaskDetailLayout() {
   toolbar.style.marginRight = `${panel.getBoundingClientRect().width}px`;
 }
 window.addEventListener('resize', syncTaskDetailLayout);
+
+// Re-fits the canvas to whatever space it now has (debounced so a live
+// window-resize drag doesn't thrash it on every intermediate frame) —
+// without this the zoom/pan transform stays exactly as it was, so the
+// diagram can end up off-center or clipped after the window changes size.
+let resizeFitTimer = null;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeFitTimer);
+  resizeFitTimer = setTimeout(() => fitToView(), 150);
+});
 
 (function setupTaskDetailResize() {
   const handle = document.getElementById('task-detail-resize-handle');
