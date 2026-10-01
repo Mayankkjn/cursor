@@ -468,6 +468,36 @@ const BPMN_MIN_LANE_HEIGHT = 140;
 const BPMN_LANE_STACK_GAP = 14; // vertical breathing room between stacked siblings sharing a lane+column
 const BPMN_POOL_LABEL_W = 26;
 const BPMN_LANE_LABEL_W = 26;
+const BPMN_EDGE_CORNER_RADIUS = 10;
+
+// Draws an elbow polyline with each interior corner rounded into a short
+// arc instead of a sharp right angle — a straight line into the corner,
+// then a quadratic curve (using the corner itself as control point) out
+// the other side. The radius shrinks on a short segment so two nearby
+// bends can never eat into each other's straight run.
+function bpmnRoundedElbowPathD(points, radius = BPMN_EDGE_CORNER_RADIUS) {
+  if (!points || points.length < 2) return '';
+  if (points.length === 2) return `M${points[0].x},${points[0].y} L${points[1].x},${points[1].y}`;
+
+  let d = `M${points[0].x},${points[0].y}`;
+  for (let i = 1; i < points.length - 1; i++) {
+    const prev = points[i - 1];
+    const curr = points[i];
+    const next = points[i + 1];
+    const distPrev = Math.hypot(prev.x - curr.x, prev.y - curr.y);
+    const distNext = Math.hypot(next.x - curr.x, next.y - curr.y);
+    if (!distPrev || !distNext) { d += ` L${curr.x},${curr.y}`; continue; }
+    const r = Math.min(radius, distPrev / 2, distNext / 2);
+    const p1x = curr.x + ((prev.x - curr.x) / distPrev) * r;
+    const p1y = curr.y + ((prev.y - curr.y) / distPrev) * r;
+    const p2x = curr.x + ((next.x - curr.x) / distNext) * r;
+    const p2y = curr.y + ((next.y - curr.y) / distNext) * r;
+    d += ` L${p1x},${p1y} Q${curr.x},${curr.y} ${p2x},${p2y}`;
+  }
+  const last = points[points.length - 1];
+  d += ` L${last.x},${last.y}`;
+  return d;
+}
 
 // Turns the DFG (model.nodes/edges, with .hidden already set by
 // applyThreshold) into a BPMN-shaped graph: real task/start/end nodes,
@@ -864,10 +894,6 @@ function renderBpmnView() {
   const lanes = computeBpmnLanes(bpmnGraph);
   const { nodePos, edgePos, laneMeta } = layoutBpmn(bpmnGraph, lanes);
   renderBpmnLanes(laneMeta);
-  // curveLinear draws exactly the elbow points layoutBpmn computed, as
-  // strict right-angle segments — a smoothing curve would round those
-  // corners back into a diagonal-looking bend.
-  const lineGen = d3.line().x((d) => d.x).y((d) => d.y).curve(d3.curveLinear);
 
   // A send/receive task's whole job is firing or catching a message, so
   // any sequence flow touching one is drawn as a message flow (dashed) —
@@ -911,7 +937,7 @@ function renderBpmnView() {
     .on('mousemove', moveTooltip)
     .on('mouseleave', hideTooltip);
   mergedEdges.select('path.bpmn-edge-path')
-    .attr('d', (e) => lineGen(edgePos.get(`${e.from}||${e.to}`).points))
+    .attr('d', (e) => bpmnRoundedElbowPathD(edgePos.get(`${e.from}||${e.to}`).points))
     .attr('marker-end', (e) => (e.kind === 'happy' ? 'url(#arrow-happy)' : 'url(#arrow-bpmn)'));
 
   const nodeSel = bpmnNodeLayer.selectAll('g.node').data(bpmnGraph.nodes, (n) => n.id);
