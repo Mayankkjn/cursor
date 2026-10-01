@@ -1316,7 +1316,7 @@ function bpmnTaskTooltipHtml(n, model) {
   if (meta && meta.nodeKind && BPMN_KIND_LABEL[meta.nodeKind]) {
     badges.push(`<span class="bpmn-tt-chip bpmn-tt-chip-kind">${BPMN_KIND_LABEL[meta.nodeKind]}</span>`);
   }
-  badges.push(`<span class="bpmn-tt-chip bpmn-tt-chip-path">${onHappyPath ? 'Happy path' : 'Deviation path'}</span>`);
+  badges.push(`<span class="bpmn-tt-chip ${onHappyPath ? 'bpmn-tt-chip-path' : 'bpmn-tt-chip-deviation'}">${onHappyPath ? 'Happy path' : 'Deviation path'}</span>`);
 
   const descLine = `<div class="bpmn-tt-desc">${meta && meta.description ? meta.description : n.label}</div>`;
 
