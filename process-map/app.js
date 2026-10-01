@@ -797,30 +797,8 @@ function layoutBpmn(bpmnGraph, lanes) {
   return { nodePos, edgePos, laneMeta };
 }
 
-// BPMN task icon by real activity kind — userTask/manualTask draws a hand
-// (the default when no kind data exists at all, since most uploads don't
-// carry one); serviceTask/scriptTask/businessRuleTask draws a grid (rule/
-// system-driven work); sendTask/receiveTask draws an envelope (its whole
-// job is firing or catching a message). Never guessed — only drawn when
-// the upload's own BPMN node kind says so.
-function drawBpmnTaskIcon(g, x, y, kind) {
-  if (kind === 'serviceTask' || kind === 'scriptTask' || kind === 'businessRuleTask') {
-    g.append('rect').attr('class', 'bpmn-task-icon-shape').attr('x', x).attr('y', y).attr('width', 12).attr('height', 10).attr('rx', 1.5);
-    g.append('line').attr('class', 'bpmn-task-icon-line').attr('x1', x).attr('y1', y + 5).attr('x2', x + 12).attr('y2', y + 5);
-    g.append('line').attr('class', 'bpmn-task-icon-line').attr('x1', x + 6).attr('y1', y).attr('x2', x + 6).attr('y2', y + 10);
-  } else if (kind === 'sendTask' || kind === 'receiveTask') {
-    g.append('path').attr('class', 'bpmn-task-icon-shape')
-      .attr('d', `M${x},${y} H${x + 12} V${y + 9} H${x} Z M${x},${y} L${x + 6},${y + 5} L${x + 12},${y}`);
-  } else {
-    g.append('path').attr('class', 'bpmn-task-icon')
-      .attr('d', `M${x},${y + 10} V${y + 3} A3,3 0 0 1 ${x + 3},${y} H${x + 8}`);
-  }
-}
-
 function buildBpmnTaskBox(g, n, p) {
   g.append('rect').attr('class', 'bpmn-task-box').attr('width', p.width).attr('height', p.height).attr('rx', 8);
-  const meta = state.taskInsights && state.taskInsights.byTaskName.get(n.id);
-  drawBpmnTaskIcon(g, 12, 12, meta && meta.nodeKind);
   const lines = n.wrappedLines || wrapBpmnLabel(n.label, p.width - 24);
   const startY = p.height / 2 - ((lines.length - 1) * 14) / 2 + 4;
   lines.forEach((l, i) => {
