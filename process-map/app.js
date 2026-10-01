@@ -883,23 +883,6 @@ function renderBpmnView() {
     return !!(meta && (meta.nodeKind === 'sendTask' || meta.nodeKind === 'receiveTask'));
   };
 
-  // Every BPMN node's own display label, for the edge hover card below —
-  // a gateway has no real name of its own, so it reads as "Exclusive
-  // gateway" rather than the bare "X" drawn on the diamond.
-  const bpmnNodeLabelById = new Map(bpmnGraph.nodes.map((n) => [
-    n.id,
-    n.kind === 'gateway' ? 'Exclusive gateway' : n.label,
-  ]));
-  function bpmnEdgeTooltipHtml(e) {
-    const fromLabel = bpmnNodeLabelById.get(e.from) || e.from;
-    const toLabel = bpmnNodeLabelById.get(e.to) || e.to;
-    const kindNote = e.kind === 'happy' ? 'Part of the most common path' : null;
-    return `
-      <strong>${fromLabel} → ${toLabel}</strong>
-      ${kindNote ? `<div>${kindNote}</div>` : ''}
-    `;
-  }
-
   const edgeSel = bpmnEdgeLayer.selectAll('g.edge').data(bpmnGraph.edges.filter((e) => edgePos.has(`${e.from}||${e.to}`)), (e) => `${e.from}||${e.to}`);
   edgeSel.exit().remove();
   const edgeEnter = edgeSel.enter().append('g').attr('class', 'edge');
@@ -910,10 +893,7 @@ function renderBpmnView() {
     if (e.kind === 'happy') classes.push('bpmn-happy');
     if (isMessageTaskId(e.from) || isMessageTaskId(e.to)) classes.push('bpmn-message');
     return classes.join(' ');
-  })
-    .on('mouseenter', (event, e) => showTooltip(event, bpmnEdgeTooltipHtml(e)))
-    .on('mousemove', moveTooltip)
-    .on('mouseleave', hideTooltip);
+  });
   mergedEdges.select('path.bpmn-edge-path')
     .attr('d', (e) => bpmnRoundedElbowPathD(edgePos.get(`${e.from}||${e.to}`).points))
     .attr('marker-end', (e) => (e.kind === 'happy' ? 'url(#arrow-happy)' : 'url(#arrow-bpmn)'));
