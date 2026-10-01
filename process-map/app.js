@@ -44,6 +44,7 @@ const state = {
   viewMode: 'bpmn', // 'flow' | 'bpmn' — which canvas layer set is visible
   drilldown: [], // BPMN view only: stack of { id, label } entries — each a subprocess the user has clicked into; [] = showing the top-level process
   staticDiagram: null, // null | { rootId, lanes } — set when a raw .bpmn/.xml file was imported (a structural diagram with no case log behind it), read by renderBpmnView() in place of state.model
+  playbackSpeed: 1, // instance-animation "Play" button speed multiplier (0.5/1/2/4) — higher divides every ball's travel/stagger duration
 };
 
 const DEFAULT_SUBTITLE = d3.select('.subtitle').text();
@@ -1228,6 +1229,7 @@ function stopInstanceAnimation() {
   ballLayer.selectAll('circle.instance-ball').interrupt().remove();
   d3.select('#play-animation-btn').classed('playing', false);
   d3.select('.play-animation-label').text('Play');
+  d3.select('#play-speed-control').classed('hidden', true);
 }
 
 // Walks one ball through every hop of a case's path in sequence, moving
@@ -1236,11 +1238,11 @@ function stopInstanceAnimation() {
 // for a hop with no currently-rendered edge (hidden by the Path Filter
 // threshold), just placing it directly at the hop's end since there's
 // nothing on screen to travel along.
-function animateBallAlong(seq, edgePathByKey, run) {
+function animateBallAlong(seq, edgePathByKey, run, travelMs) {
   const ball = ballLayer.append('circle').attr('class', 'instance-ball').attr('r', 4.5);
   const hops = [];
   for (let i = 0; i < seq.length - 1; i++) hops.push(...bpmnHopSegments(seq[i], seq[i + 1]));
-  const perHop = PLAY_ANIMATION_TRAVEL_MS / Math.max(1, hops.length);
+  const perHop = travelMs / Math.max(1, hops.length);
 
   function runHop(idx) {
     if (!run.cancelled && idx < hops.length) {
@@ -1282,6 +1284,11 @@ function playInstanceAnimation() {
   instanceAnimation = run;
   d3.select('#play-animation-btn').classed('playing', true);
   d3.select('.play-animation-label').text('Stop');
+  d3.select('#play-speed-control').classed('hidden', false);
+
+  const speed = state.playbackSpeed || 1;
+  const staggerMs = PLAY_ANIMATION_STAGGER_MS / speed;
+  const travelMs = PLAY_ANIMATION_TRAVEL_MS / speed;
 
   const edgePathByKey = new Map();
   bpmnEdgeLayer.selectAll('g.edge').each(function (e) {
@@ -1294,16 +1301,16 @@ function playInstanceAnimation() {
   const sampled = cases.filter((_, i) => i % sampleStep === 0).slice(0, PLAY_ANIMATION_MAX_BALLS);
 
   sampled.forEach((c, i) => {
-    const delay = (i / Math.max(1, sampled.length)) * PLAY_ANIMATION_STAGGER_MS;
+    const delay = (i / Math.max(1, sampled.length)) * staggerMs;
     const seq = [START, ...c.steps.map((s) => s.task), END];
     setTimeout(() => {
-      if (!run.cancelled) animateBallAlong(seq, edgePathByKey, run);
+      if (!run.cancelled) animateBallAlong(seq, edgePathByKey, run, travelMs);
     }, delay);
   });
 
   setTimeout(() => {
     if (instanceAnimation === run) stopInstanceAnimation();
-  }, PLAY_ANIMATION_STAGGER_MS + PLAY_ANIMATION_TRAVEL_MS + 400);
+  }, staggerMs + travelMs + 400);
 }
 
 function renderBpmnView() {
@@ -3447,6 +3454,15 @@ d3.select('#play-animation-btn').on('click', function () {
   if (d3.select(this).classed('disabled')) return;
   if (instanceAnimation) stopInstanceAnimation();
   else playInstanceAnimation();
+});
+
+// Changing speed mid-playback restarts the animation so the new rate
+// takes effect immediately, rather than only applying to balls spawned
+// after the change.
+d3.selectAll('.play-speed-btn').on('click', function () {
+  state.playbackSpeed = Number(this.dataset.speed);
+  d3.selectAll('.play-speed-btn').classed('active', (d, i, nodes) => nodes[i] === this);
+  if (instanceAnimation) playInstanceAnimation();
 });
 
 // ---- collapsible sidebar panels ----

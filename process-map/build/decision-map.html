@@ -1448,12 +1448,18 @@ body.structural-diagram #play-animation-btn {
 
 /* ---- instance-animation "Play" button: top-right of the canvas, BPMN
    view only — animates a ball per case along its actual sequence of
-   edges, swapping to a stop icon while playing. ---- */
-.play-animation-btn {
+   edges, swapping to a stop icon while playing. A speed control appears
+   to its left once playback starts. ---- */
+.play-animation-wrap {
   position: absolute;
   right: 16px;
   top: 16px;
   z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.play-animation-btn {
   display: flex;
   align-items: center;
   gap: 7px;
@@ -1476,6 +1482,30 @@ body.structural-diagram #play-animation-btn {
 .play-animation-btn.playing .play-animation-icon-stop { display: block; }
 .play-animation-btn.playing .play-animation-icon { color: var(--accent-ui); }
 .play-animation-btn.playing { color: var(--text-primary); border-color: var(--accent-ui); }
+
+.play-speed-control {
+  display: flex;
+  gap: 2px;
+  background: var(--bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 100px;
+  padding: 4px;
+  box-shadow: var(--shadow-sm);
+}
+.play-speed-control.hidden { display: none; }
+.play-speed-btn {
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  padding: 6px 10px;
+  border-radius: 100px;
+  cursor: pointer;
+}
+.play-speed-btn:hover { color: var(--text-primary); }
+.play-speed-btn.active { background: var(--accent-ui-soft); color: var(--accent-ui); }
 
 .ball-layer { pointer-events: none; }
 .instance-ball {

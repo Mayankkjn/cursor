@@ -186,13 +186,21 @@
       <div id="bpmn-breadcrumb-trail" class="bpmn-breadcrumb-trail"></div>
     </div>
 
-    <button type="button" id="play-animation-btn" class="play-animation-btn" title="Animate instances flowing through the process">
-      <svg class="play-animation-icon" width="13" height="13" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-        <path class="play-animation-icon-play" d="M4 2.5 L13.5 8 L4 13.5 Z" />
-        <g class="play-animation-icon-stop"><rect x="4" y="4" width="3.2" height="8" rx="1" /><rect x="8.8" y="4" width="3.2" height="8" rx="1" /></g>
-      </svg>
-      <span class="play-animation-label">Play</span>
-    </button>
+    <div id="play-animation-wrap" class="play-animation-wrap">
+      <div id="play-speed-control" class="play-speed-control hidden" role="group" aria-label="Playback speed">
+        <button type="button" class="play-speed-btn" data-speed="0.5">0.5x</button>
+        <button type="button" class="play-speed-btn active" data-speed="1">1x</button>
+        <button type="button" class="play-speed-btn" data-speed="2">2x</button>
+        <button type="button" class="play-speed-btn" data-speed="4">4x</button>
+      </div>
+      <button type="button" id="play-animation-btn" class="play-animation-btn" title="Animate instances flowing through the process">
+        <svg class="play-animation-icon" width="13" height="13" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+          <path class="play-animation-icon-play" d="M4 2.5 L13.5 8 L4 13.5 Z" />
+          <g class="play-animation-icon-stop"><rect x="4" y="4" width="3.2" height="8" rx="1" /><rect x="8.8" y="4" width="3.2" height="8" rx="1" /></g>
+        </svg>
+        <span class="play-animation-label">Play</span>
+      </button>
+    </div>
 
     <div id="ai-summary-panel" class="ai-summary-panel hidden">
       <div class="ai-summary-panel-header">
