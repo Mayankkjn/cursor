@@ -141,6 +141,45 @@ function computeForwardReachable(startId, edges) {
   return { nodeIds, edgeKeys };
 }
 
+// BPMN view's node hover: just the immediate step before and after, not
+// the whole forward chain — but a synthetic gateway sitting right next to
+// the hovered node isn't a real step, so a hop that lands on one keeps
+// walking through it until it reaches (and includes) the next real task
+// or event in that direction.
+function computeAdjacentThroughGateways(startId, edges, isGateway) {
+  const outByFrom = new Map();
+  const inByTo = new Map();
+  edges.forEach((e) => {
+    if (!outByFrom.has(e.from)) outByFrom.set(e.from, []);
+    outByFrom.get(e.from).push(e);
+    if (!inByTo.has(e.to)) inByTo.set(e.to, []);
+    inByTo.get(e.to).push(e);
+  });
+
+  const nodeIds = new Set([startId]);
+  const edgeKeys = new Set();
+
+  const walk = (byAdjacency, nextOf) => {
+    const queue = [startId];
+    const visited = new Set([startId]);
+    while (queue.length) {
+      const cur = queue.shift();
+      (byAdjacency.get(cur) || []).forEach((e) => {
+        const nextId = nextOf(e);
+        edgeKeys.add(`${e.from}||${e.to}`);
+        nodeIds.add(nextId);
+        if (!visited.has(nextId)) {
+          visited.add(nextId);
+          if (isGateway(nextId)) queue.push(nextId);
+        }
+      });
+    }
+  };
+  walk(outByFrom, (e) => e.to);
+  walk(inByTo, (e) => e.from);
+  return { nodeIds, edgeKeys };
+}
+
 // Applied as a temporary overlay on top of whatever click-driven
 // active/dimmed state a view already has — cleared on mouseleave without
 // needing a full re-render, so hovering stays responsive.
@@ -872,6 +911,7 @@ function renderBpmnView() {
   const lanes = computeBpmnLanes(bpmnGraph);
   const { nodePos, edgePos, laneMeta } = layoutBpmn(bpmnGraph, lanes);
   renderBpmnLanes(laneMeta);
+  const bpmnNodeById = new Map(bpmnGraph.nodes.map((n) => [n.id, n]));
 
   // A send/receive task's whole job is firing or catching a message, so
   // any sequence flow touching one is drawn as a message flow (dashed) —
@@ -910,7 +950,8 @@ function renderBpmnView() {
     .attr('class', (n) => `node ${n.kind}${n.id === state.selectedTaskId ? ' selected' : ''}`)
     .on('mouseenter', (event, n) => {
       if (n.kind === 'bpmn-task') showTooltip(event, bpmnTaskTooltipHtml(n.source, model), true);
-      applyHoverHighlight(bpmnNodeLayer.selectAll('g.node'), bpmnEdgeLayer.selectAll('g.edge'), computeForwardReachable(n.id, bpmnGraph.edges));
+      const isGateway = (id) => { const gn = bpmnNodeById.get(id); return !!gn && gn.kind === 'gateway'; };
+      applyHoverHighlight(bpmnNodeLayer.selectAll('g.node'), bpmnEdgeLayer.selectAll('g.edge'), computeAdjacentThroughGateways(n.id, bpmnGraph.edges, isGateway));
     })
     .on('mousemove', moveTooltip)
     .on('mouseleave', () => {
