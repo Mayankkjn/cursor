@@ -748,3 +748,140 @@ function extractGraphTaskInsights(raw) {
   // read its flattened description/stage above.
   return { byTaskName, instancesByTaskName, subprocesses };
 }
+
+// Normalizes a raw BPMN 2.0 XML tag's local name (works whatever namespace
+// prefix the exporting tool used — bpmn:task, bpmn2:task, or no prefix at
+// all) down to the small kind vocabulary the rest of this app already
+// understands from a hierarchical capture export: startEvent/endEvent/
+// exclusiveGateway/subProcess, or the tag itself for a plain activity
+// (userTask, serviceTask, ... — anything buildBpmnGraphFromSubprocess
+// doesn't special-case falls through to a generic task box).
+function bpmnTagToKind(tag) {
+  if (tag === 'startEvent') return 'startEvent';
+  if (tag === 'endEvent') return 'endEvent';
+  if (tag === 'intermediateThrowEvent' || tag === 'intermediateCatchEvent' || tag === 'boundaryEvent') return 'startEvent';
+  if (tag === 'exclusiveGateway' || tag === 'parallelGateway' || tag === 'inclusiveGateway' || tag === 'eventBasedGateway' || tag === 'complexGateway') return 'exclusiveGateway';
+  if (tag === 'subProcess' || tag === 'adHocSubProcess' || tag === 'transaction') return 'subProcess';
+  return tag;
+}
+
+// Real activity/gateway/event tags a BPMN process can directly contain —
+// used to pick flowElements apart from a process/subProcess's other
+// children (laneSet, extensionElements, ioSpecification, ...).
+const BPMN_FLOW_NODE_TAGS = new Set([
+  'startEvent', 'endEvent', 'intermediateThrowEvent', 'intermediateCatchEvent', 'boundaryEvent',
+  'exclusiveGateway', 'parallelGateway', 'inclusiveGateway', 'eventBasedGateway', 'complexGateway',
+  'task', 'userTask', 'serviceTask', 'scriptTask', 'sendTask', 'receiveTask', 'manualTask', 'businessRuleTask',
+  'callActivity', 'subProcess', 'adHocSubProcess', 'transaction',
+]);
+
+// Reads one <process> or <subProcess> element's direct children into this
+// app's { nodes, edges } shape — the same shape a hierarchical capture
+// export's "subprocesses" map already carries per entry — and recurses
+// into any child <subProcess> (storing it under its own id in `out`, the
+// shared id -> {nodes,edges} map every nesting level writes into), so an
+// embedded subprocess drills down exactly like one from that other format.
+function readBpmnContainer(el, out) {
+  const nodes = [];
+  const edges = [];
+  Array.from(el.children).forEach((child) => {
+    const tag = child.localName;
+    if (tag === 'sequenceFlow') {
+      edges.push({
+        from: child.getAttribute('sourceRef'),
+        to: child.getAttribute('targetRef'),
+        label: child.getAttribute('name') || '',
+      });
+      return;
+    }
+    if (!BPMN_FLOW_NODE_TAGS.has(tag)) return;
+    const id = child.getAttribute('id');
+    const name = child.getAttribute('name') || null;
+    nodes.push({ id, name, kind: bpmnTagToKind(tag) });
+    if (tag === 'subProcess' || tag === 'adHocSubProcess' || tag === 'transaction') {
+      out[id] = readBpmnContainer(child, out);
+    }
+  });
+  return { nodes, edges };
+}
+
+// Parses a <laneSet> directly under a <process> into the same
+// { stageOrder, stageByTaskId } shape layoutBpmn()/renderBpmnLanes()
+// already expect from computeBpmnLanes() — built straight from the
+// diagram's own real lanes instead of inferred from task metadata, since a
+// BPMN file carries its swimlanes explicitly. Returns null when the
+// process has no laneSet (renders as a single unlabeled lane, same
+// fallback as a dataset with no stage data).
+function readBpmnLanes(processEl) {
+  const laneSetEl = Array.from(processEl.children).find((c) => c.localName === 'laneSet');
+  if (!laneSetEl) return null;
+  const laneEls = Array.from(laneSetEl.children).filter((c) => c.localName === 'lane');
+  if (!laneEls.length) return null;
+
+  const stageOrder = [];
+  const stageByTaskId = new Map();
+  laneEls.forEach((laneEl, i) => {
+    const stageName = laneEl.getAttribute('name') || `Lane ${i + 1}`;
+    stageOrder.push(stageName);
+    Array.from(laneEl.children)
+      .filter((c) => c.localName === 'flowNodeRef')
+      .forEach((ref) => stageByTaskId.set(ref.textContent.trim(), stageName));
+  });
+  const laneIndexOf = new Map(stageOrder.map((s, i) => [s, i]));
+  return { stageOrder, stageByTaskId, laneIndexOf };
+}
+
+// Parses a raw BPMN 2.0 XML file (a static diagram export, not a case
+// log) into everything the canvas needs to show it: a root { nodes, edges }
+// entry plus one more per embedded <subProcess> (all in the same
+// id -> {nodes,edges} shape a hierarchical capture export's "subprocesses"
+// uses), the top-level swimlanes if the file has any, a pool/process label
+// for the header, and a byTaskName carrying each subprocess-bearing task's
+// subStepCount — the same fields extractGraphTaskInsights() computes, so
+// app.js's existing drill-down code (attachSubprocessMeta, etc.) works on
+// either source without caring which one it's looking at.
+function parseBpmnXml(xmlText) {
+  const doc = new DOMParser().parseFromString(xmlText, 'application/xml');
+  if (doc.getElementsByTagName('parsererror').length) {
+    throw new Error('This file is not well-formed XML.');
+  }
+  const allEls = Array.from(doc.getElementsByTagName('*'));
+  const processEl = allEls.find((el) => el.localName === 'process');
+  if (!processEl) {
+    throw new Error('No <process> element found — this doesn\'t look like a BPMN 2.0 file.');
+  }
+
+  const rootId = processEl.getAttribute('id') || 'bpmn-root';
+  const subprocesses = {};
+  subprocesses[rootId] = readBpmnContainer(processEl, subprocesses);
+  const lanes = readBpmnLanes(processEl);
+
+  // A pool name (from a <collaboration><participant>) is a friendlier
+  // label than the process's own id/name when the file has one.
+  const participantEl = allEls.find((el) => el.localName === 'participant' && el.getAttribute('processRef') === processEl.getAttribute('id'));
+  const poolLabel = (participantEl && participantEl.getAttribute('name'))
+    || processEl.getAttribute('name')
+    || 'Imported Diagram';
+
+  const byTaskName = new Map();
+  const ensure = (name) => {
+    if (!byTaskName.has(name)) {
+      byTaskName.set(name, {
+        description: '', canonicalReasoning: '', subtypes: [], appId: null, stage: null, nodeKind: null, autonomy: null,
+        subprocessId: null, subStepCount: 0,
+      });
+    }
+    return byTaskName.get(name);
+  };
+  const isRealSubstep = (n) => !!n.name && n.kind !== 'startEvent' && n.kind !== 'endEvent' && n.kind !== 'exclusiveGateway';
+  Object.keys(subprocesses).forEach((key) => {
+    subprocesses[key].nodes.forEach((node) => {
+      if (!subprocesses[node.id] || !node.name) return;
+      const entry = ensure(node.name);
+      entry.subprocessId = node.id;
+      entry.subStepCount = subprocesses[node.id].nodes.filter(isRealSubstep).length;
+    });
+  });
+
+  return { rootId, subprocesses, lanes, poolLabel, byTaskName };
+}

@@ -1432,6 +1432,18 @@ button:hover { filter: brightness(1.08); }
 .bpmn-breadcrumb-crumb.current:hover { text-decoration: none; }
 .bpmn-breadcrumb-sep { color: var(--text-tertiary); margin: 0 6px; }
 
+/* ---- structural BPMN import (a raw .bpmn/.xml diagram, no case log
+   behind it — hide every bit of UI that reads instance-level stats) ---- */
+body.structural-diagram .stats,
+body.structural-diagram #insights-btn,
+body.structural-diagram #automation-opps-btn,
+body.structural-diagram #ai-summary-btn,
+body.structural-diagram #filter-btn,
+body.structural-diagram #view-toggle-flow,
+body.structural-diagram #floating-path-filter {
+  display: none;
+}
+
 /* ---- flow / BPMN view toggle ---- */
 .view-toggle {
   position: absolute;
@@ -2014,7 +2026,7 @@ button:hover { filter: brightness(1.08); }
         </button>
       </div>
       <p class="hint">
-        Upload a JSON event log to visualize your own process.
+        Upload a JSON event log to mine your own process, or a BPMN 2.0 (.bpmn/.xml) file to visualize a diagram as-is.
         <button id="download-sample" class="link-button" type="button">Download sample format</button>
         <span aria-hidden="true"> · </span>
         <button id="toggle-sample" class="link-button" type="button">View JSON</button>
@@ -2027,12 +2039,12 @@ button:hover { filter: brightness(1.08); }
         <pre id="sample-json-code"></pre>
       </div>
       <label class="upload-dropzone" for="upload-input" id="upload-dropzone">
-        <input type="file" id="upload-input" accept=".json,application/json" hidden />
+        <input type="file" id="upload-input" accept=".json,.bpmn,.xml,application/json,application/xml,text/xml" hidden />
         <svg class="upload-icon" width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
           <path d="M11 3 V14 M6 8 L11 3 L16 8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
           <path d="M4 15 V17.5 A1.5 1.5 0 0 0 5.5 19 H16.5 A1.5 1.5 0 0 0 18 17.5 V15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
         </svg>
-        <span>Click to upload, or drag a .json file here</span>
+        <span>Click to upload, or drag a .json or .bpmn file here</span>
       </label>
       <div id="upload-status" class="upload-status"></div>
     </div>
@@ -7677,6 +7689,143 @@ function extractGraphTaskInsights(raw) {
   return { byTaskName, instancesByTaskName, subprocesses };
 }
 
+// Normalizes a raw BPMN 2.0 XML tag's local name (works whatever namespace
+// prefix the exporting tool used — bpmn:task, bpmn2:task, or no prefix at
+// all) down to the small kind vocabulary the rest of this app already
+// understands from a hierarchical capture export: startEvent/endEvent/
+// exclusiveGateway/subProcess, or the tag itself for a plain activity
+// (userTask, serviceTask, ... — anything buildBpmnGraphFromSubprocess
+// doesn't special-case falls through to a generic task box).
+function bpmnTagToKind(tag) {
+  if (tag === 'startEvent') return 'startEvent';
+  if (tag === 'endEvent') return 'endEvent';
+  if (tag === 'intermediateThrowEvent' || tag === 'intermediateCatchEvent' || tag === 'boundaryEvent') return 'startEvent';
+  if (tag === 'exclusiveGateway' || tag === 'parallelGateway' || tag === 'inclusiveGateway' || tag === 'eventBasedGateway' || tag === 'complexGateway') return 'exclusiveGateway';
+  if (tag === 'subProcess' || tag === 'adHocSubProcess' || tag === 'transaction') return 'subProcess';
+  return tag;
+}
+
+// Real activity/gateway/event tags a BPMN process can directly contain —
+// used to pick flowElements apart from a process/subProcess's other
+// children (laneSet, extensionElements, ioSpecification, ...).
+const BPMN_FLOW_NODE_TAGS = new Set([
+  'startEvent', 'endEvent', 'intermediateThrowEvent', 'intermediateCatchEvent', 'boundaryEvent',
+  'exclusiveGateway', 'parallelGateway', 'inclusiveGateway', 'eventBasedGateway', 'complexGateway',
+  'task', 'userTask', 'serviceTask', 'scriptTask', 'sendTask', 'receiveTask', 'manualTask', 'businessRuleTask',
+  'callActivity', 'subProcess', 'adHocSubProcess', 'transaction',
+]);
+
+// Reads one <process> or <subProcess> element's direct children into this
+// app's { nodes, edges } shape — the same shape a hierarchical capture
+// export's "subprocesses" map already carries per entry — and recurses
+// into any child <subProcess> (storing it under its own id in `out`, the
+// shared id -> {nodes,edges} map every nesting level writes into), so an
+// embedded subprocess drills down exactly like one from that other format.
+function readBpmnContainer(el, out) {
+  const nodes = [];
+  const edges = [];
+  Array.from(el.children).forEach((child) => {
+    const tag = child.localName;
+    if (tag === 'sequenceFlow') {
+      edges.push({
+        from: child.getAttribute('sourceRef'),
+        to: child.getAttribute('targetRef'),
+        label: child.getAttribute('name') || '',
+      });
+      return;
+    }
+    if (!BPMN_FLOW_NODE_TAGS.has(tag)) return;
+    const id = child.getAttribute('id');
+    const name = child.getAttribute('name') || null;
+    nodes.push({ id, name, kind: bpmnTagToKind(tag) });
+    if (tag === 'subProcess' || tag === 'adHocSubProcess' || tag === 'transaction') {
+      out[id] = readBpmnContainer(child, out);
+    }
+  });
+  return { nodes, edges };
+}
+
+// Parses a <laneSet> directly under a <process> into the same
+// { stageOrder, stageByTaskId } shape layoutBpmn()/renderBpmnLanes()
+// already expect from computeBpmnLanes() — built straight from the
+// diagram's own real lanes instead of inferred from task metadata, since a
+// BPMN file carries its swimlanes explicitly. Returns null when the
+// process has no laneSet (renders as a single unlabeled lane, same
+// fallback as a dataset with no stage data).
+function readBpmnLanes(processEl) {
+  const laneSetEl = Array.from(processEl.children).find((c) => c.localName === 'laneSet');
+  if (!laneSetEl) return null;
+  const laneEls = Array.from(laneSetEl.children).filter((c) => c.localName === 'lane');
+  if (!laneEls.length) return null;
+
+  const stageOrder = [];
+  const stageByTaskId = new Map();
+  laneEls.forEach((laneEl, i) => {
+    const stageName = laneEl.getAttribute('name') || `Lane ${i + 1}`;
+    stageOrder.push(stageName);
+    Array.from(laneEl.children)
+      .filter((c) => c.localName === 'flowNodeRef')
+      .forEach((ref) => stageByTaskId.set(ref.textContent.trim(), stageName));
+  });
+  const laneIndexOf = new Map(stageOrder.map((s, i) => [s, i]));
+  return { stageOrder, stageByTaskId, laneIndexOf };
+}
+
+// Parses a raw BPMN 2.0 XML file (a static diagram export, not a case
+// log) into everything the canvas needs to show it: a root { nodes, edges }
+// entry plus one more per embedded <subProcess> (all in the same
+// id -> {nodes,edges} shape a hierarchical capture export's "subprocesses"
+// uses), the top-level swimlanes if the file has any, a pool/process label
+// for the header, and a byTaskName carrying each subprocess-bearing task's
+// subStepCount — the same fields extractGraphTaskInsights() computes, so
+// app.js's existing drill-down code (attachSubprocessMeta, etc.) works on
+// either source without caring which one it's looking at.
+function parseBpmnXml(xmlText) {
+  const doc = new DOMParser().parseFromString(xmlText, 'application/xml');
+  if (doc.getElementsByTagName('parsererror').length) {
+    throw new Error('This file is not well-formed XML.');
+  }
+  const allEls = Array.from(doc.getElementsByTagName('*'));
+  const processEl = allEls.find((el) => el.localName === 'process');
+  if (!processEl) {
+    throw new Error('No <process> element found — this doesn\'t look like a BPMN 2.0 file.');
+  }
+
+  const rootId = processEl.getAttribute('id') || 'bpmn-root';
+  const subprocesses = {};
+  subprocesses[rootId] = readBpmnContainer(processEl, subprocesses);
+  const lanes = readBpmnLanes(processEl);
+
+  // A pool name (from a <collaboration><participant>) is a friendlier
+  // label than the process's own id/name when the file has one.
+  const participantEl = allEls.find((el) => el.localName === 'participant' && el.getAttribute('processRef') === processEl.getAttribute('id'));
+  const poolLabel = (participantEl && participantEl.getAttribute('name'))
+    || processEl.getAttribute('name')
+    || 'Imported Diagram';
+
+  const byTaskName = new Map();
+  const ensure = (name) => {
+    if (!byTaskName.has(name)) {
+      byTaskName.set(name, {
+        description: '', canonicalReasoning: '', subtypes: [], appId: null, stage: null, nodeKind: null, autonomy: null,
+        subprocessId: null, subStepCount: 0,
+      });
+    }
+    return byTaskName.get(name);
+  };
+  const isRealSubstep = (n) => !!n.name && n.kind !== 'startEvent' && n.kind !== 'endEvent' && n.kind !== 'exclusiveGateway';
+  Object.keys(subprocesses).forEach((key) => {
+    subprocesses[key].nodes.forEach((node) => {
+      if (!subprocesses[node.id] || !node.name) return;
+      const entry = ensure(node.name);
+      entry.subprocessId = node.id;
+      entry.subStepCount = subprocesses[node.id].nodes.filter(isRealSubstep).length;
+    });
+  });
+
+  return { rootId, subprocesses, lanes, poolLabel, byTaskName };
+}
+
 </script>
   <script>
 // Turns a raw event log (array of cases) into a directly-follows graph plus
@@ -7881,7 +8030,7 @@ function buildProcessModel(cases) {
 
 </script>
   <script>
-/* global d3, dagre, generateEventLog, buildProcessModel, normalizeCaseLog, extractTaskInsights, extractGraphTaskInsights, median, SAMPLE_JSON_TEMPLATE, START, END */
+/* global d3, dagre, generateEventLog, buildProcessModel, normalizeCaseLog, extractTaskInsights, extractGraphTaskInsights, parseBpmnXml, median, SAMPLE_JSON_TEMPLATE, START, END */
 
 const TASK_W = 220;
 const TASK_H = 62;
@@ -7926,7 +8075,10 @@ const state = {
   opportunityShowAll: false, // false = only the top OPPORTUNITY_PAGE_SIZE shown, true = the full ranked list
   viewMode: 'bpmn', // 'flow' | 'bpmn' — which canvas layer set is visible
   drilldown: [], // BPMN view only: stack of { id, label } entries — each a subprocess the user has clicked into; [] = showing the top-level process
+  staticDiagram: null, // null | { rootId, lanes } — set when a raw .bpmn/.xml file was imported (a structural diagram with no case log behind it), read by renderBpmnView() in place of state.model
 };
+
+const DEFAULT_SUBTITLE = d3.select('.subtitle').text();
 
 const svg = d3.select('#graph');
 const defs = svg.append('defs');
@@ -8931,12 +9083,20 @@ function renderBpmnLanes(laneMeta) {
 function renderBpmnView() {
   renderBpmnBreadcrumb();
   const inDrilldown = state.drilldown.length > 0;
+  // A raw .bpmn/.xml import (see parseBpmnXml) has no mined model at all —
+  // its own top-level flow is itself just another "subprocess" entry (see
+  // loadStaticBpmnDiagram), reusing the exact same rendering/drill-down
+  // code as a nested subProcess inside a hierarchical capture export.
+  const isStatic = !inDrilldown && !!state.staticDiagram;
   const model = state.model;
   const bpmnGraph = inDrilldown
     ? buildBpmnGraphFromSubprocess(state.drilldown[state.drilldown.length - 1].id)
-    : buildBpmnGraph(model);
+    : isStatic
+      ? buildBpmnGraphFromSubprocess(state.staticDiagram.rootId)
+      : buildBpmnGraph(model);
   bpmnGraph.nodes.forEach((n) => { if (n.kind === 'bpmn-task') attachSubprocessMeta(n); });
-  const lanes = inDrilldown ? null : computeBpmnLanes(bpmnGraph);
+  const useStructuralTooltip = inDrilldown || isStatic;
+  const lanes = inDrilldown ? null : isStatic ? state.staticDiagram.lanes : computeBpmnLanes(bpmnGraph);
   const { nodePos, edgePos, laneMeta } = layoutBpmn(bpmnGraph, lanes);
   renderBpmnLanes(laneMeta);
   const bpmnNodeById = new Map(bpmnGraph.nodes.map((n) => [n.id, n]));
@@ -8977,7 +9137,7 @@ function renderBpmnView() {
     })
     .attr('class', (n) => `node ${n.kind}${n.id === state.selectedTaskId ? ' selected' : ''}${n.subStepCount ? ' has-substeps' : ''}`)
     .on('mouseenter', (event, n) => {
-      if (n.kind === 'bpmn-task') showTooltip(event, inDrilldown ? drilldownTaskTooltipHtml(n) : bpmnTaskTooltipHtml(n.source, model), true);
+      if (n.kind === 'bpmn-task') showTooltip(event, useStructuralTooltip ? drilldownTaskTooltipHtml(n) : bpmnTaskTooltipHtml(n.source, model), true);
       const isGateway = (id) => { const gn = bpmnNodeById.get(id); return !!gn && gn.kind === 'gateway'; };
       applyHoverHighlight(bpmnNodeLayer.selectAll('g.node'), bpmnEdgeLayer.selectAll('g.edge'), computeAdjacentThroughGateways(n.id, bpmnGraph.edges, isGateway));
     })
@@ -9000,7 +9160,7 @@ function renderBpmnView() {
     event.stopPropagation();
     if (n.subprocessId && n.subStepCount) {
       enterSubprocess(n.subprocessId, n.label);
-    } else if (!inDrilldown) {
+    } else if (!inDrilldown && !isStatic) {
       openTaskDetail(n.id);
     }
   });
@@ -9119,6 +9279,15 @@ function buildDiamond(g, n, p) {
 }
 
 function render(fit = false) {
+  // A raw .bpmn/.xml import has no case log and no mined model behind it —
+  // skip the whole DFG/Path-view pipeline (and the panels that read its
+  // stats) and just draw the diagram's own structure.
+  if (state.staticDiagram) {
+    renderBpmnView();
+    syncViewLayers();
+    if (fit) fitToView();
+    return;
+  }
   const model = state.model;
   // In "single instance per variant" mode every path is already its own
   // distinct case, so nothing should be hidden by the popularity threshold
@@ -10854,13 +11023,72 @@ function setUploadStatus(message, kind) {
     .text(message);
 }
 
+// Clears whatever a previous .bpmn/.xml import left behind (the
+// structural-diagram UI mode) so a case-log dataset loaded afterwards goes
+// back to the normal mined-process-map chrome — Path view toggle, stats,
+// Insights/Automation/AI Summary/Filter all visible again.
+function resetStructuralDiagramUI() {
+  state.staticDiagram = null;
+  document.body.classList.remove('structural-diagram');
+  d3.select('.subtitle').text(DEFAULT_SUBTITLE);
+}
+
+// A raw BPMN 2.0 export (.bpmn/.xml) has no case log behind it — it's a
+// static diagram, not something to mine. It's loaded straight into BPMN
+// view's own rendering/drill-down code (see renderBpmnView()'s isStatic
+// branch) rather than forced through the case-log pipeline, and the UI
+// chrome that depends on instance data (stats, Path view, Insights,
+// Automation, AI Summary, Filter) is hidden rather than shown empty.
+function loadStaticBpmnDiagram(parsed, fileName) {
+  state.taskInsights = { byTaskName: parsed.byTaskName, instancesByTaskName: new Map(), subprocesses: parsed.subprocesses };
+  state.staticDiagram = { rootId: parsed.rootId, lanes: parsed.lanes };
+  state.drilldown = [];
+  state.selectedTaskId = null;
+  state.highlight = null;
+  state.comparison = null;
+
+  state.viewMode = 'bpmn';
+  d3.selectAll('.view-toggle-btn').classed('active', function () { return this.dataset.view === 'bpmn'; })
+    .attr('aria-selected', function () { return String(this.dataset.view === 'bpmn'); });
+
+  document.body.classList.add('structural-diagram');
+  const pageTitle = `Process Map — ${parsed.poolLabel}`;
+  document.getElementById('page-title').textContent = pageTitle;
+  document.title = pageTitle;
+  d3.select('.subtitle').text('Structural BPMN diagram, imported as-is — no process-mining stats, since there\'s no case log behind it.');
+
+  closeTaskMenu();
+  closeSessionReplay();
+  closeTaskDetail();
+  closeFilterPanel();
+  closeAutomationOpportunities();
+  closeInsights();
+  closeAISummary();
+
+  render(true);
+}
+
 function handleUploadFile(file) {
-  if (!/\.json$/i.test(file.name) && file.type && file.type !== 'application/json') {
-    setUploadStatus(`"${file.name}" doesn't look like a .json file — export your log as JSON and try again.`, 'error');
+  const isBpmnFile = /\.(bpmn|xml)$/i.test(file.name);
+  const isJsonFile = /\.json$/i.test(file.name) || file.type === 'application/json';
+  if (!isBpmnFile && !isJsonFile) {
+    setUploadStatus(`"${file.name}" doesn't look like a .json or .bpmn file — export your log or diagram and try again.`, 'error');
     return;
   }
   const reader = new FileReader();
   reader.onload = () => {
+    if (isBpmnFile) {
+      try {
+        if (typeof parseBpmnXml !== 'function') throw new Error('BPMN import isn\'t available.');
+        const parsed = parseBpmnXml(reader.result);
+        loadStaticBpmnDiagram(parsed, file.name);
+        setUploadStatus(`Loaded diagram "${parsed.poolLabel}" from "${file.name}".`, 'success');
+        setTimeout(closeImportModal, 700);
+      } catch (err) {
+        setUploadStatus(`Couldn't read "${file.name}": ${err.message}`, 'error');
+      }
+      return;
+    }
     let raw;
     try {
       raw = JSON.parse(reader.result);
@@ -10870,6 +11098,7 @@ function handleUploadFile(file) {
     }
     try {
       const cases = normalizeCaseLog(raw);
+      resetStructuralDiagramUI();
       state.allCases = cases;
       state.baseModel = buildProcessModel(cases);
       resetFilters();

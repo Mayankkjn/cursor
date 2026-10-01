@@ -1425,6 +1425,18 @@ button:hover { filter: brightness(1.08); }
 .bpmn-breadcrumb-crumb.current:hover { text-decoration: none; }
 .bpmn-breadcrumb-sep { color: var(--text-tertiary); margin: 0 6px; }
 
+/* ---- structural BPMN import (a raw .bpmn/.xml diagram, no case log
+   behind it — hide every bit of UI that reads instance-level stats) ---- */
+body.structural-diagram .stats,
+body.structural-diagram #insights-btn,
+body.structural-diagram #automation-opps-btn,
+body.structural-diagram #ai-summary-btn,
+body.structural-diagram #filter-btn,
+body.structural-diagram #view-toggle-flow,
+body.structural-diagram #floating-path-filter {
+  display: none;
+}
+
 /* ---- flow / BPMN view toggle ---- */
 .view-toggle {
   position: absolute;
