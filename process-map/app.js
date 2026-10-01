@@ -985,6 +985,12 @@ function buildBpmnTaskBox(g, n, p) {
   });
   if (n.subtitleText) {
     g.append('text').attr('class', 'bpmn-task-substeps').attr('x', p.width / 2).attr('y', startY + nameSpan + 16).text(n.subtitleText);
+    // A small corner bracket in the bottom-right, echoing the "drill in"
+    // affordance — this box expands into its own view on click.
+    const cx = p.width - 10;
+    const cy = p.height - 10;
+    g.append('path').attr('class', 'bpmn-task-substep-arrow')
+      .attr('d', `M${cx},${cy - 8} L${cx},${cy} L${cx - 8},${cy}`);
   }
 }
 
