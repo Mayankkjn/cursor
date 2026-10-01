@@ -42,6 +42,7 @@ const state = {
   opportunitySort: 'impact', // 'impact' | 'score' | 'frequency' — how the Automation Opportunities list is ordered
   opportunityShowAll: false, // false = only the top OPPORTUNITY_PAGE_SIZE shown, true = the full ranked list
   viewMode: 'bpmn', // 'flow' | 'bpmn' — which canvas layer set is visible
+  drilldown: [], // BPMN view only: stack of { id, label } entries — each a subprocess the user has clicked into; [] = showing the top-level process
 };
 
 const svg = d3.select('#graph');
@@ -538,6 +539,119 @@ function bpmnRoundedElbowPathD(points, radius = BPMN_EDGE_CORNER_RADIUS) {
   return d;
 }
 
+// ---- subprocess drill-down: a task whose own nested subprocess (from a
+// hierarchical capture export, see data.js extractGraphTaskInsights) has
+// real steps of its own gets an "N sub steps" badge and, on click, swaps
+// the canvas to that subprocess's own flow instead of opening the task
+// detail panel. state.drilldown is the stack of levels the user has
+// clicked into; [] means the top-level process is showing. ----
+
+function getSubprocess(subId) {
+  const tree = state.taskInsights && state.taskInsights.subprocesses;
+  return (tree && tree[subId]) || null;
+}
+
+// Every bpmn-task node — top-level or nested — carries the same subStepCount
+// already computed once in data.js, keyed by task NAME (not node id, which
+// differs per occurrence); looking it up by name is what lets a node deep
+// inside a drill-down reuse the exact same flag the top-level graph uses.
+function attachSubprocessMeta(n) {
+  const meta = state.taskInsights && state.taskInsights.byTaskName.get(n.label);
+  if (!meta || !meta.subprocessId || !meta.subStepCount) return;
+  n.subprocessId = meta.subprocessId;
+  n.subStepCount = meta.subStepCount;
+  n.subtitleText = `${meta.subStepCount} sub step${meta.subStepCount === 1 ? '' : 's'}`;
+}
+
+function enterSubprocess(subId, label) {
+  state.drilldown.push({ id: subId, label });
+  render(true);
+}
+
+// index -1 clears all the way back to the top-level process; otherwise
+// truncates to keep levels [0..index] (clicking a breadcrumb crumb jumps
+// straight to that level instead of stepping back one at a time).
+function exitDrilldownTo(index) {
+  state.drilldown = index < 0 ? [] : state.drilldown.slice(0, index + 1);
+  render(true);
+}
+
+// Maps a raw subprocess's own { nodes, edges } (startEvent/endEvent/
+// exclusiveGateway/parallelGateway/task kinds, straight off a hierarchical
+// capture export) into the same bpmn-graph shape buildBpmnGraph() produces
+// from the mined model, so renderBpmnView()'s drawing code can't tell the
+// difference. A nested subProcess node becomes its own bpmn-task card, so
+// drilling in is recursive to whatever depth the capture actually has.
+function buildBpmnGraphFromSubprocess(subId) {
+  const sub = getSubprocess(subId) || { nodes: [], edges: [] };
+  const nodes = (sub.nodes || []).map((n) => {
+    const kind = n.kind === 'startEvent' ? 'start'
+      : n.kind === 'endEvent' ? 'end'
+      : (n.kind === 'exclusiveGateway' || n.kind === 'parallelGateway') ? 'gateway'
+      : 'bpmn-task';
+    return { id: n.id, kind, label: n.name || n.id, source: n };
+  });
+
+  const rawEdges = (sub.edges || []).map((e) => ({ from: e.from || e.source, to: e.to || e.target, label: e.label || '' }));
+  // Marks each fork's heaviest-observed branch "happy" from its label's
+  // embedded "(n=N)" count — the same count cleanBranchLabel already
+  // strips off for display elsewhere. A fork with no counts, or a single
+  // exit, just treats its one/first edge as the happy one so the flow
+  // still reads as a clear line through the subprocess.
+  const byFrom = new Map();
+  rawEdges.forEach((e) => { if (!byFrom.has(e.from)) byFrom.set(e.from, []); byFrom.get(e.from).push(e); });
+  const countOf = (label) => { const m = /\(n\s*=\s*(\d+)\)/i.exec(label || ''); return m ? Number(m[1]) : 0; };
+  const happySet = new Set();
+  byFrom.forEach((list) => {
+    let best = list[0];
+    list.forEach((e) => { if (countOf(e.label) > countOf(best.label)) best = e; });
+    happySet.add(best);
+  });
+
+  const edges = rawEdges.map((e) => ({ from: e.from, to: e.to, kind: happySet.has(e) ? 'happy' : 'deviation' }));
+  return { nodes, edges };
+}
+
+function drilldownTaskTooltipHtml(n) {
+  const meta = state.taskInsights && state.taskInsights.byTaskName.get(n.label);
+  const badges = [];
+  if (meta && meta.nodeKind && BPMN_KIND_LABEL[meta.nodeKind]) {
+    badges.push(`<span class="bpmn-tt-chip bpmn-tt-chip-kind">${BPMN_KIND_LABEL[meta.nodeKind]}</span>`);
+  }
+  if (n.subStepCount) {
+    badges.push(`<span class="bpmn-tt-chip bpmn-tt-chip-kind">${n.subtitleText}</span>`);
+  }
+  const descLine = `<div class="bpmn-tt-desc">${meta && meta.description ? meta.description : n.label}</div>`;
+  const autonomyRow = meta && meta.autonomy
+    ? `<div class="bpmn-tt-divider"></div><div class="bpmn-tt-rows"><div class="bpmn-tt-row"><span class="bpmn-tt-row-label">${PERSON_ICON_SVG}Autonomy</span><span class="bpmn-tt-row-value bpmn-tt-row-value-pill">${formatAutonomyLabel(meta.autonomy)}</span></div></div>`
+    : '';
+  const hint = n.subStepCount ? '<div class="bpmn-tt-divider"></div><div class="bpmn-tt-hint">Click to view sub-steps</div>' : '';
+  return `
+    <div class="bpmn-tt-badges">${badges.join('')}</div>
+    ${descLine}
+    ${autonomyRow}
+    ${hint}
+  `;
+}
+
+// Breadcrumb trail over the canvas: "<process name> / <level 1> / ..." —
+// every segment but the last is a clickable jump straight to that level,
+// same as the back button one step at a time. Hidden entirely at the
+// top-level process (state.drilldown empty).
+function renderBpmnBreadcrumb() {
+  const bar = d3.select('#bpmn-breadcrumb');
+  if (!state.drilldown.length) { bar.classed('hidden', true); return; }
+  bar.classed('hidden', false);
+  const titleEl = document.getElementById('page-title');
+  const rootLabel = ((titleEl && titleEl.textContent) || '').replace(/^Process Map\s*[—-]\s*/, '') || 'Process';
+  const crumbs = [{ label: rootLabel, index: -1 }, ...state.drilldown.map((d, i) => ({ label: d.label, index: i }))];
+  const html = crumbs.map((c, i) => {
+    const cls = i === crumbs.length - 1 ? 'bpmn-breadcrumb-crumb current' : 'bpmn-breadcrumb-crumb';
+    return `<span class="${cls}" data-crumb-index="${c.index}">${escapeHtml(c.label)}</span>`;
+  }).join('<span class="bpmn-breadcrumb-sep">/</span>');
+  d3.select('#bpmn-breadcrumb-trail').html(html);
+}
+
 // Turns the DFG (model.nodes/edges, with .hidden already set by
 // applyThreshold) into a BPMN-shaped graph: real task/start/end nodes,
 // plus a synthetic exclusive-gateway node inserted right after any node
@@ -660,6 +774,7 @@ function laneIndexForNode(n, lanes) {
 // shared between the task-box font and the rotated lane-label font).
 const BPMN_TASK_LABEL_FONT = "600 12px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
 const BPMN_LANE_LABEL_FONT = "700 10px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+const BPMN_SUBSTEP_FONT = "600 10px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
 let bpmnMeasureCtx = null;
 function measureBpmnLabelWidth(text, font = BPMN_TASK_LABEL_FONT) {
   if (!bpmnMeasureCtx) {
@@ -700,12 +815,15 @@ function wrapBpmnLabel(label, maxWidth) {
 // A task box grows to fit its label (up to BPMN_TASK_W_MAX) rather than
 // wrapping a long name into a fixed 168px column and truncating it —
 // width first, from the label's natural (unwrapped) width, then lines and
-// height from wrapping at that width.
-function sizeBpmnTaskBox(label) {
+// height from wrapping at that width. A task with its own subprocess also
+// reserves a little extra height for its "N sub steps" subtitle line, and
+// the box widens to fit that subtitle too if it's the wider of the two.
+function sizeBpmnTaskBox(label, subtitle) {
   const natural = measureBpmnLabelWidth(label);
-  const width = Math.max(BPMN_TASK_W, Math.min(BPMN_TASK_W_MAX, Math.ceil(natural) + 48));
+  const subtitleWidth = subtitle ? measureBpmnLabelWidth(subtitle, BPMN_SUBSTEP_FONT) : 0;
+  const width = Math.max(BPMN_TASK_W, Math.min(BPMN_TASK_W_MAX, Math.ceil(Math.max(natural, subtitleWidth)) + 48));
   const lines = wrapBpmnLabel(label, width - 24);
-  const height = Math.max(BPMN_TASK_H, 30 + lines.length * 14);
+  const height = Math.max(BPMN_TASK_H, 30 + lines.length * 14 + (subtitle ? 16 : 0));
   return { width, height, lines };
 }
 
@@ -720,7 +838,7 @@ function layoutBpmn(bpmnGraph, lanes) {
     if (n.kind === 'start' || n.kind === 'end') { width = BPMN_EVENT_SIZE; height = BPMN_EVENT_SIZE; }
     if (n.kind === 'gateway') { width = BPMN_GATEWAY_SIZE; height = BPMN_GATEWAY_SIZE; }
     if (n.kind === 'bpmn-task') {
-      const sized = sizeBpmnTaskBox(n.label);
+      const sized = sizeBpmnTaskBox(n.label, n.subtitleText);
       width = sized.width;
       height = sized.height;
       n.wrappedLines = sized.lines;
@@ -839,10 +957,15 @@ function layoutBpmn(bpmnGraph, lanes) {
 function buildBpmnTaskBox(g, n, p) {
   g.append('rect').attr('class', 'bpmn-task-box').attr('width', p.width).attr('height', p.height).attr('rx', 8);
   const lines = n.wrappedLines || wrapBpmnLabel(n.label, p.width - 24);
-  const startY = p.height / 2 - ((lines.length - 1) * 14) / 2 + 4;
+  const nameSpan = (lines.length - 1) * 14;
+  const totalSpan = nameSpan + (n.subtitleText ? 16 : 0);
+  const startY = p.height / 2 - totalSpan / 2 + 4;
   lines.forEach((l, i) => {
     g.append('text').attr('class', 'bpmn-task-label').attr('x', p.width / 2).attr('y', startY + i * 14).text(l);
   });
+  if (n.subtitleText) {
+    g.append('text').attr('class', 'bpmn-task-substeps').attr('x', p.width / 2).attr('y', startY + nameSpan + 16).text(n.subtitleText);
+  }
 }
 
 function buildBpmnEvent(g, n, p) {
@@ -906,9 +1029,14 @@ function renderBpmnLanes(laneMeta) {
 }
 
 function renderBpmnView() {
+  renderBpmnBreadcrumb();
+  const inDrilldown = state.drilldown.length > 0;
   const model = state.model;
-  const bpmnGraph = buildBpmnGraph(model);
-  const lanes = computeBpmnLanes(bpmnGraph);
+  const bpmnGraph = inDrilldown
+    ? buildBpmnGraphFromSubprocess(state.drilldown[state.drilldown.length - 1].id)
+    : buildBpmnGraph(model);
+  bpmnGraph.nodes.forEach((n) => { if (n.kind === 'bpmn-task') attachSubprocessMeta(n); });
+  const lanes = inDrilldown ? null : computeBpmnLanes(bpmnGraph);
   const { nodePos, edgePos, laneMeta } = layoutBpmn(bpmnGraph, lanes);
   renderBpmnLanes(laneMeta);
   const bpmnNodeById = new Map(bpmnGraph.nodes.map((n) => [n.id, n]));
@@ -947,9 +1075,9 @@ function renderBpmnView() {
       const p = nodePos.get(n.id);
       return `translate(${p.x - p.width / 2}, ${p.y - p.height / 2})`;
     })
-    .attr('class', (n) => `node ${n.kind}${n.id === state.selectedTaskId ? ' selected' : ''}`)
+    .attr('class', (n) => `node ${n.kind}${n.id === state.selectedTaskId ? ' selected' : ''}${n.subStepCount ? ' has-substeps' : ''}`)
     .on('mouseenter', (event, n) => {
-      if (n.kind === 'bpmn-task') showTooltip(event, bpmnTaskTooltipHtml(n.source, model), true);
+      if (n.kind === 'bpmn-task') showTooltip(event, inDrilldown ? drilldownTaskTooltipHtml(n) : bpmnTaskTooltipHtml(n.source, model), true);
       const isGateway = (id) => { const gn = bpmnNodeById.get(id); return !!gn && gn.kind === 'gateway'; };
       applyHoverHighlight(bpmnNodeLayer.selectAll('g.node'), bpmnEdgeLayer.selectAll('g.edge'), computeAdjacentThroughGateways(n.id, bpmnGraph.edges, isGateway));
     })
@@ -970,7 +1098,11 @@ function renderBpmnView() {
 
   mergedNodes.filter((n) => n.kind === 'bpmn-task').on('click', (event, n) => {
     event.stopPropagation();
-    openTaskDetail(n.id);
+    if (n.subprocessId && n.subStepCount) {
+      enterSubprocess(n.subprocessId, n.label);
+    } else if (!inDrilldown) {
+      openTaskDetail(n.id);
+    }
   });
 }
 
@@ -2845,6 +2977,7 @@ function handleUploadFile(file) {
       state.threshold = 100;
       state.expandedBubbles = new Set();
       state.comparison = null;
+      state.drilldown = [];
       state.taskInsights = (typeof extractTaskInsights === 'function' && extractTaskInsights(raw))
         || (typeof extractGraphTaskInsights === 'function' && extractGraphTaskInsights(raw))
         || null;
@@ -2910,6 +3043,16 @@ d3.select('#fullscreen-btn').on('click', function () {
   const isFullscreen = document.body.classList.toggle('app-fullscreen');
   d3.select(this).classed('active', isFullscreen).attr('aria-pressed', String(isFullscreen));
   requestAnimationFrame(() => { fitToView(); syncTaskDetailLayout(); });
+});
+
+// ---- BPMN subprocess drill-down: back button + breadcrumb trail ----
+d3.select('#bpmn-breadcrumb-back').on('click', () => exitDrilldownTo(state.drilldown.length - 2));
+d3.select('#bpmn-breadcrumb-trail').on('click', (event) => {
+  const el = event.target.closest('[data-crumb-index]');
+  if (!el) return;
+  const idx = Number(el.dataset.crumbIndex);
+  if (idx === state.drilldown.length - 1) return;
+  exitDrilldownTo(idx);
 });
 
 // ---- flow / BPMN view toggle ----

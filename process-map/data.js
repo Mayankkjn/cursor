@@ -662,10 +662,15 @@ function extractGraphTaskInsights(raw) {
   const byTaskName = new Map();
   const ensure = (name) => {
     if (!byTaskName.has(name)) {
-      byTaskName.set(name, { description: '', canonicalReasoning: '', subtypes: [], appId: null, stage: null, nodeKind: null, autonomy: null });
+      byTaskName.set(name, {
+        description: '', canonicalReasoning: '', subtypes: [], appId: null, stage: null, nodeKind: null, autonomy: null,
+        subprocessId: null, // id of this task's own nested subprocess (into `subprocesses`, below), or null if it's a plain leaf step
+        subStepCount: 0, // real activity nodes inside that subprocess (start/end/gateway don't count)
+      });
     }
     return byTaskName.get(name);
   };
+  const isRealSubstep = (n) => !!n.name && n.kind !== 'startEvent' && n.kind !== 'endEvent' && n.kind !== 'exclusiveGateway' && n.kind !== 'parallelGateway';
 
   // Stage = the top-level subprocess a task's ancestry belongs to;
   // nodeKind = its own real BPMN activity kind (userTask/serviceTask/
@@ -692,20 +697,25 @@ function extractGraphTaskInsights(raw) {
 
   // Description = the labeled branches of a task's own nested subprocess,
   // when its internal routing gateway names real alternative ways the
-  // task gets carried out.
+  // task gets carried out. Every task with its own subprocess also gets a
+  // subStepCount — drives the "N sub steps" badge and lets the canvas
+  // drill into that subprocess's own flow on click.
   Object.keys(subprocesses).forEach((key) => {
     const sub = subprocesses[key];
     if (!sub || !Array.isArray(sub.nodes)) return;
     sub.nodes.forEach((node) => {
       if (node.kind !== 'subProcess' || !subprocesses[node.id] || !node.name) return;
       const inner = subprocesses[node.id];
+      const entry = ensure(node.name);
+      entry.subprocessId = node.id;
+      entry.subStepCount = inner.nodes.filter(isRealSubstep).length;
       const branches = (inner.edges || [])
         .map((e) => e.label)
         .filter(Boolean)
         .map(cleanBranchLabel)
         .filter(Boolean);
       if (!branches.length) return;
-      ensure(node.name).description = `Carried out one of ${branches.length} ways depending on the case: ${branches.join('; ')}.`;
+      entry.description = `Carried out one of ${branches.length} ways depending on the case: ${branches.join('; ')}.`;
     });
   });
 
@@ -733,5 +743,8 @@ function extractGraphTaskInsights(raw) {
     });
   });
 
-  return { byTaskName, instancesByTaskName };
+  // `subprocesses` is handed back as-is (id -> { nodes, edges }) so the
+  // canvas can drill into any task's own subprocess on click, not just
+  // read its flattened description/stage above.
+  return { byTaskName, instancesByTaskName, subprocesses };
 }
