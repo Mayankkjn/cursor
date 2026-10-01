@@ -48,6 +48,18 @@ const state = {
 
 const DEFAULT_SUBTITLE = d3.select('.subtitle').text();
 
+// ---- instance-animation ("Play" button) module state ----
+// The top-level mined BPMN view's own gateway-substitution maps and node
+// positions, refreshed every renderBpmnView() call (mined mode only —
+// drill-down/static diagrams have no real per-case data to replay) so a
+// Play click can map a case's raw task sequence onto the actual rendered
+// edges without recomputing the whole layout again.
+let lastBpmnLayout = null;
+// null | { cancelled } — a plain flag object every in-flight ball's timers
+// close over, so Stop (or any render()) can halt them all by flipping one
+// boolean rather than tracking every timer/transition individually.
+let instanceAnimation = null;
+
 const svg = d3.select('#graph');
 const defs = svg.append('defs');
 const viewport = svg.append('g').attr('class', 'viewport');
@@ -56,6 +68,7 @@ const nodeLayer = viewport.append('g').attr('class', 'node-layer');
 const bpmnLaneLayer = viewport.append('g').attr('class', 'bpmn-lane-layer');
 const bpmnEdgeLayer = viewport.append('g').attr('class', 'bpmn-edge-layer');
 const bpmnNodeLayer = viewport.append('g').attr('class', 'bpmn-node-layer');
+const ballLayer = viewport.append('g').attr('class', 'ball-layer');
 const tooltip = d3.select('#tooltip');
 
 function addMarker(id, color) {
@@ -1180,6 +1193,119 @@ function renderBpmnLanes(laneMeta) {
     .attr('x1', lanesLeft).attr('x2', lanesLeft).attr('y1', 0).attr('y2', totalHeight);
 }
 
+// ---- instance animation ("Play" button): one ball per case, travelling
+// its own real sequence of steps through the current BPMN view. ----
+
+// A raw case hop (A, B) may need to pass through a synthetic split/join
+// gateway buildBpmnGraph() inserted between them — same substitution it
+// used to build its own edges, so a ball's route always matches a real
+// edge currently on screen. Returns one or more [fromId, toId] hops.
+function bpmnHopSegments(a, b) {
+  if (!lastBpmnLayout) return [];
+  const { splitGatewayFor, joinGatewayFor } = lastBpmnLayout;
+  const hops = [];
+  const from = splitGatewayFor.has(a) ? splitGatewayFor.get(a) : a;
+  const to = joinGatewayFor.has(b) ? joinGatewayFor.get(b) : b;
+  if (from !== a) hops.push([a, from]);
+  hops.push([from, to]);
+  if (to !== b) hops.push([to, b]);
+  return hops;
+}
+
+const PLAY_ANIMATION_MAX_BALLS = 120;
+const PLAY_ANIMATION_STAGGER_MS = 9000;
+const PLAY_ANIMATION_TRAVEL_MS = 2600;
+
+function updatePlayButtonAvailability() {
+  const available = state.viewMode === 'bpmn' && !!lastBpmnLayout && state.cases.length > 0;
+  d3.select('#play-animation-btn').classed('disabled', !available);
+}
+
+function stopInstanceAnimation() {
+  if (!instanceAnimation) return;
+  instanceAnimation.cancelled = true;
+  instanceAnimation = null;
+  ballLayer.selectAll('circle.instance-ball').interrupt().remove();
+  d3.select('#play-animation-btn').classed('playing', false);
+  d3.select('.play-animation-label').text('Play');
+}
+
+// Walks one ball through every hop of a case's path in sequence, moving
+// smoothly along whichever edge's rendered <path> covers that hop (via
+// getPointAtLength, so it follows the exact on-screen curve/elbow) — or,
+// for a hop with no currently-rendered edge (hidden by the Path Filter
+// threshold), just placing it directly at the hop's end since there's
+// nothing on screen to travel along.
+function animateBallAlong(seq, edgePathByKey, run) {
+  const ball = ballLayer.append('circle').attr('class', 'instance-ball').attr('r', 4.5);
+  const hops = [];
+  for (let i = 0; i < seq.length - 1; i++) hops.push(...bpmnHopSegments(seq[i], seq[i + 1]));
+  const perHop = PLAY_ANIMATION_TRAVEL_MS / Math.max(1, hops.length);
+
+  function runHop(idx) {
+    if (!run.cancelled && idx < hops.length) {
+      const [fromId, toId] = hops[idx];
+      const pathEl = edgePathByKey.get(`${fromId}||${toId}`);
+      const toPos = lastBpmnLayout.nodePos.get(toId);
+      if (pathEl) {
+        const len = pathEl.getTotalLength();
+        ball.transition().duration(perHop).ease(d3.easeLinear)
+          .tween('pos', () => (t) => {
+            const p = pathEl.getPointAtLength(t * len);
+            ball.attr('cx', p.x).attr('cy', p.y);
+          })
+          .on('end', () => runHop(idx + 1))
+          .on('interrupt', () => {});
+      } else if (toPos) {
+        ball.attr('cx', toPos.x).attr('cy', toPos.y);
+        setTimeout(() => runHop(idx + 1), perHop);
+      } else {
+        runHop(idx + 1);
+      }
+    } else {
+      ball.remove();
+    }
+  }
+  const startPos = lastBpmnLayout.nodePos.get(seq[0]);
+  if (startPos) ball.attr('cx', startPos.x).attr('cy', startPos.y);
+  runHop(0);
+}
+
+// Spawns one ball per case (sampled evenly down to a cap, so a large
+// dataset stays smooth), each starting its own journey at a staggered
+// delay so the canvas reads as a continuous flow of instances rather
+// than one single pulse.
+function playInstanceAnimation() {
+  if (state.viewMode !== 'bpmn' || !lastBpmnLayout || !state.cases.length) return;
+  stopInstanceAnimation();
+  const run = { cancelled: false };
+  instanceAnimation = run;
+  d3.select('#play-animation-btn').classed('playing', true);
+  d3.select('.play-animation-label').text('Stop');
+
+  const edgePathByKey = new Map();
+  bpmnEdgeLayer.selectAll('g.edge').each(function (e) {
+    const el = this.querySelector('path.bpmn-edge-path');
+    if (el) edgePathByKey.set(`${e.from}||${e.to}`, el);
+  });
+
+  const cases = state.cases;
+  const sampleStep = Math.max(1, Math.floor(cases.length / PLAY_ANIMATION_MAX_BALLS));
+  const sampled = cases.filter((_, i) => i % sampleStep === 0).slice(0, PLAY_ANIMATION_MAX_BALLS);
+
+  sampled.forEach((c, i) => {
+    const delay = (i / Math.max(1, sampled.length)) * PLAY_ANIMATION_STAGGER_MS;
+    const seq = [START, ...c.steps.map((s) => s.task), END];
+    setTimeout(() => {
+      if (!run.cancelled) animateBallAlong(seq, edgePathByKey, run);
+    }, delay);
+  });
+
+  setTimeout(() => {
+    if (instanceAnimation === run) stopInstanceAnimation();
+  }, PLAY_ANIMATION_STAGGER_MS + PLAY_ANIMATION_TRAVEL_MS + 400);
+}
+
 function renderBpmnView() {
   renderBpmnBreadcrumb();
   const inDrilldown = state.drilldown.length > 0;
@@ -1200,6 +1326,11 @@ function renderBpmnView() {
   const { nodePos, edgePos, laneMeta } = layoutBpmn(bpmnGraph, lanes);
   renderBpmnLanes(laneMeta);
   const bpmnNodeById = new Map(bpmnGraph.nodes.map((n) => [n.id, n]));
+
+  lastBpmnLayout = (!inDrilldown && !isStatic)
+    ? { nodePos, splitGatewayFor: bpmnGraph.splitGatewayFor, joinGatewayFor: bpmnGraph.joinGatewayFor }
+    : null;
+  updatePlayButtonAvailability();
 
   // A send/receive task's whole job is firing or catching a message, so
   // any sequence flow touching one is drawn as a message flow (dashed) —
@@ -1379,6 +1510,10 @@ function buildDiamond(g, n, p) {
 }
 
 function render(fit = false) {
+  // Any fresh render invalidates whatever the Play animation's balls were
+  // travelling along (filters/threshold/drilldown can all change the
+  // graph these were computed against), so it's always stopped first.
+  stopInstanceAnimation();
   // A raw .bpmn/.xml import has no case log and no mined model behind it —
   // skip the whole DFG/Path-view pipeline (and the panels that read its
   // stats) and just draw the diagram's own structure.
@@ -3298,11 +3433,20 @@ d3.select('#bpmn-breadcrumb-trail').on('click', (event) => {
 d3.selectAll('.view-toggle-btn').on('click', function () {
   const view = this.dataset.view;
   if (view === state.viewMode) return;
+  stopInstanceAnimation();
   state.viewMode = view;
   d3.selectAll('.view-toggle-btn').classed('active', function () { return this.dataset.view === view; })
     .attr('aria-selected', function () { return String(this.dataset.view === view); });
   syncViewLayers();
+  updatePlayButtonAvailability();
   fitToView();
+});
+
+// ---- instance animation "Play" button ----
+d3.select('#play-animation-btn').on('click', function () {
+  if (d3.select(this).classed('disabled')) return;
+  if (instanceAnimation) stopInstanceAnimation();
+  else playInstanceAnimation();
 });
 
 // ---- collapsible sidebar panels ----

@@ -1434,8 +1434,48 @@ body.structural-diagram #automation-opps-btn,
 body.structural-diagram #ai-summary-btn,
 body.structural-diagram #filter-btn,
 body.structural-diagram #view-toggle-flow,
-body.structural-diagram #floating-path-filter {
+body.structural-diagram #floating-path-filter,
+body.structural-diagram #play-animation-btn {
   display: none;
+}
+
+/* ---- instance-animation "Play" button: top-right of the canvas, BPMN
+   view only — animates a ball per case along its actual sequence of
+   edges, swapping to a stop icon while playing. ---- */
+.play-animation-btn {
+  position: absolute;
+  right: 16px;
+  top: 16px;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 100px;
+  padding: 8px 16px 8px 14px;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+}
+.play-animation-btn:hover { color: var(--text-primary); border-color: var(--text-tertiary); }
+.play-animation-btn.disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
+.play-animation-btn .play-animation-icon { color: var(--path-main); flex-shrink: 0; }
+.play-animation-btn .play-animation-icon-stop { display: none; }
+.play-animation-btn.playing .play-animation-icon-play { display: none; }
+.play-animation-btn.playing .play-animation-icon-stop { display: block; }
+.play-animation-btn.playing .play-animation-icon { color: var(--accent-ui); }
+.play-animation-btn.playing { color: var(--text-primary); border-color: var(--accent-ui); }
+
+.ball-layer { pointer-events: none; }
+.instance-ball {
+  fill: var(--path-main);
+  stroke: #fff;
+  stroke-width: 1.2px;
+  filter: drop-shadow(0 1px 2px rgba(24,26,51,0.35));
 }
 
 /* ---- flow / BPMN view toggle ---- */
