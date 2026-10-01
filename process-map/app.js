@@ -1380,6 +1380,17 @@ function renderBpmnView() {
   mergedEdges.select('path.bpmn-edge-path')
     .attr('d', (e) => bpmnRoundedElbowPathD(edgePos.get(`${e.from}||${e.to}`).points))
     .attr('marker-end', (e) => (e.kind === 'happy' ? 'url(#arrow-happy)' : 'url(#arrow-bpmn)'));
+  mergedEdges
+    .on('mouseenter', (event, e) => {
+      applyHoverHighlight(
+        bpmnNodeLayer.selectAll('g.node'),
+        bpmnEdgeLayer.selectAll('g.edge'),
+        { nodeIds: new Set([e.from, e.to]), edgeKeys: new Set([`${e.from}||${e.to}`]) }
+      );
+    })
+    .on('mouseleave', () => {
+      clearHoverHighlight(bpmnNodeLayer.selectAll('g.node'), bpmnEdgeLayer.selectAll('g.edge'));
+    });
 
   const nodeSel = bpmnNodeLayer.selectAll('g.node').data(bpmnGraph.nodes, (n) => n.id);
   nodeSel.exit().remove();
