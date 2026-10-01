@@ -1109,6 +1109,23 @@ function layoutBpmn(bpmnGraph, lanes) {
     } else {
       edge.points = simplePoints;
     }
+
+    // Every point above is a node's own CENTER, so the path (and its
+    // arrowhead marker) would otherwise run — and land — underneath the
+    // opaque box, invisible beneath it. Pulling the first/last point back
+    // by that node's own half-width (plus a couple px of breathing room)
+    // stops the line at the box's real edge instead, so the direction
+    // arrow actually shows.
+    const ARROW_GAP = 2;
+    const first = edge.points[0];
+    const second = edge.points[1];
+    const dirStart = Math.sign(second.x - first.x) || 1;
+    edge.points[0] = { x: first.x + dirStart * (fp.width / 2 + ARROW_GAP), y: first.y };
+    const lastIdx = edge.points.length - 1;
+    const last = edge.points[lastIdx];
+    const beforeLast = edge.points[lastIdx - 1];
+    const dirEnd = Math.sign(last.x - beforeLast.x) || 1;
+    edge.points[lastIdx] = { x: last.x - dirEnd * (tp.width / 2 + ARROW_GAP), y: last.y };
   });
 
   return { nodePos, edgePos, laneMeta };
