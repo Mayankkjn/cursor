@@ -7961,22 +7961,20 @@ const zoomBehavior = d3.zoom()
   .on('zoom', (event) => viewport.attr('transform', event.transform));
 svg.call(zoomBehavior);
 
-// A two-finger trackpad gesture (scroll in any direction, including a
-// plain left/right swipe) pans the canvas instead of zooming it — only an
-// actual pinch, which the browser marks with ctrlKey on its wheel event,
-// zooms. Same convention as Figma/Miro/Google Maps. This replaces d3-zoom's
-// own default wheel handler (which zoomed on any wheel delta), so a plain
-// mouse wheel now pans vertically too rather than zooming; zoom is still
-// reachable via pinch or double-click.
+// A trackpad left/right swipe (deltaX dominant) pans the canvas
+// horizontally; scrolling up/down (deltaY dominant, mouse wheel or
+// trackpad) zooms, same as a pinch gesture (which the browser marks with
+// ctrlKey on its wheel event). This replaces d3-zoom's own default wheel
+// handler so the two axes can be split this way.
 svg.on('wheel.zoom', (event) => {
   event.preventDefault();
-  if (event.ctrlKey) {
+  if (!event.ctrlKey && Math.abs(event.deltaX) > Math.abs(event.deltaY)) {
+    const k = d3.zoomTransform(svg.node()).k;
+    zoomBehavior.translateBy(svg, -event.deltaX / k, 0);
+  } else {
     const point = d3.pointer(event, svg.node());
     const factor = Math.pow(2, -event.deltaY * (event.deltaMode ? 0.05 : 0.002) * 10);
     zoomBehavior.scaleBy(svg, factor, point);
-  } else {
-    const k = d3.zoomTransform(svg.node()).k;
-    zoomBehavior.translateBy(svg, -event.deltaX / k, -event.deltaY / k);
   }
 }, { passive: false });
 
