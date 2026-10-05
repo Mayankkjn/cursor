@@ -298,40 +298,46 @@
     display:flex;align-items:center;gap:6px;font-weight:500;
   }
   .tab svg{width:14px;height:14px;}
-  .tab.active{color:var(--accent);}
+  .tab.active{color:#C74900;}
   .tab.active::after{
-    content:'';position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--accent);border-radius:2px;
+    content:'';position:absolute;left:0;right:0;bottom:-1px;height:2px;background:#C74900;border-radius:2px;
   }
 
-  .range-pill{display:flex;align-items:center;gap:8px;}
-  .range-seg{display:flex;background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:3px;gap:2px;}
+  .range-pill{display:flex;align-items:center;gap:0;}
+  .range-seg{display:flex;background:none;border:none;padding:0;gap:0;}
   .range-seg button{
-    border:none;background:transparent;padding:6px 14px;font-size:12.5px;font-weight:500;color:var(--ink-soft);
-    cursor:pointer;border-radius:999px;
+    box-sizing:border-box;height:32px;
+    border:1px solid #DFDDE7;background:#FFFFFF;padding:6px 8px;
+    font-family:'Inter','IBM Plex Sans',sans-serif;font-size:14px;line-height:20px;font-weight:400;color:#525066;
+    cursor:pointer;border-radius:0;margin-right:-1px;position:relative;
   }
-  .range-seg button.active{background:var(--accent);color:#fff;}
+  .range-seg button:first-child{border-radius:4px 0 0 4px;}
+  .range-seg button.active{background:#F2F2F8;color:#3D3C52;font-weight:600;z-index:1;}
   .cal-btn{
-    width:32px;height:32px;border-radius:999px;border:1px solid var(--line);background:var(--surface);
-    display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink-soft);flex-shrink:0;
+    width:35px;height:32px;border-radius:0 4px 4px 0;border:1px solid #DFDDE7;background:#FFFFFF;
+    display:flex;align-items:center;justify-content:center;cursor:pointer;color:#8C899F;flex-shrink:0;margin-left:-1px;
   }
-  .cal-btn svg{width:14px;height:14px;}
-  .cal-btn:hover{border-color:var(--accent);color:var(--accent);}
+  .cal-btn svg{width:16px;height:16px;}
+  .cal-btn:hover{border-color:var(--purple);color:var(--purple);}
 
-  .metric-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+  .metrics-section-panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-m);padding:18px;}
+  .metric-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;align-items:start;}
   .metric-card{
-    background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-m);
+    background:none;border:1px solid var(--line);border-radius:var(--radius-m);
     padding:16px 18px;position:relative;cursor:pointer;transition:border-color .12s ease, box-shadow .12s ease;
   }
   .metric-card:hover{border-color:#D8D3C9;}
-  .metric-card.selected{border-color:var(--accent);box-shadow:0 0 0 2px rgba(234,91,47,.16);}
+  .metric-card.selected{border-color:var(--purple);box-shadow:0 0 0 2px rgba(122,92,192,.16);}
   .metric-card[data-type="bar"],.metric-card[data-type="table-users"],.metric-card[data-type="table-anomalies"]{cursor:default;}
   .metric-card[data-type="bar"]:hover,.metric-card[data-type="table-users"]:hover,.metric-card[data-type="table-anomalies"]:hover{border-color:var(--line);}
   .add-metric-card{cursor:pointer;}
-  .metric-card{min-height:210px;display:flex;flex-direction:column;}
-  .metric-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px;}
-  .m-avatar{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-  .m-avatar svg{width:15px;height:15px;}
-  .m-menu{color:var(--ink-faint);cursor:pointer;padding:2px;}
+  .metric-card{display:flex;flex-direction:column;}
+  .metric-card[data-type="bar"],.metric-card[data-type="table-users"],.metric-card[data-type="table-anomalies"]{min-height:210px;}
+  .metric-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px;}
+  .mc-title{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-soft);font-weight:500;min-width:0;flex:1;}
+  .mc-title svg{width:15px;height:15px;flex-shrink:0;}
+  .mc-title span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .m-menu{color:var(--ink-faint);cursor:pointer;padding:2px;flex-shrink:0;}
   .m-menu svg{width:15px;height:15px;}
   .m-label{font-size:12.5px;color:var(--ink-soft);margin:10px 0 10px 0;font-weight:500;}
   .m-sub{font-size:11px;color:var(--ink-faint);margin-top:-6px;margin-bottom:10px;}
@@ -393,8 +399,7 @@
 
   /* ---------- key metrics trend chart ---------- */
   .trend-panel{
-    background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-m);
-    padding:20px 22px;margin-top:14px;
+    padding:20px 4px 0 4px;margin-top:18px;
   }
   .trend-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:10px;}
   .trend-head .t{font-size:14.5px;font-weight:600;}
@@ -407,7 +412,7 @@
     padding:6px 12px;border-radius:20px;font-size:12px;font-weight:500;color:var(--ink-soft);cursor:pointer;
   }
   .trend-clear svg{width:12px;height:12px;}
-  .trend-clear:hover{border-color:var(--accent);color:var(--accent);}
+  .trend-clear:hover{border-color:var(--purple);color:var(--purple);}
   .trend-svg{width:100%;height:230px;display:block;margin-top:10px;}
   .trend-svg .gridline{stroke:var(--line);stroke-width:1;}
   .trend-svg .axis-label{font-size:10.5px;fill:var(--ink-faint);font-family:'IBM Plex Sans',sans-serif;}
@@ -584,7 +589,7 @@
   }
   .modal-submit:disabled{background:var(--ink-faint);cursor:not-allowed;}
 
-  .tab.tab-add{color:var(--ink-faint);border:1px dashed var(--line);border-radius:8px;padding:6px 12px;margin-bottom:8px;}
+  .tab.tab-add{width:32px;height:32px;padding:0;display:flex;align-items:center;justify-content:center;color:var(--ink-faint);border:1px dashed var(--line);border-radius:8px;margin-bottom:8px;}
   .tab.tab-add:hover{color:var(--accent);border-color:var(--accent);}
   .tab .tab-x{margin-left:2px;opacity:.5;}
   .tab .tab-x:hover{opacity:1;color:var(--red);}
@@ -692,19 +697,21 @@
         <div class="tabs" id="overviewTabs">
           <button class="tab active" data-tab="app" data-builtin="1"><i data-feather="bar-chart-2"></i>Usage</button>
           <button class="tab" data-tab="content" data-builtin="1"><i data-feather="layout"></i>Content</button>
-          <button class="tab tab-add" id="addTabBtn"><i data-feather="plus"></i>Add tab</button>
+          <button class="tab tab-add" id="addTabBtn" title="Add tab"><i data-feather="plus"></i></button>
           <div style="flex:1;"></div>
         </div>
-        <div class="metric-grid" id="metricGrid"></div>
-        <div class="trend-panel" id="trendPanel">
-          <div class="trend-head">
-            <div><div class="t" id="trendTitle">Key Metrics Trend</div><div class="s" id="trendSub">Last 30 days</div></div>
-            <div style="display:flex;align-items:center;gap:12px;">
-              <button class="trend-clear" id="trendClear" style="display:none;">Show all metrics <i data-feather="x"></i></button>
-              <div class="legend" id="trendLegend"></div>
+        <div class="metrics-section-panel">
+          <div class="metric-grid" id="metricGrid"></div>
+          <div class="trend-panel" id="trendPanel">
+            <div class="trend-head">
+              <div><div class="t" id="trendTitle">Key Metrics Trend</div><div class="s" id="trendSub">Last 30 days</div></div>
+              <div style="display:flex;align-items:center;gap:12px;">
+                <button class="trend-clear" id="trendClear" style="display:none;">Show all metrics <i data-feather="x"></i></button>
+                <div class="legend" id="trendLegend"></div>
+              </div>
             </div>
+            <svg class="trend-svg" id="trendSvg" viewBox="0 0 900 230" preserveAspectRatio="none"></svg>
           </div>
-          <svg class="trend-svg" id="trendSvg" viewBox="0 0 900 230" preserveAspectRatio="none"></svg>
         </div>
 
         <div class="content-extra" id="contentExtra" style="display:none;">
@@ -1065,19 +1072,20 @@ function legacyCardHTML(m){
   const bg = m.bg || iconColor(m.ic);
   return `
     <div class="metric-card" data-key="">
-      <div class="metric-top">
-        <div class="m-avatar" style="background:var(--${bg}-soft);color:var(--${bg});"><i data-feather="${m.ic}"></i></div>
+      <div class="metric-head">
+        <div class="mc-title"><i data-feather="${m.ic}" style="color:var(--${bg});"></i><span>${m.l}</span></div>
         <div class="m-menu"><i data-feather="more-vertical"></i></div>
       </div>
-      <div class="m-label">${m.l}</div>
       <div class="m-value">${m.v}</div>
       <div class="m-delta ${m.up?'up':'down'}"><i data-feather="${m.up?'arrow-up-right':'arrow-down-right'}"></i>${m.d.toFixed(1)}% since last week</div>
     </div>`;
 }
 
 function cardHTML(key, m){
-  const avatar = `<div class="m-avatar" style="background:var(--${m.bg}-soft);color:var(--${m.bg});"><i data-feather="${m.ic}"></i></div>`;
-  const menu = `<div class="m-menu" data-key="${key}"><i data-feather="more-vertical"></i></div>`;
+  const head = `<div class="metric-head">
+      <div class="mc-title"><i data-feather="${m.ic}" style="color:var(--${m.bg});"></i><span>${m.name}</span></div>
+      <div class="m-menu" data-key="${key}"><i data-feather="more-vertical"></i></div>
+    </div>`;
 
   if(m.type==='bar'){
     const maxV = Math.max(...m.data.map(d=>d.val));
@@ -1088,8 +1096,7 @@ function cardHTML(key, m){
         <div class="mini-bar-val">${d.val}</div>
       </div>`).join('');
     return `<div class="metric-card" data-key="${key}" data-type="bar">
-      <div class="metric-top">${avatar}${menu}</div>
-      <div class="m-label">${m.name}</div>
+      ${head}
       <div class="mini-bars">${rows}</div>
     </div>`;
   }
@@ -1101,8 +1108,7 @@ function cardHTML(key, m){
         <div class="mini-count">${u.count}</div>
       </div>`).join('');
     return `<div class="metric-card" data-key="${key}" data-type="table-users">
-      <div class="metric-top">${avatar}${menu}</div>
-      <div class="m-label">${m.name}</div>
+      ${head}
       <div class="m-sub">${m.sub||''}</div>
       <div class="mini-table">${rows}</div>
     </div>`;
@@ -1115,8 +1121,7 @@ function cardHTML(key, m){
         <div class="mini-count">${a.change}</div>
       </div>`).join('');
     return `<div class="metric-card" data-key="${key}" data-type="table-anomalies">
-      <div class="metric-top">${avatar}${menu}</div>
-      <div class="m-label">${m.name}</div>
+      ${head}
       <div class="m-sub">${m.sub||''}</div>
       <div class="mini-table">${rows}</div>
     </div>`;
@@ -1126,8 +1131,7 @@ function cardHTML(key, m){
   const v = m.values[activeRange];
   const isSel = selectedKey===key;
   return `<div class="metric-card ${isSel?'selected':''}" data-key="${key}" data-type="stat">
-    <div class="metric-top">${avatar}${menu}</div>
-    <div class="m-label">${m.name}</div>
+    ${head}
     <div class="m-value">${v.v}</div>
     <div class="m-delta ${v.up?'up':'down'}"><i data-feather="${v.up?'arrow-up-right':'arrow-down-right'}"></i>${v.d.toFixed(1)}% since last week</div>
   </div>`;
