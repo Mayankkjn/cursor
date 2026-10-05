@@ -216,6 +216,11 @@
       active: true,
       logic: "Monitors daily event volume for Flow X, scoped to the Sales team segment. Fires if zero completions are logged for 3 consecutive calendar days.",
       remediation: "Send a nudge campaign to the Sales team and flag the flow owner for a re-onboarding session.",
+      evidence: {
+        label: "Flow X completions · Sales team, last 10 days",
+        points: [19, 17, 21, 16, 14, 9, 6, 2, 0, 0],
+        note: "Completions dropped from ~18/day to 0 over the last 3 days — consistent with the alert's trigger condition.",
+      },
     },
     {
       id: "a2",
@@ -226,6 +231,11 @@
       active: true,
       logic: "Tracks tooltip Y impression-to-engagement ratio, rolling 24h window. Fires when the ignore rate exceeds 70% for two consecutive windows.",
       remediation: "Reposition tooltip Y away from the overlapping native control, or shorten its copy to a single line.",
+      evidence: {
+        label: "Tooltip Y ignore rate, last 7 days",
+        points: [52, 58, 61, 65, 70, 74, 73],
+        note: "Ignore rate has climbed steadily for a week and crossed the 70% trigger three times.",
+      },
     },
     {
       id: "a3",
@@ -236,11 +246,336 @@
       active: true,
       logic: "Runs anomaly detection on EU checkout completion rate and payment error rate, comparing to a 30-day trailing baseline.",
       remediation: "No action needed while healthy — recalibration suggested only if quiet periods start masking seasonal dips.",
+      evidence: {
+        label: "EU checkout anomaly score, last 12 days",
+        points: [8, 6, 7, 5, 6, 4, 5, 4, 3, 4, 3, 4],
+        note: "Anomaly score has stayed well under the alert threshold (20) for the full window.",
+      },
     },
   ];
 
   let insightFilter = "all";
-  let queryCounter = 0;
+
+  /* ============================================================
+   * Generative UI component kit
+   *
+   * Ask Whatfix AI doesn't return one fixed template — it composes
+   * a response from this small set of primitives (bar chart, funnel,
+   * stat pair, trend line, data table) based on what the query
+   * actually asks for, the same way the response ships real,
+   * wired controls (period, region, chart/table view) rather than
+   * decorative follow-up text.
+   * ============================================================ */
+
+  function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+
+  // ---- Trend line (used by evidence panels) ----
+  function renderTrendChart(points, { width = 280, height = 64 } = {}) {
+    const max = Math.max(...points);
+    const min = Math.min(...points);
+    const span = max - min || 1;
+    const stepX = width / (points.length - 1);
+    const toY = (v) => height - ((v - min) / span) * (height - 10) - 5;
+    const coords = points.map((v, i) => [i * stepX, toY(v)]);
+    const linePath = coords.map(([x, y], i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
+    const areaPath = `${linePath} L${width},${height} L0,${height} Z`;
+    const [endX, endY] = coords[coords.length - 1];
+    const gridLines = [0.25, 0.5, 0.75]
+      .map((f) => `<line class="trend-grid" x1="0" x2="${width}" y1="${(height * f).toFixed(1)}" y2="${(height * f).toFixed(1)}" />`)
+      .join("");
+    return `
+      <svg class="trend-chart" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true">
+        ${gridLines}
+        <path class="trend-area" d="${areaPath}" />
+        <path class="trend-line" d="${linePath}" />
+        <circle class="trend-end" cx="${endX.toFixed(1)}" cy="${endY.toFixed(1)}" r="4"></circle>
+      </svg>
+    `;
+  }
+
+  // ---- Comparison (grouped bar + table, with live filters) ----
+  function defaultComparisonState(data) {
+    return { period: Object.keys(data.periods)[0], visible: new Set(data.entities.map((e) => e.id)), view: "chart" };
+  }
+
+  function renderComparisonHTML(data, state) {
+    const period = data.periods[state.period];
+    const otherKey = Object.keys(data.periods).find((k) => k !== state.period);
+    const otherPeriod = data.periods[otherKey];
+    const visible = data.entities.filter((e) => state.visible.has(e.id));
+    const maxVal = Math.max(...Object.values(period.values)) * 1.2;
+
+    const filterBar = `
+      <div class="filter-bar">
+        <span class="filter-bar-label">Period</span>
+        <div class="segmented">
+          ${Object.entries(data.periods)
+            .map(([key, p]) => `<button type="button" class="segmented-btn${key === state.period ? " active" : ""}" data-control="period" data-value="${key}">${p.label}</button>`)
+            .join("")}
+        </div>
+        <span class="filter-bar-label">Region</span>
+        ${data.entities
+          .map(
+            (e) => `
+          <button type="button" class="chip-toggle${state.visible.has(e.id) ? " active" : ""}" data-control="region" data-value="${e.id}" style="--chip-color:var(${e.colorVar})">
+            <span class="chip-dot"></span>${e.label}
+          </button>
+        `
+          )
+          .join("")}
+        <div class="segmented" style="margin-left:auto">
+          <button type="button" class="segmented-btn${state.view === "chart" ? " active" : ""}" data-control="view" data-value="chart">Chart</button>
+          <button type="button" class="segmented-btn${state.view === "table" ? " active" : ""}" data-control="view" data-value="table">Table</button>
+        </div>
+      </div>
+    `;
+
+    const legend = `
+      <div class="legend-row">
+        ${visible.map((e) => `<span class="legend-item"><span class="legend-swatch" style="--chip-color:var(${e.colorVar})"></span>${e.label}</span>`).join("")}
+      </div>
+    `;
+
+    let body;
+    if (!visible.length) {
+      body = `<p class="empty-state">Select at least one region to compare.</p>`;
+    } else if (state.view === "chart") {
+      body = `
+        <div class="bar-chart-card">
+          <div class="bar-chart-vertical">
+            ${visible
+              .map((e) => {
+                const val = period.values[e.id];
+                const pct = Math.max(4, (val / maxVal) * 100);
+                return `
+                <div class="bar-col">
+                  <span class="bar-col-value">${val}${data.unit}</span>
+                  <div class="bar-shape" style="height:${pct}%; --chip-color:var(${e.colorVar})"></div>
+                </div>
+              `;
+              })
+              .join("")}
+          </div>
+          <div class="bar-chart-cats">
+            ${visible.map((e) => `<div class="bar-col-cat">${e.label}</div>`).join("")}
+          </div>
+        </div>
+        ${legend}
+      `;
+    } else {
+      body = `
+        <div class="data-table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>Region</th><th class="num">${period.label}</th><th class="num">${otherPeriod.label}</th><th class="num">Δ</th></tr>
+            </thead>
+            <tbody>
+              ${visible
+                .map((e) => {
+                  const curr = period.values[e.id];
+                  const prev = otherPeriod.values[e.id];
+                  const delta = curr - prev;
+                  const deltaClass = delta >= 0 ? "good" : "critical";
+                  return `
+                  <tr>
+                    <td class="entity-cell"><span class="legend-swatch" style="--chip-color:var(${e.colorVar})"></span>${e.label}</td>
+                    <td class="num">${curr}${data.unit}</td>
+                    <td class="num">${prev}${data.unit}</td>
+                    <td class="num ${deltaClass}">${delta >= 0 ? "+" : ""}${delta}${data.unit}</td>
+                  </tr>
+                `;
+                })
+                .join("")}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    return `${filterBar}${body}`;
+  }
+
+  // ---- Funnel (process-mined steps, with a funnel/table view toggle) ----
+  function defaultFunnelState() {
+    return { view: "funnel" };
+  }
+
+  function renderFunnelHTML(data, state) {
+    const filterBar = `
+      <div class="filter-bar">
+        <span class="filter-bar-label">${data.flow}</span>
+        <div class="segmented" style="margin-left:auto">
+          <button type="button" class="segmented-btn${state.view === "funnel" ? " active" : ""}" data-control="funnel-view" data-value="funnel">Funnel</button>
+          <button type="button" class="segmented-btn${state.view === "table" ? " active" : ""}" data-control="funnel-view" data-value="table">Table</button>
+        </div>
+      </div>
+    `;
+    const body =
+      state.view === "funnel"
+        ? `<div class="funnel">${data.steps
+            .map(
+              (s) => `
+          <div class="funnel-row">
+            <span class="funnel-label">${s.name}</span>
+            <div class="funnel-track"><div class="funnel-fill" style="width:${s.pct}%"></div></div>
+            <span class="funnel-pct">${s.pct}%</span>
+          </div>
+        `
+            )
+            .join("")}</div>`
+        : `
+        <div class="data-table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Step</th><th class="num">Completion</th></tr></thead>
+            <tbody>
+              ${data.steps.map((s) => `<tr><td>${s.name}</td><td class="num">${s.pct}%</td></tr>`).join("")}
+            </tbody>
+          </table>
+        </div>
+      `;
+    return `${filterBar}${body}`;
+  }
+
+  // ---- Stat pair (simple, no controls needed) ----
+  function renderStatHTML(data) {
+    return `
+      <div class="stat-pair">
+        ${data.tiles
+          .map(
+            (t) => `
+          <div class="stat-pair-tile">
+            <p class="stat-label">${t.label}</p>
+            <p class="stat-value">${t.value}</p>
+            <p class="stat-delta ${t.good ? "good" : "critical"}">${t.delta}</p>
+          </div>
+        `
+          )
+          .join("")}
+      </div>
+    `;
+  }
+
+  // ---- Alert spec (agent-mode responses) ----
+  function renderAlertHTML(data, activated) {
+    return `
+      <div class="alert-spec-card">
+        <div class="alert-spec-row"><span class="label">Watching</span><span>"${escapeHtml(data.prompt)}"</span></div>
+        <div class="alert-spec-row"><span class="label">Logic</span><span>${data.logic}</span></div>
+        <div class="alert-spec-row"><span class="label">If it fires</span><span>${data.remediation}</span></div>
+      </div>
+      ${
+        activated
+          ? `<button type="button" class="pill-btn success small" disabled>✓ Alert activated</button>`
+          : `<button type="button" class="pill-btn primary small" data-action="ask-activate-alert">Activate alert</button>`
+      }
+    `;
+  }
+
+  // ---- Mounts a comparison/funnel/stat component into a container,
+  // wiring its own filter controls locally (works in the Ask AI
+  // response panel and inside a dashboard preview modal alike). ----
+  function mountGeneratedComponent(container, spec) {
+    let uiState = null;
+    if (spec.type === "comparison") uiState = defaultComparisonState(spec.data);
+    else if (spec.type === "funnel") uiState = defaultFunnelState();
+
+    function paint() {
+      if (spec.type === "comparison") container.innerHTML = renderComparisonHTML(spec.data, uiState);
+      else if (spec.type === "funnel") container.innerHTML = renderFunnelHTML(spec.data, uiState);
+      else container.innerHTML = renderStatHTML(spec.data);
+    }
+
+    if (uiState) {
+      container.addEventListener("click", (e) => {
+        const ctrl = e.target.closest("[data-control]");
+        if (!ctrl) return;
+        const { control, value } = ctrl.dataset;
+        if (control === "period") uiState.period = value;
+        else if (control === "view" || control === "funnel-view") uiState.view = value;
+        else if (control === "region") {
+          if (uiState.visible.has(value)) {
+            if (uiState.visible.size > 1) uiState.visible.delete(value);
+          } else {
+            uiState.visible.add(value);
+          }
+        }
+        paint();
+      });
+    }
+
+    paint();
+  }
+
+  // ---- Compact previews of a generated spec, for dashboard cards ----
+  const TREND_POINTS = {
+    up: "0,20 13,17 26,18 40,13 53,11 66,8 80,5",
+    down: "0,8 13,10 26,9 40,14 53,16 66,20 80,22",
+    flat: "0,14 13,13 26,15 40,13 53,14 66,12 80,13",
+  };
+
+  function miniFromSpec(spec) {
+    if (spec.type === "comparison") {
+      const periodKey = Object.keys(spec.data.periods)[0];
+      const period = spec.data.periods[periodKey];
+      const max = Math.max(...Object.values(period.values)) * 1.15;
+      return `<div class="mini-chart">${spec.data.entities
+        .map((e) => `<div class="bar" style="height:${(period.values[e.id] / max) * 100}%; --chip-color:var(${e.colorVar})"></div>`)
+        .join("")}</div>`;
+    }
+    if (spec.type === "funnel") {
+      return `<div class="funnel">${spec.data.steps
+        .slice(0, 3)
+        .map(
+          (s) => `
+        <div class="funnel-row" style="grid-template-columns: 96px 1fr 34px;">
+          <span class="funnel-label">${s.name}</span>
+          <div class="funnel-track"><div class="funnel-fill" style="width:${s.pct}%"></div></div>
+          <span class="funnel-pct">${s.pct}%</span>
+        </div>
+      `
+        )
+        .join("")}</div>`;
+    }
+    const tile = spec.data.tiles[0];
+    return `<div><p class="stat-value">${tile.value}</p><p class="stat-delta ${tile.good ? "good" : "critical"}">${tile.delta}</p></div>`;
+  }
+
+  // ---- What "Pin this" captures from a generated answer ----
+  function summarizeForPin(spec) {
+    if (spec.type === "comparison") {
+      const periodKey = Object.keys(spec.data.periods)[0];
+      const period = spec.data.periods[periodKey];
+      const otherKey = Object.keys(spec.data.periods).find((k) => k !== periodKey);
+      const top = spec.data.entities[0];
+      const val = period.values[top.id];
+      const delta = val - spec.data.periods[otherKey].values[top.id];
+      return {
+        name: `${top.label} adoption · ${period.label.toLowerCase()}`,
+        statusLabel: `${val}${spec.data.unit}`,
+        status: delta >= 0 ? "good" : "warning",
+        trend: delta >= 0 ? "up" : "down",
+      };
+    }
+    if (spec.type === "funnel") {
+      const last = spec.data.steps[spec.data.steps.length - 1];
+      return {
+        name: `${spec.data.flow} · end-to-end completion`,
+        statusLabel: `${last.pct}%`,
+        status: last.pct >= 50 ? "good" : "warning",
+        trend: last.pct >= 50 ? "flat" : "down",
+      };
+    }
+    const tile = spec.data.tiles[0];
+    return {
+      name: tile.label,
+      statusLabel: tile.value,
+      status: tile.good ? "good" : "critical",
+      trend: tile.good ? "up" : "down",
+    };
+  }
+
 
   /* ============================================================
    * Small utilities: modal, toast, escape handling
@@ -438,13 +773,16 @@
   }
 
   function renderDashboardCard(d) {
+    const preview = d.generated
+      ? `<div class="mini-generated"><span class="mini-generated-badge">✦ Generated by Whatfix AI</span>${miniFromSpec(d.spec)}</div>`
+      : miniChart(d.bars);
     return `
       <article class="entity-card">
         <div>
           <h3>${d.title}</h3>
           <p class="entity-meta">${d.author} · ${d.updated}${d.comments ? ` · ${d.comments} comment${d.comments > 1 ? "s" : ""}` : ""}</p>
         </div>
-        ${miniChart(d.bars)}
+        ${preview}
         <div class="entity-card-footer">
           <button class="pill-btn primary small" type="button" data-action="preview-dashboard" data-id="${d.id}">Preview</button>
         </div>
@@ -623,6 +961,21 @@
   function openDashboardModal(id) {
     const d = DASHBOARDS.find((x) => x.id === id);
     if (!d) return;
+
+    if (d.generated) {
+      openModal({
+        title: d.title,
+        bodyHtml: `
+          <p><strong>Generated by</strong> ${d.author} · ${d.updated}</p>
+          <div id="dashboardGenMount"></div>
+        `,
+        actionsHtml: `<button class="pill-btn primary" type="button" id="modalCloseBtn2">Close</button>`,
+      });
+      document.getElementById("modalCloseBtn2").addEventListener("click", closeModal);
+      mountGeneratedComponent(document.getElementById("dashboardGenMount"), d.spec);
+      return;
+    }
+
     const commentsHtml =
       d.comments > 0
         ? Array.from({ length: d.comments })
@@ -656,6 +1009,15 @@
   function openAlertModal(id) {
     const a = AGENT_ALERTS.find((x) => x.id === id);
     if (!a) return;
+    const evidenceHtml = a.evidence
+      ? `
+      <div class="evidence-block">
+        <p class="evidence-label">Auto-compiled evidence</p>
+        ${renderTrendChart(a.evidence.points, { width: 440, height: 64 })}
+        <p class="evidence-note">${a.evidence.note}</p>
+      </div>
+    `
+      : "";
     openModal({
       title: "Agent alert",
       bodyHtml: `
@@ -663,6 +1025,7 @@
         <p><strong>Monitoring logic:</strong> ${a.logic}</p>
         <p><strong>Recommended remediation:</strong> ${a.remediation}</p>
         <p><strong>Status:</strong> ${a.active ? a.statusLabel : "Paused"}</p>
+        ${evidenceHtml}
       `,
       actionsHtml: `
         <button class="pill-btn" type="button" data-action="toggle-alert" data-id="${a.id}">${a.active ? "Pause alert" : "Resume alert"}</button>
@@ -824,6 +1187,58 @@
         showToast(g.status === "published" ? "Guidance published." : "Guidance moved to draft.");
         break;
       }
+      case "ask-pin": {
+        if (!askState) break;
+        const summary = summarizeForPin(askState.spec);
+        PINNED.unshift({
+          id: `p-ask-${Date.now()}`,
+          name: summary.name,
+          meta: "Pinned from an Ask Whatfix AI answer",
+          points: TREND_POINTS[summary.trend],
+          status: summary.status,
+          statusLabel: summary.statusLabel,
+          pinned: true,
+        });
+        renderAll();
+        showToast(`Pinned "${summary.name}" to your watchlist.`);
+        break;
+      }
+      case "ask-build-dashboard": {
+        if (!askState) break;
+        const title = askState.rawQuery.length > 60 ? `${askState.rawQuery.slice(0, 57)}...` : askState.rawQuery;
+        DASHBOARDS.unshift({
+          id: `d-ask-${Date.now()}`,
+          title,
+          author: "Whatfix AI",
+          updated: "just now",
+          comments: 0,
+          generated: true,
+          spec: askState.spec,
+        });
+        renderAll();
+        showToast("Dashboard created from the generated answer.");
+        location.hash = "#dashboards";
+        break;
+      }
+      case "ask-activate-alert": {
+        if (!askState) break;
+        const { prompt, logic, remediation } = askState.spec.data;
+        AGENT_ALERTS.unshift({
+          id: `a-ask-${Date.now()}`,
+          prompt,
+          meta: "just activated",
+          status: "good",
+          statusLabel: "New",
+          active: true,
+          logic,
+          remediation,
+        });
+        renderAll();
+        const mount = document.getElementById("genComponents");
+        if (mount) mount.innerHTML = renderAlertHTML(askState.spec.data, true);
+        showToast("Alert activated — find it under Agent alerts.");
+        break;
+      }
       default:
         break;
     }
@@ -874,90 +1289,178 @@
   const askChips = document.getElementById("askAiChips");
   const agentModeToggle = document.getElementById("agentModeToggle");
 
-  const canned = {
-    "is adoption healthy this week?": {
-      label: "Answer",
-      body: "Yes — overall adoption is up 2.1 pts WoW to 76.2%. Checkout and New Invoice Creation are driving the gain; APAC's Bulk Export flow is the one soft spot, down 18%.",
-      followups: ["Why is Bulk Export down in APAC?", "Show this by region", "Pin this metric"],
+  // ---- Datasets the generated components are composed from ----
+  const REGION_COMPARISON_DATA = {
+    entities: [
+      { id: "NA", label: "North America", colorVar: "--series-1" },
+      { id: "EU", label: "Europe", colorVar: "--series-2" },
+      { id: "APAC", label: "APAC", colorVar: "--series-3" },
+    ],
+    periods: {
+      "this-quarter": { label: "This quarter", values: { NA: 81, EU: 74, APAC: 58 } },
+      "last-quarter": { label: "Last quarter", values: { NA: 77, EU: 70, APAC: 63 } },
     },
-    "where are users struggling in the checkout flow?": {
-      label: "Answer",
-      body: "Users are dropping off most at Step 3 (payment details) and Step 4 in Onboarding. Step 3 improved after the tooltip reword on Jul 24 — completion is up 12% WoW.",
-      followups: ["Show the drop-off funnel", "Compare to last quarter", "View storyboard"],
-    },
-    "notify me if sales stops using flow x for 3 days": {
-      label: "Alert created",
-      body: "Got it — I'll monitor Flow X usage for the Sales team and notify you if it goes 3 consecutive days without activity. I'll also suggest a remediation nudge if it fires.",
-      followups: ["Adjust the threshold", "Add an email notification", "Show similar alerts"],
-    },
-    "compare adoption between regions this quarter": {
-      label: "Dashboard ready",
-      body: "I've built a region-comparison dashboard for this quarter — NA and EU are trending up, APAC is flat due to the Bulk Export decline. Recommended pins are queued below.",
-      followups: ["Swap bar chart for trend line", "Add EMEA breakdown", "Pin recommended metrics"],
-    },
+    unit: "%",
   };
 
-  function defaultResponse(q) {
+  const CHECKOUT_FUNNEL_DATA = {
+    flow: "Checkout flow · EU",
+    steps: [
+      { name: "Start checkout", pct: 100 },
+      { name: "Enter payment details", pct: 89 },
+      { name: "3-D Secure redirect", pct: 80 },
+      { name: "Authentication success", pct: 71 },
+      { name: "Order confirmed", pct: 70 },
+    ],
+  };
+
+  const HEALTH_STAT_DATA = {
+    tiles: [
+      { label: "Weekly active users", value: "4,812", delta: "▲ 8.4% vs last week", good: true },
+      { label: "Adoption rate · Core flows", value: "76.2%", delta: "▲ 2.1 pts vs last week", good: true },
+    ],
+  };
+
+  function defaultStatData(query) {
+    return { tiles: [{ label: `Overall adoption trend for "${query}"`, value: "76.2%", delta: "▲ 2.1 pts vs last week", good: true }] };
+  }
+
+  // ---- Query → response spec. This is the "generative" part: the
+  // shape of the UI is chosen per query, not one fixed template. ----
+  function buildIntentSpec(rawQuery, agentMode) {
+    const q = rawQuery.trim().toLowerCase();
+
+    if (agentMode) {
+      return {
+        type: "alert",
+        headline: "Alert configured",
+        narrative: `I'll turn that into a live monitor instead of a one-off answer.`,
+        data: {
+          prompt: rawQuery,
+          logic: `Watches the metric implied by "${rawQuery}" on a rolling daily window and compares it against its own trailing baseline.`,
+          remediation: "Notify you here and suggest a remediation nudge the moment it crosses the threshold.",
+        },
+      };
+    }
+
+    if (q.includes("compare") && (q.includes("region") || q.includes("regions"))) {
+      return {
+        type: "comparison",
+        headline: "Dashboard ready",
+        narrative:
+          "North America and Europe are trending up this quarter; APAC is the one lagging, pulled down by the Bulk Export decline. Use the controls below to slice by period or region.",
+        data: REGION_COMPARISON_DATA,
+      };
+    }
+
+    if (q.includes("struggl") || q.includes("drop") || q.includes("checkout")) {
+      return {
+        type: "funnel",
+        headline: "Answer",
+        narrative:
+          "Users are dropping off most between payment entry and 3-D Secure authentication. The reworded tooltip on Step 3 already lifted completion 12% WoW — Authentication is the next place to intervene.",
+        data: CHECKOUT_FUNNEL_DATA,
+      };
+    }
+
+    if (q.includes("healthy") || (q.includes("adoption") && q.includes("week"))) {
+      return {
+        type: "stat",
+        headline: "Answer",
+        narrative:
+          "Yes — overall adoption is up WoW across both headline metrics. APAC's Bulk Export flow is the one soft spot worth a closer look.",
+        data: HEALTH_STAT_DATA,
+      };
+    }
+
+    if (q.includes("notify me") || q.includes("alert me") || q.includes("tell me when")) {
+      return {
+        type: "alert",
+        headline: "Alert created",
+        narrative: "Got it — I'll monitor this and suggest a remediation nudge if it fires.",
+        data: {
+          prompt: rawQuery,
+          logic: `Monitors the condition in "${rawQuery}" on a rolling window and fires once it's sustained for the stated period.`,
+          remediation: "Send a nudge to the relevant team and flag the flow owner for follow-up.",
+        },
+      };
+    }
+
     return {
-      label: "Answer",
-      body: `Here's what I found for "${q}": adoption trends look broadly healthy this week, with one flow (Bulk Export, APAC) worth a closer look. I can build a dashboard or set an alert for this if you'd like.`,
-      followups: ["Build a dashboard from this", "Set an alert", "Show the underlying data"],
+      type: "default",
+      headline: "Answer",
+      narrative: `Here's what I found for "${rawQuery}": adoption trends look broadly healthy this week, with one flow (Bulk Export, APAC) worth a closer look.`,
+      data: defaultStatData(rawQuery),
     };
   }
 
-  let lastQuery = "";
-  let lastResultLabel = "";
+  function followupsForSpec(spec) {
+    switch (spec.type) {
+      case "comparison":
+        return ["Why is APAC behind?", "Add EMEA breakdown", "Pin recommended metrics"];
+      case "funnel":
+        return ["Show the Onboarding funnel too", "Compare to last quarter", "Which guidance fixed Step 3?"];
+      case "alert":
+        return ["Adjust the threshold", "Show similar alerts"];
+      case "stat":
+        return ["Why is Bulk Export down in APAC?", "Show this by region"];
+      default:
+        return ["Build a dashboard from this", "Set an alert for this"];
+    }
+  }
+
+  let askState = null;
 
   function renderResponse(query) {
-    const key = query.trim().toLowerCase();
-    const agentMode = agentModeToggle.checked;
-    const result = canned[key] || defaultResponse(query);
-    const label = agentMode && !canned[key] ? "Alert configured" : result.label;
-    lastQuery = query;
-    lastResultLabel = label;
+    const spec = buildIntentSpec(query, agentModeToggle.checked);
+    askState = { spec, rawQuery: query };
 
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    // Phase 1 — skeleton. The response "streams in" rather than
+    // popping in whole, same as a real generated UI resolving.
     askResponse.innerHTML = `
-      <div class="ask-ai-response-header">✦ ${label}</div>
-      <p>${result.body}</p>
-      <div class="ask-ai-followups">
-        ${result.followups.map((f) => `<button type="button" class="chip">${f}</button>`).join("")}
-      </div>
-      <div class="ask-ai-actions">
-        <button type="button" class="pill-btn primary small" id="askPinBtn">Pin this</button>
-        <button type="button" class="pill-btn small" id="askDashboardBtn">Build dashboard</button>
-      </div>
+      <div class="ask-ai-response-header">✦ Thinking…</div>
+      <div class="gen-skel-line w-60" style="margin-bottom:8px;"></div>
+      <div class="gen-skel-line w-40" style="margin-bottom:14px;"></div>
+      <div class="gen-skel-block"></div>
     `;
     askResponse.classList.remove("hidden");
 
-    document.getElementById("askPinBtn").addEventListener("click", () => {
-      queryCounter += 1;
-      PINNED.unshift({
-        id: `p-ask-${Date.now()}`,
-        name: lastQuery.length > 60 ? `${lastQuery.slice(0, 57)}...` : lastQuery,
-        meta: "Pinned from an Ask Whatfix AI answer",
-        points: "0,14 13,13 26,15 40,11 53,12 66,9 80,10",
-        status: "good",
-        statusLabel: "New",
-        pinned: true,
-      });
-      renderAll();
-      showToast("Pinned to your watchlist.");
-    });
+    setTimeout(
+      () => {
+        if (!askState || askState.rawQuery !== query) return; // a newer query superseded this one
+        const actionsHtml =
+          spec.type === "alert"
+            ? ""
+            : `
+          <div class="ask-ai-actions">
+            <button type="button" class="pill-btn primary small" data-action="ask-pin">Pin this</button>
+            <button type="button" class="pill-btn small" data-action="ask-build-dashboard">Build dashboard</button>
+          </div>
+        `;
 
-    document.getElementById("askDashboardBtn").addEventListener("click", () => {
-      const id = `d-ask-${Date.now()}`;
-      DASHBOARDS.unshift({
-        id,
-        title: lastQuery.length > 60 ? `${lastQuery.slice(0, 57)}...` : lastQuery,
-        author: "Whatfix AI",
-        updated: "just now",
-        comments: 0,
-        bars: [50, 62, 58, 70, 66, 74],
-      });
-      renderAll();
-      showToast("Dashboard created.");
-      location.hash = "#dashboards";
-    });
+        askResponse.innerHTML = `
+          <div class="ask-ai-response-header">✦ ${spec.headline}</div>
+          <p class="gen-narrative">${spec.narrative}</p>
+          <div id="genComponents" class="gen-components"></div>
+          <div class="ask-ai-followups">
+            ${followupsForSpec(spec)
+              .map((f) => `<button type="button" class="chip">${f}</button>`)
+              .join("")}
+          </div>
+          ${actionsHtml}
+        `;
+
+        const mount = document.getElementById("genComponents");
+        if (spec.type === "alert") {
+          mount.innerHTML = renderAlertHTML(spec.data, false);
+        } else {
+          mountGeneratedComponent(mount, spec);
+        }
+      },
+      reduceMotion ? 0 : 480
+    );
   }
 
   askForm.addEventListener("submit", (e) => {
@@ -977,7 +1480,7 @@
 
   askResponse.addEventListener("click", (e) => {
     const chip = e.target.closest(".chip");
-    if (!chip) return;
+    if (!chip || chip.closest("[data-control]")) return;
     askInput.value = chip.textContent;
     renderResponse(chip.textContent);
   });
