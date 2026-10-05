@@ -1,1 +1,0 @@
-export { WorkflowIcon } from './WorkflowIcon'
