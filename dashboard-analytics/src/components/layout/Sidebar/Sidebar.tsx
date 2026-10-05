@@ -244,7 +244,7 @@ export function Sidebar({
         }}
       >
         <img 
-          src="/brand/whatfix-logo.png" 
+          src="brand/whatfix-logo.png"
           alt="Whatfix"
           style={{ 
             height: isCollapsed ? '24px' : '70px', 
