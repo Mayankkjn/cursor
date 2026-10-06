@@ -5,6 +5,7 @@ import { B, C, EASE, FONT } from '../theme';
 import { Arrow } from './Icons';
 import { LOGO_OCTAGON, LensLogo } from './LensLogo';
 import { Super } from './Super';
+import { KLine, seq } from '../kinetic/type';
 
 const LAYOUT = {
   h: { logo: { cx: 542, cy: 400, size: 172 }, wordmark: { left: 670, top: 400, size: 132 }, tagline: 590, cta: 735, hook: 958, lineFrom: [-40, 860] },
@@ -12,7 +13,7 @@ const LAYOUT = {
 } as const;
 
 /** END 45–60s: the golden path draws a line that resolves into the Whatfix Lens mark, then the CTA. */
-export const EndCard: React.FC<{ o: Orientation; frame: number; ctaUrl: string }> = ({ o, frame: f, ctaUrl }) => {
+export const EndCard: React.FC<{ o: Orientation; frame: number; ctaUrl: string; kinetic?: boolean }> = ({ o, frame: f, ctaUrl, kinetic }) => {
   const h = o === 'h';
   const Lay = LAYOUT[o];
   const { cx, cy, size } = Lay.logo;
@@ -66,9 +67,24 @@ export const EndCard: React.FC<{ o: Orientation; frame: number; ctaUrl: string }
 
       {/* tagline */}
       <div style={{ position: 'absolute', left: 0, right: 0, top: Lay.tagline, display: 'flex', justifyContent: 'center' }}>
-        <Super inP={prog(f, B.endTagline, 20, (t) => t)} style={{ fontSize: h ? 66 : 60, fontWeight: 750, letterSpacing: '-0.03em', color: C.ink }} tracking>
-          Know what to <span style={{ color: C.accent }}>automate</span> next.
-        </Super>
+        {kinetic ? (
+          <KLine
+            f={f}
+            size={h ? 76 : 66}
+            weight={800}
+            words={[
+              { t: 'Know', at: B.endTagline },
+              { t: 'what', at: B.endTagline + 6 },
+              { t: 'to', at: B.endTagline + 11 },
+              { t: 'automate', at: B.endTagline + 17, enter: 'slam', color: C.accent },
+              { t: 'next.', at: B.endTagline + 26 },
+            ]}
+          />
+        ) : (
+          <Super inP={prog(f, B.endTagline, 20, (t) => t)} style={{ fontSize: h ? 66 : 60, fontWeight: 750, letterSpacing: '-0.03em', color: C.ink }} tracking>
+            Know what to <span style={{ color: C.accent }}>automate</span> next.
+          </Super>
+        )}
       </div>
 
       {/* CTA */}
@@ -119,8 +135,8 @@ export const EndCard: React.FC<{ o: Orientation; frame: number; ctaUrl: string }
           alignItems: 'center',
           gap: 12,
           textAlign: 'center',
-          opacity: hookP,
-          transform: `translateY(${(1 - hookP) * 12}px)`,
+          opacity: kinetic ? 1 : hookP,
+          transform: kinetic ? undefined : `translateY(${(1 - hookP) * 12}px)`,
           fontSize: h ? 24 : 32,
           fontWeight: 600,
           color: C.ink2,
@@ -128,7 +144,11 @@ export const EndCard: React.FC<{ o: Orientation; frame: number; ctaUrl: string }
         }}
       >
         {h && <span style={{ width: 9, height: 9, borderRadius: 9, background: C.fastest, opacity: clamp01(hookP * 2) }} />}
-        Discovery only matters when it leads to a decision.
+        {kinetic ? (
+          <KLine f={f} size={h ? 30 : 36} weight={650} color={C.ink2} tracking="-0.01em" lineHeight={1.3} words={seq('Discovery only matters when it leads to a', B.endHook + 6, 7).concat([{ t: 'decision.', at: B.endHook + 6 + 8 * 7 + 4, color: C.ink, weight: 800 }])} />
+        ) : (
+          'Discovery only matters when it leads to a decision.'
+        )}
       </div>
     </div>
   );

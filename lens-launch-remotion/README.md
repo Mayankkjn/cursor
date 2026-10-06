@@ -1,16 +1,18 @@
 # Whatfix Lens: feature launch film (Remotion)
 
-This folder holds a 60s, 16:9 launch film for Whatfix Lens and a 33s, 9:16 social cutdown. It is built in React with [Remotion](https://www.remotion.dev) and uses the Lens product's own colour palette.
+This folder holds a 60s, 16:9 launch film for Whatfix Lens and a 33s, 9:16 social cutdown. It is built in React with [Remotion](https://www.remotion.dev) and uses the Lens product's own colour palette. There are two cuts on the same timeline and soundtrack:
 
-- **Rendered:** `renders/whatfix-lens-launch-16x9.mp4`, `renders/whatfix-lens-launch-9x16.mp4`, `renders/poster-16x9.png`
+- **Kinetic-type cut (primary):** `LensKinetic` / `LensKineticVertical` → `renders/whatfix-lens-kinetic-16x9.mp4`, `renders/whatfix-lens-kinetic-9x16.mp4`, `renders/poster-kinetic-16x9.png`
+- **UI cut:** `LensLaunch` / `LensLaunchVertical` → `renders/whatfix-lens-launch-16x9.mp4`, `renders/whatfix-lens-launch-9x16.mp4`, `renders/poster-16x9.png`
 - **Production package:** script, VO timing, motion spec, component map and sound design are in [PRODUCTION.md](PRODUCTION.md)
 - **Timing source of truth:** [`src/timeline.json`](src/timeline.json). Scenes, beats, VO lines and SFX cues are all frame numbers in this file.
 
 ```bash
 npm install
 npm run studio            # preview / scrub both compositions
-npm run render            # 16:9 master
-npm run render:vertical   # 9:16 cutdown
+npm run render            # kinetic-type 16:9 master
+npm run render:vertical   # kinetic-type 9:16 cutdown
+npm run render:ui         # UI cut (render:ui-vertical for 9:16)
 npm run audio             # regenerate the temp score (pip install numpy scipy pyloudnorm)
 ```
 

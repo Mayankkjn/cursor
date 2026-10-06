@@ -2,13 +2,14 @@
   "name": "lens-launch-remotion",
   "private": true,
   "version": "1.0.0",
-  "description": "Whatfix Lens 60s feature launch video + 9:16 cutdown, built with Remotion",
+  "description": "Whatfix Lens 60s launch film (kinetic-type cut + UI cut) and 9:16 cutdowns, built with Remotion",
   "scripts": {
     "studio": "remotion studio src/index.ts",
     "audio": "python3 audio/make_score.py",
-    "render": "remotion render src/index.ts LensLaunch renders/whatfix-lens-launch-16x9.mp4",
-    "render:vertical": "remotion render src/index.ts LensLaunchVertical renders/whatfix-lens-launch-9x16.mp4",
-    "still": "remotion still src/index.ts LensLaunch renders/poster-16x9.png --frame=1500",
+    "render": "remotion render src/index.ts LensKinetic renders/whatfix-lens-kinetic-16x9.mp4",
+    "render:vertical": "remotion render src/index.ts LensKineticVertical renders/whatfix-lens-kinetic-9x16.mp4",
+    "render:ui": "remotion render src/index.ts LensLaunch renders/whatfix-lens-launch-16x9.mp4",
+    "render:ui-vertical": "remotion render src/index.ts LensLaunchVertical renders/whatfix-lens-launch-9x16.mp4",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

@@ -2,6 +2,7 @@ import React from 'react';
 import { Composition } from 'remotion';
 import './fonts';
 import { LensLaunch, launchSchema, type LaunchProps } from './LensLaunch';
+import { LensKinetic, LensKineticVertical } from './LensKinetic';
 import { LensLaunchVertical, VERTICAL_DURATION } from './LensLaunchVertical';
 import { T } from './theme';
 
@@ -15,6 +16,8 @@ const defaultProps: LaunchProps = {
 
 export const RemotionRoot: React.FC = () => (
   <>
+    <Composition id="LensKinetic" component={LensKinetic} schema={launchSchema} defaultProps={defaultProps} durationInFrames={T.durationInFrames} fps={T.fps} width={T.width} height={T.height} />
+    <Composition id="LensKineticVertical" component={LensKineticVertical} schema={launchSchema} defaultProps={defaultProps} durationInFrames={VERTICAL_DURATION} fps={T.fps} width={T.vertical.width} height={T.vertical.height} />
     <Composition id="LensLaunch" component={LensLaunch} schema={launchSchema} defaultProps={defaultProps} durationInFrames={T.durationInFrames} fps={T.fps} width={T.width} height={T.height} />
     <Composition id="LensLaunchVertical" component={LensLaunchVertical} schema={launchSchema} defaultProps={defaultProps} durationInFrames={VERTICAL_DURATION} fps={T.fps} width={T.vertical.width} height={T.vertical.height} />
   </>

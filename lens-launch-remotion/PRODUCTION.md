@@ -15,6 +15,27 @@ Everything in this document is implemented in this folder: the Remotion project 
 
 ---
 
+## 0 · Kinetic-type cut (primary): `LensKinetic` / `LensKineticVertical`
+
+In this cut the picture *is* the type. Every UI moment is retold typographically, and every word lands on a VO syllable, a click or a beat of the 72 BPM score. It uses **the same timeline, VO script, score and SFX stems** as the UI cut (sections 2–4 below), so the audio carries over sample-for-sample.
+
+| Scene | Frames | Type treatment |
+|---|---|---|
+| HOOK | 0–150 | **"process" × 100.** The word itself is scattered across the frame in grey, and the count runs 1→100 with the counter ticks. Every 8th copy is **"rework ↻"** in warm orange and swells on each beat. **"Same process."** rises in word by word (f10/18). **"100 ways"** *slams* in rework orange with the number still counting, then **"to run it."** follows. The lines lift away (f85), then **"Which one do you"** (f88–106) and a 220 px **"automate?"** *slam* in action orange (f112). |
+| DEMO | 150–600 | **Chaos converges.** All 100 words fly into one point, where the Lens mark spirals in (f166). **"Whatfix Lens / shows how work really happens."** follows, word by word on the VO. **The path stack lands on the clicks**, each row with a tag pill and a line that draws under it, carrying a travelling dot (fastest moves fastest): **"Fastest path"** slams in green (f250, 1.9 days); **"Most common"** in muted grey with a dashed line (f300, 2.4 days · 46%); **"Rework"** letters *drop* and pile up in orange, with a spinning ↻ pulsing on the beat (f350, 38% repeat). **AI Summary** (f398) then types the full sentence at 74 px with semantic highlights, on the typing SFX. It recedes as **"Standardize Path B."** rises and slams (f505/515), followed by the reasons (40% faster · Zero rework · 1 in 3). A green comet underline runs under *Path B* (f552). |
+| MORPH | 600–900 | **Type collapses into the golden line.** The recommendation flattens (scaleY → 0) into a glowing green rule that grows edge to edge on the collapse whoosh. **"From showing you how work happens, / to telling you / what to automate next."** sets word by word, with the last line slammed in action orange. **"Approval"** rises onto the line and **shatters letter by letter** (f700). The five micro-steps (① Approve request … ⑤ Log timestamp) land alternately above and below the line, then ride it into **Seek** (absorb notes f745–769). **The loop is one word per beat with full-bleed colour flips:** OBSERVE (canvas) · UNDERSTAND (ink) · DECIDE (canvas) · AUTOMATE (action orange) · MEASURE (green). The loop row lights up beneath, and ↺ closes it on f887. |
+| PROOF | 900–1350 | **"92" at 420 px** counts up on the ticks and turns action orange on the ding (f1000). It docks top-right to make room for the **evidence ledger**: one row per beat (f1025–1125), each number *slams* while it counts — 18,420 · 87% · 3 · 12% (rework) · ~2,100 (action). **"Automate / with Seek →"** follows: a press on the click (f1175) and a fill bar. Then **impact** in three giant counters on the ticks: 34% · 485 · 12. Then the **principle**: "Every recommendation / shows its **evidence.**" with a green underline. |
+| END | 1350–1800 | The golden line traces the octagon and resolves into the Lens mark (resolve hit, f1425). The wordmark wipes on. **"Know what to automate next."** sets word by word, with *automate* slammed in action orange (f1450–1476). Then **Book a demo** and the final line, **"Discovery only matters when it leads to a decision."**, at 7 frames per word on the VO, with *decision.* set in ink. |
+
+**Type rules for this cut:**
+- **Weights:** Inter 800 for display; 600–650 for supporting lines and labels; tracking −0.04em at display sizes.
+- **Entrances:** `rise` (masked rise, tracking settles) for most words. `slam` (scale 1.32→1, blur 14→0, 9 f) is reserved for the stressed word in each line: *100 ways, automate?, Fastest path, Path B., what to automate next., 92, the ledger numbers, Automate, evidence.* `drop` (letters fall in on a 2-frame stagger) is used only for "Rework".
+- **Colour:** carries meaning only — green is the path to take, warm orange-brown is the cost, deep orange is the action.
+
+Code: `src/kinetic/`. That folder holds `type.tsx` (`KWord`, `KLine`, `seq`, `Label`), `Swarm.tsx` and the scenes `KHook`, `KDemo`, `KMorph`, `KProof`; the end scene reuses `EndCard` with `kinetic`.
+
+---
+
 ## 1 · Visual system
 
 ### Colour: the Lens product palette

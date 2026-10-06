@@ -8,23 +8,28 @@ import { C, T } from './theme';
 export const VERTICAL_SEGMENTS = T.vertical.segments as [number, number][];
 export const VERTICAL_DURATION = VERTICAL_SEGMENTS.reduce((n, [a, b]) => n + (b - a), 0);
 
-const sceneAt = (frame: number) => SCENES.find(({ id }) => {
-  const s = T.scenes.find((x) => x.id === id)!;
-  return frame >= s.from && frame < s.to;
-})!;
+type SceneList = typeof SCENES;
+const sceneAt = (frame: number, scenes: SceneList) =>
+  scenes.find(({ id }) => {
+    const s = T.scenes.find((x) => x.id === id)!;
+    return frame >= s.from && frame < s.to;
+  })!;
 
 /**
  * 9:16 social cutdown (~33s): the same scene components re-laid out for portrait
  * (they read the composition's aspect ratio), cut from master frame ranges.
  * Morph is dropped; hook, demo highlights, recommendation, score + evidence, end card stay.
  */
-export const LensLaunchVertical: React.FC<LaunchProps> = ({ ctaUrl, withAudio, voSrc }) => {
+export const LensLaunchVertical: React.FC<LaunchProps> = (props) => <VerticalCut {...props} scenes={SCENES} />;
+
+/** Re-sequences any scene list into the 9:16 cut (shared by the UI cut and the kinetic-type cut). */
+export const VerticalCut: React.FC<LaunchProps & { scenes: SceneList }> = ({ ctaUrl, withAudio, voSrc, scenes }) => {
   let at = 0;
   return (
     <AbsoluteFill style={{ background: C.bg }}>
       {VERTICAL_SEGMENTS.map(([a, b], i) => {
-        const { Comp, name } = sceneAt(a);
-        const s = T.scenes.find((x) => x.id === sceneAt(a).id)!;
+        const { Comp, name, id } = sceneAt(a, scenes);
+        const s = T.scenes.find((x) => x.id === id)!;
         const from = at;
         at += b - a;
         return (
