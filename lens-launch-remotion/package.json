@@ -1,0 +1,26 @@
+{
+  "name": "lens-launch-remotion",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Whatfix Lens 60s feature launch video + 9:16 cutdown, built with Remotion",
+  "scripts": {
+    "studio": "remotion studio src/index.ts",
+    "audio": "python3 audio/make_score.py",
+    "render": "remotion render src/index.ts LensLaunch renders/whatfix-lens-launch-16x9.mp4",
+    "render:vertical": "remotion render src/index.ts LensLaunchVertical renders/whatfix-lens-launch-9x16.mp4",
+    "still": "remotion still src/index.ts LensLaunch renders/poster-16x9.png --frame=1500",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.533",
+    "@remotion/fonts": "4.0.533",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "remotion": "4.0.533",
+    "zod": "4.5.4"
+  },
+  "devDependencies": {
+    "@types/react": "19.1.0",
+    "typescript": "5.6.3"
+  }
+}
