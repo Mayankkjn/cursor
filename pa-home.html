@@ -218,7 +218,7 @@
   .wn-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;align-items:stretch;}
   .wn-card{
     background:var(--surface);border:1px solid var(--line);
-    border-bottom:3px solid var(--wn-accent, var(--line));border-radius:var(--radius-m);
+    border-radius:var(--radius-m);
     padding:20px;cursor:pointer;height:190px;display:flex;flex-direction:column;
   }
   .wn-card:hover{border-color:#D8D3C9;}
@@ -1191,8 +1191,8 @@ function openCardMenu(anchorEl, key){
   menuTargetKey = key;
   const pop = document.getElementById('cardMenuPop');
   const r = anchorEl.getBoundingClientRect();
-  pop.style.top = (r.bottom + window.scrollY + 6) + 'px';
-  pop.style.left = (r.right + window.scrollX - 168) + 'px';
+  pop.style.top = (r.bottom + 6) + 'px';
+  pop.style.left = (r.right - 168) + 'px';
   pop.classList.add('show');
 }
 document.addEventListener('click', (e)=>{
